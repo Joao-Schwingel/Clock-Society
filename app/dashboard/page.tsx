@@ -19,9 +19,9 @@ export default async function DashboardPage() {
   // If no companies exist, create the default three companies
   if (!companies || companies.length === 0) {
     await supabase.from("companies").insert([
-      { name: "Empresa A", code: "A", user_id: user.id },
-      { name: "Empresa B", code: "B", user_id: user.id },
-      { name: "Empresa C", code: "C", user_id: user.id },
+      { name: "Clock Society", code: "A", user_id: user.id },
+      { name: "The Secret", code: "B", user_id: user.id },
+      { name: "Morfeus", code: "C", user_id: user.id },
     ])
 
     // Refetch companies

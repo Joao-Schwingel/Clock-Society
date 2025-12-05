@@ -52,7 +52,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
         .select("*")
         .eq("company_id", companyId)
         .eq("user_id", userId)
-        .eq("status", "completed")
+        .eq("status", "concluída")
 
       if (error) throw error
 

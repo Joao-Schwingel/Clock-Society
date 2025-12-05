@@ -78,10 +78,11 @@ export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: Sale
       sale_date: saleDate,
       customer_name: customerName || null,
       salesperson_id: salespersonId,
-      status: sale?.status || ("pending" as const),
+      status: sale?.status || ("pendente" as const),
       notes: notes || null,
       user_id: userId,
     }
+
 
     try {
       if (sale) {
@@ -90,7 +91,6 @@ export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: Sale
         if (error) throw error
       } else {
         const { error } = await supabase.from("sales").insert([saleData])
-
         if (error) throw error
       }
 

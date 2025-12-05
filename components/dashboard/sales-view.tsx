@@ -1,170 +1,207 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Plus, DollarSign, TrendingUp, Receipt, TrendingDown, Clock } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
-import type { Sale } from "@/lib/types"
-import { SalesForm } from "./sales-form"
-import { SalesTable } from "./sales-table"
-import { SaleDetailsModal } from "./sale-details-modal"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Plus,
+  DollarSign,
+  TrendingUp,
+  Receipt,
+  TrendingDown,
+  Clock,
+} from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import type { Sale } from "@/lib/types";
+import { SalesForm } from "./sales-form";
+import { SalesTable } from "./sales-table";
+import { SaleDetailsModal } from "./sale-details-modal";
 
 interface SalesViewProps {
-  companyId: string
-  userId: string
+  companyId: string;
+  userId: string;
 }
 
 export function SalesView({ companyId, userId }: SalesViewProps) {
-  const [sales, setSales] = useState<Sale[]>([])
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingSale, setEditingSale] = useState<Sale | null>(null)
-  const [viewingSale, setViewingSale] = useState<Sale | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [totalSaleCosts, setTotalSaleCosts] = useState(0)
-  const [pendingSaleCosts, setPendingSaleCosts] = useState(0)
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [viewingSale, setViewingSale] = useState<Sale | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalSaleCosts, setTotalSaleCosts] = useState(0);
+  const [pendingSaleCosts, setPendingSaleCosts] = useState(0);
 
   const fetchSales = async () => {
-    console.log("[v0] Fetching sales for company:", companyId)
-    const supabase = createClient()
+    const supabase = createClient();
     const { data, error } = await supabase
       .from("sales")
       .select("*")
       .eq("company_id", companyId)
-      .order("sale_date", { ascending: false })
-
-    console.log("[v0] Sales fetched:", { count: data?.length, error })
-    if (data) {
-      console.log(
-        "[v0] Sales details:",
-        data.map((s) => ({ id: s.id, product: s.product_name, status: s.status, total: s.total_price })),
-      )
-    }
+      .order("sale_date", { ascending: false });
 
     if (data) {
-      setSales(data)
+      setSales(data);
 
-      const saleIds = data.map((s) => s.id)
-      const { data: costsData } = await supabase.from("sale_costs").select("*").in("sale_id", saleIds)
+      const saleIds = data.map((s) => s.id);
+      const { data: costsData } = await supabase
+        .from("sale_costs")
+        .select("*")
+        .in("sale_id", saleIds);
 
-      const completedSaleIds = data.filter((s) => s.status === "completed").map((s) => s.id)
-      const pendingSaleIds = data.filter((s) => s.status === "pending").map((s) => s.id)
+      const completedSaleIds = data
+        .filter((s) => s.status === "concluída")
+        .map((s) => s.id);
+      const pendingSaleIds = data
+        .filter((s) => s.status === "pendente")
+        .map((s) => s.id);
 
-      console.log("[v0] Completed sale IDs:", completedSaleIds)
-      console.log("[v0] Pending sale IDs:", pendingSaleIds)
 
       const completedCostsTotal =
         costsData
           ?.filter((c) => completedSaleIds.includes(c.sale_id))
-          .reduce((sum, cost) => sum + Number(cost.amount), 0) || 0
+          .reduce((sum, cost) => sum + Number(cost.amount), 0) || 0;
       const pendingCostsTotal =
         costsData
           ?.filter((c) => pendingSaleIds.includes(c.sale_id))
-          .reduce((sum, cost) => sum + Number(cost.amount), 0) || 0
+          .reduce((sum, cost) => sum + Number(cost.amount), 0) || 0;
 
-      console.log("[v0] Costs - Completed:", completedCostsTotal, "Pending:", pendingCostsTotal)
 
-      setTotalSaleCosts(completedCostsTotal)
-      setPendingSaleCosts(pendingCostsTotal)
+      setTotalSaleCosts(completedCostsTotal);
+      setPendingSaleCosts(pendingCostsTotal);
     }
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
 
   const handleAdd = () => {
-    setEditingSale(null)
-    setIsFormOpen(true)
-  }
+    setEditingSale(null);
+    setIsFormOpen(true);
+  };
 
   const handleEdit = (sale: Sale) => {
-    setEditingSale(sale)
-    setIsFormOpen(true)
-  }
+    setEditingSale(sale);
+    setIsFormOpen(true);
+  };
 
   const handleDelete = async (id: string) => {
-    const supabase = createClient()
-    const { error } = await supabase.from("sales").delete().eq("id", id)
+    const supabase = createClient();
+    const { error } = await supabase.from("sales").delete().eq("id", id);
 
     if (!error) {
-      fetchSales()
+      fetchSales();
     }
-  }
+  };
 
   const handleFormSuccess = () => {
-    setIsFormOpen(false)
-    setEditingSale(null)
-    fetchSales()
-  }
+    setIsFormOpen(false);
+    setEditingSale(null);
+    fetchSales();
+  };
 
   const handleViewDetails = (sale: Sale) => {
-    setViewingSale(sale)
-  }
+    setViewingSale(sale);
+  };
 
   const handleStatusChange = () => {
-    console.log("[v0] handleStatusChange called, refetching sales...")
-    fetchSales()
-  }
+    fetchSales();
+  };
 
-  const completedSales = sales.filter((s) => s.status === "completed")
-  const pendingSales = sales.filter((s) => s.status === "pending")
+  const completedSales = sales.filter((s) => s.status === "concluída");
+  const pendingSales = sales.filter((s) => s.status === "pendente");
 
-  console.log("[v0] Completed sales count:", completedSales.length)
-  console.log("[v0] Pending sales count:", pendingSales.length)
 
-  const completedRevenue = completedSales.reduce((sum, sale) => sum + Number(sale.total_price), 0)
-  const pendingRevenue = pendingSales.reduce((sum, sale) => sum + Number(sale.total_price), 0)
+  const completedRevenue = completedSales.reduce(
+    (sum, sale) => sum + Number(sale.total_price),
+    0
+  );
+  const pendingRevenue = pendingSales.reduce(
+    (sum, sale) => sum + Number(sale.total_price),
+    0
+  );
 
-  console.log("[v0] Revenue - Completed:", completedRevenue, "Pending:", pendingRevenue)
+  const completedNetProfit = completedRevenue - totalSaleCosts;
+  const pendingNetProfit = pendingRevenue - pendingSaleCosts;
 
-  const completedNetProfit = completedRevenue - totalSaleCosts
-  const pendingNetProfit = pendingRevenue - pendingSaleCosts
-
-  const totalRevenue = sales.reduce((sum, sale) => sum + Number(sale.total_price), 0)
-  const totalItems = sales.reduce((sum, sale) => sum + sale.quantity, 0)
-  const totalSales = sales.length
+  const totalRevenue = sales.reduce(
+    (sum, sale) => sum + Number(sale.total_price),
+    0
+  );
+  const totalItems = sales.reduce((sum, sale) => sum + sale.quantity, 0);
+  const totalSales = sales.length;
 
   useEffect(() => {
-    fetchSales()
-  }, [companyId])
+    fetchSales();
+  }, [companyId]);
 
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold mb-2 text-green-600">Vendas Concluídas</h3>
+        <h3 className="text-lg font-semibold mb-2 text-green-600">
+          Vendas Concluídas
+        </h3>
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Receita Concluída</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Receita Concluída
+              </CardTitle>
               <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                R$ {completedRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R${" "}
+                {completedRevenue.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}
               </div>
-              <p className="text-xs text-muted-foreground">{completedSales.length} vendas aprovadas</p>
+              <p className="text-xs text-muted-foreground">
+                {completedSales.length} vendas aprovadas
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Custos Concluídos</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Custos Concluídos
+              </CardTitle>
               <Receipt className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                R$ {totalSaleCosts.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R${" "}
+                {totalSaleCosts.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}
               </div>
-              <p className="text-xs text-muted-foreground">Custos de vendas aprovadas</p>
+              <p className="text-xs text-muted-foreground">
+                Custos de vendas aprovadas
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Lucro Líquido Concluído</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Lucro Líquido Concluído
+              </CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${completedNetProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
-                R$ {completedNetProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              <div
+                className={`text-2xl font-bold ${
+                  completedNetProfit >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                R${" "}
+                {completedNetProfit.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}
               </div>
               <p className="text-xs text-muted-foreground">Receita - Custos</p>
             </CardContent>
@@ -172,11 +209,15 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
           <Card className="border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Items Vendidos</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Items Vendidos
+              </CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{completedSales.reduce((sum, sale) => sum + sale.quantity, 0)}</div>
+              <div className="text-2xl font-bold">
+                {completedSales.reduce((sum, sale) => sum + sale.quantity, 0)}
+              </div>
               <p className="text-xs text-muted-foreground">Quantidade total</p>
             </CardContent>
           </Card>
@@ -184,42 +225,67 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold mb-2 text-yellow-600">Vendas Pendentes</h3>
+        <h3 className="text-lg font-semibold mb-2 text-yellow-600">
+          Vendas Pendentes
+        </h3>
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Receita Pendente</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Receita Pendente
+              </CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                R$ {pendingRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R${" "}
+                {pendingRevenue.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}
               </div>
-              <p className="text-xs text-muted-foreground">{pendingSales.length} vendas aguardando</p>
+              <p className="text-xs text-muted-foreground">
+                {pendingSales.length} vendas aguardando
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Custos Pendentes</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Custos Pendentes
+              </CardTitle>
               <Receipt className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                R$ {pendingSaleCosts.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R${" "}
+                {pendingSaleCosts.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}
               </div>
-              <p className="text-xs text-muted-foreground">Custos de vendas pendentes</p>
+              <p className="text-xs text-muted-foreground">
+                Custos de vendas pendentes
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Lucro Líquido Pendente</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Lucro Líquido Pendente
+              </CardTitle>
               <TrendingUp className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${pendingNetProfit >= 0 ? "text-yellow-600" : "text-red-600"}`}>
-                R$ {pendingNetProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              <div
+                className={`text-2xl font-bold ${
+                  pendingNetProfit >= 0 ? "text-yellow-600" : "text-red-600"
+                }`}
+              >
+                R${" "}
+                {pendingNetProfit.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}
               </div>
               <p className="text-xs text-muted-foreground">Receita - Custos</p>
             </CardContent>
@@ -227,12 +293,18 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
           <Card className="border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Items Pendentes</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Items Pendentes
+              </CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pendingSales.reduce((sum, sale) => sum + sale.quantity, 0)}</div>
-              <p className="text-xs text-muted-foreground">Quantidade aguardando</p>
+              <div className="text-2xl font-bold">
+                {pendingSales.reduce((sum, sale) => sum + sale.quantity, 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Quantidade aguardando
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -243,7 +315,9 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Vendas</CardTitle>
-              <CardDescription>Gerencie as vendas desta empresa</CardDescription>
+              <CardDescription>
+                Gerencie as vendas desta empresa
+              </CardDescription>
             </div>
             <Button onClick={handleAdd}>
               <Plus className="h-4 w-4 mr-2" />
@@ -274,8 +348,12 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       )}
 
       {viewingSale && (
-        <SaleDetailsModal sale={viewingSale} isOpen={!!viewingSale} onClose={() => setViewingSale(null)} />
+        <SaleDetailsModal
+          sale={viewingSale}
+          isOpen={!!viewingSale}
+          onClose={() => setViewingSale(null)}
+        />
       )}
     </div>
-  )
+  );
 }

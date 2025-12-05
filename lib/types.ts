@@ -28,7 +28,7 @@ export interface Sale {
   customer_name: string | null
   salesperson: "A" | "B" | "C"
   salesperson_id?: string | null
-  status: "pending" | "completed"
+  status: "pendente" | "concluída"
   notes: string | null
   user_id: string
   created_at: string

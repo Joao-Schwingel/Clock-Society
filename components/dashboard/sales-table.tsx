@@ -60,31 +60,27 @@ export function SalesTable({ sales, onEdit, onDelete, onViewDetails, onStatusCha
   }, [sales, searchTerm, dateFilter])
 
   const handleStatusToggle = async (sale: Sale) => {
-    if (sale.status === "completed") return
+    if (sale.status === "concluída") return
 
-    console.log("[v0] Attempting to update sale status:", sale.id, "from", sale.status, "to completed")
     setUpdatingStatus(sale.id)
     const supabase = createClient()
 
     try {
-      console.log("[v0] Calling Supabase update...")
-      const { data, error } = await supabase.from("sales").update({ status: "completed" }).eq("id", sale.id).select()
+      const { data, error } = await supabase.from("sales").update({ status: "concluída" }).eq("id", sale.id).select()
 
-      console.log("[v0] Supabase response:", { data, error })
 
       if (error) throw error
 
-      console.log("[v0] Successfully updated sale status, calling onStatusChange()")
       onStatusChange()
     } catch (error) {
-      console.error("[v0] Error updating status:", error)
+      console.error(" Error updating status:", error)
       alert("Erro ao atualizar status da venda")
     } finally {
       setUpdatingStatus(null)
     }
   }
 
-  const getSalespersonName = (salespersonId: string | null) => {
+  const getSalespersonName = (salespersonId: string | null | undefined) => {
     if (!salespersonId) return "-"
     const person = salespersonsMap[salespersonId]
     return person ? person.name : "Desconhecido"
@@ -148,8 +144,8 @@ export function SalesTable({ sales, onEdit, onDelete, onViewDetails, onStatusCha
                   <TableCell>{sale.customer_name || "-"}</TableCell>
                   <TableCell>{getSalespersonName(sale.salesperson_id)}</TableCell>
                   <TableCell>
-                    <Badge variant={sale.status === "completed" ? "default" : "secondary"}>
-                      {sale.status === "completed" ? "Concluída" : "Pendente"}
+                    <Badge variant={sale.status === "concluída" ? "default" : "secondary"}>
+                      {sale.status === "concluída" ? "Concluída" : "Pendente"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">{sale.quantity}</TableCell>
@@ -161,7 +157,7 @@ export function SalesTable({ sales, onEdit, onDelete, onViewDetails, onStatusCha
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {sale.status === "pending" && (
+                      {sale.status === "pendente" && (
                         <Button
                           variant="ghost"
                           size="icon"

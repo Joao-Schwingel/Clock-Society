@@ -15,7 +15,6 @@ export async function updateSession(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.log("[v0] Warning: Supabase credentials not found in middleware")
     return NextResponse.next()
   }
 
