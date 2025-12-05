@@ -1,0 +1,24 @@
+# dependências
+node_modules/
+.pnp/
+.pnp.cjs
+
+# build
+.next/
+out/
+dist/
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# sistema
+.DS_Store
+*.swp
