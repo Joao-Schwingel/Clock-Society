@@ -27,7 +27,7 @@ export default async function DashboardPage() {
     // Refetch companies
     const { data: newCompanies } = await supabase.from("companies").select("*").eq("user_id", user.id).order("code")
 
-    return <DashboardLayout companies={newCompanies || []} user={user} />
+    return <DashboardLayout companies={newCompanies!} user={user} />
   }
 
   return <DashboardLayout companies={companies} user={user} />

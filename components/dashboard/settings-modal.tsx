@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -26,19 +26,21 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
   const [isLoading, setIsLoading] = useState(false)
   const [editingSalesperson, setEditingSalesperson] = useState<Salesperson | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [activeTab, setActiveTab] = useState<'list' | 'add'>('list')
 
   // Form state
   const [name, setName] = useState("")
   const [companyId, setCompanyId] = useState(companies[0]?.id || "")
   const [commissionPercentage, setCommissionPercentage] = useState("10")
   const [isActive, setIsActive] = useState(true)
+  const supabase = useMemo(() => createBrowserClient(), [])
+
 
   useEffect(() => {
     loadSalespersons()
   }, [])
 
   const loadSalespersons = async () => {
-    const supabase = createBrowserClient()
     const { data, error } = await supabase
       .from("salespersons")
       .select("*")
@@ -63,7 +65,6 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
     e.preventDefault()
     setIsLoading(true)
 
-    const supabase = createBrowserClient()
     const salespersonData = {
       name,
       company_id: companyId,
@@ -82,9 +83,8 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
 
         if (error) throw error
       }
-
       await loadSalespersons()
-      resetForm()
+      setActiveTab('list')
     } catch (err) {
       console.error("Error saving salesperson:", err)
     } finally {
@@ -99,12 +99,12 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
     setCommissionPercentage(salesperson.commission_percentage.toString())
     setIsActive(salesperson.is_active)
     setShowForm(true)
+    setActiveTab('add')
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este vendedor?")) return
 
-    const supabase = createBrowserClient()
     const { error } = await supabase.from("salespersons").delete().eq("id", id)
 
     if (!error) {
@@ -127,7 +127,7 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
           <DialogDescription>Gerencie os vendedores, suas empresas e porcentagens de comissão</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="list">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "list" | "add")} defaultValue="list">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="list" onClick={() => setShowForm(false)}>
               Lista de Vendedores
@@ -221,7 +221,7 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
                 <Input
                   id="commission"
                   type="number"
-                  step="0.01"
+                  step="1.00"
                   min="0"
                   max="100"
                   value={commissionPercentage}

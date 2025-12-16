@@ -13,10 +13,11 @@ import { SaleCostForm } from "./sale-cost-form"
 interface SaleDetailsModalProps {
   sale: Sale
   isOpen: boolean
+  onSuccess: () => void
   onClose: () => void
 }
 
-export function SaleDetailsModal({ sale, isOpen, onClose }: SaleDetailsModalProps) {
+export function SaleDetailsModal({ sale, isOpen, onClose, onSuccess }: SaleDetailsModalProps) {
   const [costs, setCosts] = useState<SaleCost[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -47,12 +48,14 @@ export function SaleDetailsModal({ sale, isOpen, onClose }: SaleDetailsModalProp
 
     if (!error) {
       fetchCosts()
+      handleFormSuccess()
     }
   }
 
   const handleFormSuccess = () => {
     setIsFormOpen(false)
     fetchCosts()
+    onSuccess()
   }
 
   const totalCosts = costs.reduce((sum, cost) => sum + Number(cost.amount), 0)
@@ -60,7 +63,7 @@ export function SaleDetailsModal({ sale, isOpen, onClose }: SaleDetailsModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg md:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalhes da Venda</DialogTitle>
           <DialogDescription>Visualize informações completas e custos extras desta venda</DialogDescription>
@@ -195,6 +198,7 @@ export function SaleDetailsModal({ sale, isOpen, onClose }: SaleDetailsModalProp
               </div>
             </CardContent>
           </Card>
+          <Button onClick={onClose} className="justify-self-end flex">Concluir</Button>
         </div>
 
         {isFormOpen && (
