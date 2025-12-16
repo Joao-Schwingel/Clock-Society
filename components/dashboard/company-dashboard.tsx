@@ -1,26 +1,31 @@
-"use client"
+"use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { Company } from "@/lib/types"
-import { SalesView } from "./sales-view"
-import { InventoryView } from "./inventory-view"
-import { DashboardView } from "./dashboard-view"
-import { FixedCostsView } from "./fixed-costs-view"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { Company } from "@/lib/types";
+import { SalesView } from "./sales-view";
+import { InventoryView } from "./inventory-view";
+import { DashboardView } from "./dashboard-view";
+import { FixedCostsView } from "./fixed-costs-view";
+import { useQueryTab } from "@/hooks/use-queryTab";
 
 interface CompanyDashboardProps {
-  company: Company
-  userId: string
+  company: Company;
+  userId: string;
 }
 
 export function CompanyDashboard({ company, userId }: CompanyDashboardProps) {
+  const { value: tab, setValue: setTab } = useQueryTab("tab", "dash");
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">{company.name}</h2>
-        <p className="text-muted-foreground">Gerencie vendas e estoque da empresa</p>
+        <p className="text-muted-foreground">
+          Gerencie vendas e estoque da empresa
+        </p>
       </div>
 
-      <Tabs defaultValue="dashboard" className="space-y-4">
+      <Tabs value={tab} onValueChange={setTab} id="ContentTabs" defaultValue="dashboard" className="space-y-4">
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="vendas">Vendas</TabsTrigger>
@@ -45,5 +50,5 @@ export function CompanyDashboard({ company, userId }: CompanyDashboardProps) {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

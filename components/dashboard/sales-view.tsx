@@ -22,6 +22,7 @@ import type { SaleWithDetails } from "@/lib/types";
 import { SalesForm } from "./sales-form";
 import { SalesTable } from "./sales-table";
 import { SaleDetailsModal } from "./sale-details-modal";
+import { Spinner } from "@radix-ui/themes";
 
 interface SalesViewProps {
   companyId: string;
@@ -125,17 +126,20 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardTitle>
               <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                R${" "}
-                {completedRevenue.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {completedSales.length} vendas aprovadas
-              </p>
-            </CardContent>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  R${" "}
+                  {completedRevenue.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  {completedSales.length} vendas aprovadas
+                </p>
+              </CardContent>
+            </Spinner>
           </Card>
 
           <Card className="border-green-200">
@@ -145,17 +149,19 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardTitle>
               <Receipt className="h-4 w-4 text-orange-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                R${" "}
-                {completedCosts.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Custos de vendas aprovadas
-              </p>
-            </CardContent>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  R${" "}
+                  {completedCosts.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Custos de vendas aprovadas
+                </p>
+              </CardContent>
+            </Spinner>
           </Card>
 
           <Card className="border-green-200">
@@ -165,19 +171,23 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
-            <CardContent>
-              <div
-                className={`text-2xl font-bold ${
-                  completedNetProfit >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                R${" "}
-                {completedNetProfit.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">Receita - Custos</p>
-            </CardContent>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div
+                  className={`text-2xl font-bold ${
+                    completedNetProfit >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  R${" "}
+                  {completedNetProfit.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Receita - Custos
+                </p>
+              </CardContent>
+            </Spinner>
           </Card>
 
           <Card className="border-green-200">
@@ -187,12 +197,16 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {completedSales.reduce((sum, s) => sum + s.quantity, 0)}
-              </div>
-              <p className="text-xs text-muted-foreground">Quantidade total</p>
-            </CardContent>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {completedSales.reduce((sum, sale) => sum + sale.quantity, 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Quantidade total
+                </p>
+              </CardContent>
+            </Spinner>
           </Card>
         </div>
       </div>
@@ -210,17 +224,19 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                R${" "}
-                {pendingRevenue.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {pendingSales.length} vendas aguardando
-              </p>
-            </CardContent>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  R${" "}
+                  {pendingRevenue.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {pendingSales.length} vendas aguardando
+                </p>
+              </CardContent>
+            </Spinner>
           </Card>
 
           <Card className="border-yellow-200">
@@ -230,17 +246,19 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardTitle>
               <Receipt className="h-4 w-4 text-orange-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                R${" "}
-                {pendingCosts.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Custos de vendas pendentes
-              </p>
-            </CardContent>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  R${" "}
+                  {pendingCosts.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Custos de vendas pendentes
+                </p>
+              </CardContent>
+            </Spinner>
           </Card>
 
           <Card className="border-yellow-200">
@@ -250,19 +268,23 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-yellow-600" />
             </CardHeader>
-            <CardContent>
-              <div
-                className={`text-2xl font-bold ${
-                  pendingNetProfit >= 0 ? "text-yellow-600" : "text-red-600"
-                }`}
-              >
-                R${" "}
-                {pendingNetProfit.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">Receita - Custos</p>
-            </CardContent>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div
+                  className={`text-2xl font-bold ${
+                    pendingNetProfit >= 0 ? "text-yellow-600" : "text-red-600"
+                  }`}
+                >
+                  R${" "}
+                  {pendingNetProfit.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Receita - Custos
+                </p>
+              </CardContent>
+            </Spinner>
           </Card>
 
           <Card className="border-yellow-200">
@@ -272,14 +294,16 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {pendingSales.reduce((sum, s) => sum + s.quantity, 0)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Quantidade aguardando
-              </p>
-            </CardContent>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {pendingSales.reduce((sum, sale) => sum + sale.quantity, 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Quantidade aguardando
+                </p>
+              </CardContent>
+            </Spinner>
           </Card>
         </div>
       </div>
@@ -324,7 +348,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       {viewingSale && (
         <SaleDetailsModal
           sale={viewingSale}
-          isOpen={true}
+          isOpen={!!viewingSale}
           onClose={() => setViewingSale(null)}
           onChanged={fetchSales}
         />

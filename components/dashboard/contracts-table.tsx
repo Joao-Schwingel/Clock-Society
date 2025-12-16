@@ -143,7 +143,7 @@ export function ContractsTable({ contracts, onUpdate, loading }: ContractsTableP
           </div>
           <div>
             <span className="text-muted-foreground">Total Líquido:</span>
-            <span className="ml-2 font-bold text-lg">R$ {netTotal.toFixed(2)}</span>
+            <span className="ml-2 font-semibold">R$ {netTotal.toFixed(2)}</span>
           </div>
         </div>
       )}

@@ -1,68 +1,82 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Plus, Package, DollarSign, Boxes } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
-import type { InventoryItem } from "@/lib/types"
-import { InventoryForm } from "./inventory-form"
-import { InventoryTable } from "./inventory-table"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus, Package, DollarSign, Boxes } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import type { InventoryItem } from "@/lib/types";
+import { InventoryForm } from "./inventory-form";
+import { InventoryTable } from "./inventory-table";
+import { Spinner } from "@radix-ui/themes";
 
 interface InventoryViewProps {
-  companyId: string
-  userId: string
+  companyId: string;
+  userId: string;
 }
 
 export function InventoryView({ companyId, userId }: InventoryViewProps) {
-  const [inventory, setInventory] = useState<InventoryItem[]>([])
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchInventory = async () => {
-    const supabase = createClient()
-    const { data } = await supabase.from("inventory").select("*").eq("company_id", companyId).order("product_name")
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("inventory")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("product_name");
 
     if (data) {
-      setInventory(data)
+      setInventory(data);
     }
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    fetchInventory()
-  }, [companyId])
+    fetchInventory();
+  }, [companyId]);
 
   const handleAdd = () => {
-    setEditingItem(null)
-    setIsFormOpen(true)
-  }
+    setEditingItem(null);
+    setIsFormOpen(true);
+  };
 
   const handleEdit = (item: InventoryItem) => {
-    setEditingItem(item)
-    setIsFormOpen(true)
-  }
+    setEditingItem(item);
+    setIsFormOpen(true);
+  };
 
   const handleDelete = async (id: string) => {
-    const supabase = createClient()
-    const { error } = await supabase.from("inventory").delete().eq("id", id)
+    const supabase = createClient();
+    const { error } = await supabase.from("inventory").delete().eq("id", id);
 
     if (!error) {
-      fetchInventory()
+      fetchInventory();
     }
-  }
+  };
 
   const handleFormSuccess = () => {
-    setIsFormOpen(false)
-    setEditingItem(null)
-    fetchInventory()
-  }
+    setIsFormOpen(false);
+    setEditingItem(null);
+    fetchInventory();
+  };
 
   // Calculate totals
-  const totalValue = inventory.reduce((sum, item) => sum + Number(item.total_value), 0)
-  const totalItems = inventory.reduce((sum, item) => sum + item.quantity, 0)
-  const totalProducts = inventory.length
+  const totalValue = inventory.reduce(
+    (sum, item) => sum + Number(item.total_value),
+    0
+  );
+  const totalItems = inventory.reduce((sum, item) => sum + item.quantity, 0);
+  const totalProducts = inventory.length;
 
   return (
     <div className="space-y-4">
@@ -73,31 +87,44 @@ export function InventoryView({ companyId, userId }: InventoryViewProps) {
             <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </div>
-          </CardContent>
+          <Spinner loading={isLoading} size={"3"}>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                R${" "}
+                {totalValue.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}
+              </div>
+            </CardContent>
+          </Spinner>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total de Produtos
+            </CardTitle>
             <Boxes className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalProducts}</div>
-          </CardContent>
+          <Spinner loading={isLoading} size={"3"}>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalProducts}</div>
+            </CardContent>
+          </Spinner>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Quantidade Total</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Quantidade Total
+            </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalItems}</div>
-          </CardContent>
+          <Spinner loading={isLoading} size={"3"}>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalItems}</div>
+            </CardContent>
+          </Spinner>
         </Card>
       </div>
 
@@ -107,7 +134,9 @@ export function InventoryView({ companyId, userId }: InventoryViewProps) {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Estoque</CardTitle>
-              <CardDescription>Gerencie o estoque desta empresa</CardDescription>
+              <CardDescription>
+                Gerencie o estoque desta empresa
+              </CardDescription>
             </div>
             <Button onClick={handleAdd}>
               <Plus className="h-4 w-4 mr-2" />
@@ -116,7 +145,12 @@ export function InventoryView({ companyId, userId }: InventoryViewProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <InventoryTable inventory={inventory} onEdit={handleEdit} onDelete={handleDelete} isLoading={isLoading} />
+          <InventoryTable
+            inventory={inventory}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            isLoading={isLoading}
+          />
         </CardContent>
       </Card>
 
@@ -131,5 +165,5 @@ export function InventoryView({ companyId, userId }: InventoryViewProps) {
         />
       )}
     </div>
-  )
+  );
 }

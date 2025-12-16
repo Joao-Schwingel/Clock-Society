@@ -92,7 +92,7 @@ export function SaleDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg md:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalhes da Venda</DialogTitle>
           <DialogDescription>
@@ -252,6 +252,7 @@ export function SaleDetailsModal({
               </div>
             </CardContent>
           </Card>
+          <Button onClick={onClose} className="justify-self-end flex">Concluir</Button>
         </div>
 
         {isFormOpen && (

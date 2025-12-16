@@ -11,6 +11,7 @@ import type { User } from "@supabase/supabase-js"
 import { CompanyDashboard } from "./company-dashboard"
 import { ContractsView } from "./contracts-view"
 import { SettingsModal } from "./settings-modal"
+import { useQueryTab } from "@/hooks/use-queryTab"
 
 interface DashboardLayoutProps {
   companies: Company[]
@@ -18,9 +19,10 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
-  const [activeTab, setActiveTab] = useState<string>(companies[0]?.code || "A")
+  // const [activeTab, setActiveTab] = useState<string>(companies[0]?.code)
   const [showSettings, setShowSettings] = useState(false)
   const router = useRouter()
+  const { value: tab, setValue: setTab } = useQueryTab("company", "A")
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -28,7 +30,6 @@ export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
     router.push("/auth/login")
   }
 
-  const currentCompany = companies.find((c) => c.code === activeTab)
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,10 +39,8 @@ export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Building2 className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-bold">Sistema de Gestão</h1>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">{user.email}</span>
               <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Configurações
@@ -57,7 +56,7 @@ export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs id="CompaniesTabs" value={tab} onValueChange={setTab}>
           <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
             {companies.map((company) => (
               <TabsTrigger key={company.id} value={company.code}>
@@ -69,7 +68,7 @@ export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
 
           {companies.map((company) => (
             <TabsContent key={company.id} value={company.code}>
-              {currentCompany && <CompanyDashboard company={currentCompany} userId={user.id} />}
+              {company && <CompanyDashboard company={company} userId={user.id} />}
             </TabsContent>
           ))}
 
