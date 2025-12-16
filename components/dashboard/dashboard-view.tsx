@@ -35,13 +35,13 @@ interface SalespersonCommission {
 }
 
 export function DashboardView({ companyId, userId }: DashboardViewProps) {
-  const [commissions, setCommissions] = useState<SalespersonCommission[]>([]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [totalCommissions, setTotalCommissions] = useState(0);
-  const [totalSaleCosts, setTotalSaleCosts] = useState(0);
-  const [totalFixedCosts, setTotalFixedCosts] = useState(0);
-  const [netProfit, setNetProfit] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [commissions, setCommissions] = useState<SalespersonCommission[]>([])
+  const [totalRevenue, setTotalRevenue] = useState(0)
+  const [totalCommissions, setTotalCommissions] = useState(0)
+  const [completedCosts, setTotalSaleCosts] = useState(0)
+  const [totalFixedCosts, setTotalFixedCosts] = useState(0)
+  const [netProfit, setNetProfit] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     loadCommissionData();
@@ -224,7 +224,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
                 R${" "}
-                {totalSaleCosts.toLocaleString("pt-BR", {
+                {completedCosts.toLocaleString("pt-BR", {
                   minimumFractionDigits: 2,
                 })}
               </div>

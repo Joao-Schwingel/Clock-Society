@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,7 +18,7 @@ import {
   Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { Sale } from "@/lib/types";
+import type { SaleWithDetails } from "@/lib/types";
 import { SalesForm } from "./sales-form";
 import { SalesTable } from "./sales-table";
 import { SaleDetailsModal } from "./sale-details-modal";
@@ -30,50 +30,25 @@ interface SalesViewProps {
 }
 
 export function SalesView({ companyId, userId }: SalesViewProps) {
-  const [sales, setSales] = useState<Sale[]>([]);
+  const [sales, setSales] = useState<SaleWithDetails[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingSale, setEditingSale] = useState<Sale | null>(null);
-  const [viewingSale, setViewingSale] = useState<Sale | null>(null);
+  const [editingSale, setEditingSale] = useState<SaleWithDetails | null>(null);
+  const [viewingSale, setViewingSale] = useState<SaleWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [totalSaleCosts, setTotalSaleCosts] = useState(0);
-  const [pendingSaleCosts, setPendingSaleCosts] = useState(0);
 
   const fetchSales = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     const supabase = createClient();
+
     const { data, error } = await supabase
-      .from("sales")
-      .select("*")
+      .from("sales_with_details")
+      .select(
+        "id,company_id,user_id,salesperson_id,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,notes,created_at,salesperson,salesperson_info,costs,total_costs",
+      )
       .eq("company_id", companyId)
       .order("sale_date", { ascending: false });
 
-    if (data) {
-      setSales(data);
-      const saleIds = data.map((s) => s.id);
-      const { data: costsData } = await supabase
-        .from("sale_costs")
-        .select("*")
-        .in("sale_id", saleIds);
-
-      const completedSaleIds = data
-        .filter((s) => s.status === "concluída")
-        .map((s) => s.id);
-      const pendingSaleIds = data
-        .filter((s) => s.status === "pendente")
-        .map((s) => s.id);
-
-      const completedCostsTotal =
-        costsData
-          ?.filter((c) => completedSaleIds.includes(c.sale_id))
-          .reduce((sum, cost) => sum + Number(cost.amount), 0) || 0;
-      const pendingCostsTotal =
-        costsData
-          ?.filter((c) => pendingSaleIds.includes(c.sale_id))
-          .reduce((sum, cost) => sum + Number(cost.amount), 0) || 0;
-
-      setTotalSaleCosts(completedCostsTotal);
-      setPendingSaleCosts(pendingCostsTotal);
-    }
+    if (!error && data) setSales(data as SaleWithDetails[]);
     setIsLoading(false);
   };
 
@@ -82,7 +57,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     setIsFormOpen(true);
   };
 
-  const handleEdit = (sale: Sale) => {
+  const handleEdit = (sale: SaleWithDetails) => {
     setEditingSale(sale);
     setIsFormOpen(true);
   };
@@ -90,10 +65,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const handleDelete = async (id: string) => {
     const supabase = createClient();
     const { error } = await supabase.from("sales").delete().eq("id", id);
-
-    if (!error) {
-      fetchSales();
-    }
+    if (!error) fetchSales();
   };
 
   const handleFormSuccess = () => {
@@ -102,7 +74,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     fetchSales();
   };
 
-  const handleViewDetails = (sale: Sale) => {
+  const handleViewDetails = (sale: SaleWithDetails) => {
     setViewingSale(sale);
   };
 
@@ -113,26 +85,30 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const completedSales = sales.filter((s) => s.status === "concluída");
   const pendingSales = sales.filter((s) => s.status === "pendente");
 
-  const { completedRevenue, pendingRevenue } = useMemo(() => {
-    const completed = sales
-      .filter((s) => s.status === "concluída")
-      .reduce((sum, sale) => sum + Number(sale.total_price), 0);
+  const completedRevenue = completedSales.reduce(
+    (sum, s) => sum + Number(s.total_price),
+    0,
+  );
+  const pendingRevenue = pendingSales.reduce(
+    (sum, s) => sum + Number(s.total_price),
+    0,
+  );
 
-    const pending = sales
-      .filter((s) => s.status === "pendente")
-      .reduce((sum, sale) => sum + Number(sale.total_price), 0);
+  const completedCosts = completedSales.reduce(
+    (sum, s) => sum + Number(s.total_costs ?? 0),
+    0,
+  );
+  const pendingCosts = pendingSales.reduce(
+    (sum, s) => sum + Number(s.total_costs ?? 0),
+    0,
+  );
 
-    return {
-      completedRevenue: completed,
-      pendingRevenue: pending,
-    };
-  }, [sales]);
-
-  const completedNetProfit = completedRevenue - totalSaleCosts;
-  const pendingNetProfit = pendingRevenue - pendingSaleCosts;
+  const completedNetProfit = completedRevenue - completedCosts;
+  const pendingNetProfit = pendingRevenue - pendingCosts;
 
   useEffect(() => {
     fetchSales();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
 
   return (
@@ -141,6 +117,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         <h3 className="text-lg font-semibold mb-2 text-green-600">
           Vendas Concluídas
         </h3>
+
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -176,7 +153,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
                   R${" "}
-                  {totalSaleCosts.toLocaleString("pt-BR", {
+                  {completedCosts.toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,
                   })}
                 </div>
@@ -238,6 +215,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         <h3 className="text-lg font-semibold mb-2 text-yellow-600">
           Vendas Pendentes
         </h3>
+
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -272,7 +250,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
                   R${" "}
-                  {pendingSaleCosts.toLocaleString("pt-BR", {
+                  {pendingCosts.toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,
                   })}
                 </div>
@@ -371,8 +349,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         <SaleDetailsModal
           sale={viewingSale}
           isOpen={!!viewingSale}
-          onSuccess={handleFormSuccess}
           onClose={() => setViewingSale(null)}
+          onChanged={fetchSales}
         />
       )}
     </div>
