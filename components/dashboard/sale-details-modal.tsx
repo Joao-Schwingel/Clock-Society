@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,82 +20,75 @@ import {
 } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { Sale, SaleCost, Salesperson } from "@/lib/types";
+import type { SaleCost, SaleWithDetails } from "@/lib/types";
 import { SaleCostForm } from "./sale-cost-form";
 
 interface SaleDetailsModalProps {
-  sale: Sale;
+  sale: SaleWithDetails;
   isOpen: boolean;
   onClose: () => void;
+  onChanged: () => void; // refresh list metrics/cards outside
 }
 
 export function SaleDetailsModal({
   sale,
   isOpen,
   onClose,
+  onChanged,
 }: SaleDetailsModalProps) {
-  const [costs, setCosts] = useState<SaleCost[]>([]);
-  const [salesperson, setSalesperson] = useState<Salesperson>();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchCosts = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("sale_costs")
-      .select("*")
-      .eq("sale_id", sale.id)
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      setCosts(data);
-    }
-    setIsLoading(false);
-  };
-
-  const fetchSalesperson = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("salespersons")
-      .select("*")
-      .eq("id", sale.salesperson_id)
-      .limit(1);
-
-    if (data && data.length > 0) {
-      setSalesperson(data[0]);
-    }
-    setIsLoading(false);
-  };
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    await Promise.all([fetchCosts(), fetchSalesperson()]);
-    setIsLoading(false);
-  };
+  const [saleData, setSaleData] = useState<SaleWithDetails>(sale);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchData();
-    }
-  }, [isOpen, sale.id]);
+    setSaleData(sale);
+  }, [sale]);
 
-  const handleDeleteCost = useCallback(async (costId: string) => {
+  const refreshSale = async () => {
+    setIsRefreshing(true);
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("sales_with_details")
+      .select(
+        "id,company_id,user_id,salesperson_id,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,notes,created_at,salesperson,salesperson_info,costs,total_costs",
+      )
+      .eq("id", saleData.id)
+      .single();
+
+    if (!error && data) setSaleData(data as SaleWithDetails);
+    setIsRefreshing(false);
+  };
+
+  const costs = useMemo<SaleCost[]>(
+    () => (saleData.costs ?? []) as SaleCost[],
+    [saleData.costs],
+  );
+
+  const totalCosts = Number(saleData.total_costs ?? 0);
+  const netProfit = Number(saleData.total_price) - totalCosts;
+
+  const salespersonName =
+    saleData.salesperson_info?.name ?? saleData.salesperson ?? "";
+
+  const handleDeleteCost = async (costId: string) => {
     const supabase = createClient();
     const { error } = await supabase
       .from("sale_costs")
       .delete()
       .eq("id", costId);
-    if (!error) fetchCosts();
-  }, []);
 
-  const handleFormSuccess = () => {
-    setIsFormOpen(false);
-    fetchCosts();
+    if (!error) {
+      await refreshSale(); // updates costs + totals in the modal
+      onChanged(); // refresh parent aggregates/cards
+    }
   };
 
-  const totalCosts = costs.reduce((sum, cost) => sum + Number(cost.amount), 0);
-  const netProfit = Number(sale.total_price) - totalCosts;
-  const salespersonName = salesperson?.name || "";
+  const handleFormSuccess = async () => {
+    setIsFormOpen(false);
+    await refreshSale(); // updates costs + totals in the modal
+    onChanged(); // refresh parent aggregates/cards
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -108,7 +101,6 @@ export function SaleDetailsModal({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Sale Information */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Informações da Venda</CardTitle>
@@ -116,11 +108,11 @@ export function SaleDetailsModal({
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div>
                 <p className="text-sm text-muted-foreground">Produto</p>
-                <p className="font-medium">{sale.product_name}</p>
+                <p className="font-medium">{saleData.product_name}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Cliente</p>
-                <p className="font-medium">{sale.customer_name || "-"}</p>
+                <p className="font-medium">{saleData.customer_name || "-"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Vendedor</p>
@@ -129,18 +121,18 @@ export function SaleDetailsModal({
               <div>
                 <p className="text-sm text-muted-foreground">Data</p>
                 <p className="font-medium">
-                  {new Date(sale.sale_date).toLocaleDateString("pt-BR")}
+                  {new Date(saleData.sale_date).toLocaleDateString("pt-BR")}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Quantidade</p>
-                <p className="font-medium">{sale.quantity}</p>
+                <p className="font-medium">{saleData.quantity}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Preço Unitário</p>
                 <p className="font-medium">
                   R${" "}
-                  {Number(sale.unit_price).toLocaleString("pt-BR", {
+                  {Number(saleData.unit_price).toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,
                   })}
                 </p>
@@ -149,21 +141,20 @@ export function SaleDetailsModal({
                 <p className="text-sm text-muted-foreground">Valor Total</p>
                 <p className="font-bold text-lg">
                   R${" "}
-                  {Number(sale.total_price).toLocaleString("pt-BR", {
+                  {Number(saleData.total_price).toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,
                   })}
                 </p>
               </div>
-              {sale.notes && (
+              {saleData.notes && (
                 <div className="md:col-span-2">
                   <p className="text-sm text-muted-foreground">Observações</p>
-                  <p className="font-medium">{sale.notes}</p>
+                  <p className="font-medium">{saleData.notes}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Costs Section */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -175,9 +166,9 @@ export function SaleDetailsModal({
               </div>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {isRefreshing ? (
                 <p className="text-center text-muted-foreground py-4">
-                  Carregando...
+                  Atualizando...
                 </p>
               ) : costs.length === 0 ? (
                 <p className="text-center text-muted-foreground py-4">
@@ -194,43 +185,35 @@ export function SaleDetailsModal({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={4}>Carregando...</TableCell>
-                      </TableRow>
-                    ) : costs.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4}>
-                          Nenhum custo extra registrado
+                    {costs.map((cost) => (
+                      <TableRow key={cost.id}>
+                        <TableCell className="font-medium">
+                          {cost.cost_type}
+                        </TableCell>
+                        <TableCell>{cost.description || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          R${" "}
+                          {Number(cost.amount).toLocaleString("pt-BR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteCost(cost.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      costs.map((cost) => (
-                        <TableRow key={cost.id}>
-                          <TableCell className="font-medium">
-                            {cost.cost_type}
-                          </TableCell>
-                          <TableCell>{cost.description || "-"}</TableCell>
-                          <TableCell className="text-right">{`R$ ${Number(cost.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteCost(cost.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                    ))}
                   </TableBody>
                 </Table>
               )}
             </CardContent>
           </Card>
 
-          {/* Financial Summary */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Resumo Financeiro</CardTitle>
@@ -240,7 +223,7 @@ export function SaleDetailsModal({
                 <span className="text-muted-foreground">Valor da Venda:</span>
                 <span className="font-medium">
                   R${" "}
-                  {Number(sale.total_price).toLocaleString("pt-BR", {
+                  {Number(saleData.total_price).toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,
                   })}
                 </span>
@@ -257,7 +240,9 @@ export function SaleDetailsModal({
               <div className="flex justify-between pt-2 border-t">
                 <span className="font-bold">Lucro Líquido:</span>
                 <span
-                  className={`font-bold text-lg ${netProfit >= 0 ? "text-green-600" : "text-destructive"}`}
+                  className={`font-bold text-lg ${
+                    netProfit >= 0 ? "text-green-600" : "text-destructive"
+                  }`}
                 >
                   R${" "}
                   {netProfit.toLocaleString("pt-BR", {
@@ -271,7 +256,7 @@ export function SaleDetailsModal({
 
         {isFormOpen && (
           <SaleCostForm
-            saleId={sale.id}
+            saleId={saleData.id}
             onSuccess={handleFormSuccess}
             onCancel={() => setIsFormOpen(false)}
           />
