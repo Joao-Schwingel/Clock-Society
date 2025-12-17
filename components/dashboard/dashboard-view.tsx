@@ -35,13 +35,13 @@ interface SalespersonCommission {
 }
 
 export function DashboardView({ companyId, userId }: DashboardViewProps) {
-  const [commissions, setCommissions] = useState<SalespersonCommission[]>([])
-  const [totalRevenue, setTotalRevenue] = useState(0)
-  const [totalCommissions, setTotalCommissions] = useState(0)
-  const [completedCosts, setTotalSaleCosts] = useState(0)
-  const [totalFixedCosts, setTotalFixedCosts] = useState(0)
-  const [netProfit, setNetProfit] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [commissions, setCommissions] = useState<SalespersonCommission[]>([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalCommissions, setTotalCommissions] = useState(0);
+  const [completedCosts, setTotalSaleCosts] = useState(0);
+  const [totalFixedCosts, setTotalFixedCosts] = useState(0);
+  const [netProfit, setNetProfit] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadCommissionData();
@@ -86,8 +86,8 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
         saleCosts?.reduce((sum, cost) => sum + Number(cost.amount), 0) || 0;
       const fixedCostsTotal =
         fixedCosts?.reduce(
-          (sum, cost) => sum + Number(cost.monthly_amount),
-          0
+          (sum, cost) => sum + Number(cost.monthly_value),
+          0,
         ) || 0;
 
       const salesByPerson: Record<
@@ -121,7 +121,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
           saleCosts?.filter((c) => c.sale_id === sale.id) || [];
         const costTotal = costsForSale.reduce(
           (sum, c) => sum + Number(c.amount),
-          0
+          0,
         );
         const saleNetProfit = saleValue - costTotal;
 
@@ -152,7 +152,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
             commission: personData.netProfit * commissionRate,
             salesCount: personData.count,
           };
-        }
+        },
       );
 
       const totalComm = commissionData

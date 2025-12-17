@@ -118,6 +118,12 @@ export function SalesTable({
     );
   }
 
+  const totalSaleCost = (sale: SaleWithDetails): number => {
+    return Number(
+      sale.costs.reduce((sum, c) => sum + Number(c.amount || 0), 0),
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-4">
@@ -167,6 +173,7 @@ export function SalesTable({
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Quantidade</TableHead>
                 <TableHead className="text-right">Preço Unit.</TableHead>
+                <TableHead className="text-right">Custo Total</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -200,9 +207,17 @@ export function SalesTable({
                       minimumFractionDigits: 2,
                     })}
                   </TableCell>
+                  <TableCell className="text-right">
+                    R${" "}
+                    {totalSaleCost(sale).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </TableCell>
                   <TableCell className="text-right font-medium">
                     R${" "}
-                    {Number(sale.total_price).toLocaleString("pt-BR", {
+                    {Number(
+                      sale.total_price - totalSaleCost(sale),
+                    ).toLocaleString("pt-BR", {
                       minimumFractionDigits: 2,
                     })}
                   </TableCell>
