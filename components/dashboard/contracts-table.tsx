@@ -162,7 +162,7 @@ export function ContractsTable({
                         size="icon"
                         onClick={() => handleDelete(contract.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </TableCell>
                   </TableRow>
