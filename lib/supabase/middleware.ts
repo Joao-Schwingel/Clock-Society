@@ -1,15 +1,20 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
+const PUBLIC_ROUTES = new Set([
+  "/",
+  "/auth/login",
+  "/auth/sign-up",
+  "/auth/sign-up-success",
+  "/auth/error",
+])
+
 export async function updateSession(request: NextRequest) {
-  const publicRoutes = ["/", "/auth/login", "/auth/sign-up", "/auth/sign-up-success", "/auth/error"]
-  if (publicRoutes.some((route) => request.nextUrl.pathname === route)) {
+  const { pathname } = request.nextUrl
+
+  if (PUBLIC_ROUTES.has(pathname)) {
     return NextResponse.next()
   }
-
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -18,30 +23,26 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.next()
   }
 
+  const response = NextResponse.next()
+
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      getAll() {
-        return request.cookies.getAll()
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-        supabaseResponse = NextResponse.next({
-          request,
+      getAll: () => request.cookies.getAll(),
+      setAll: (cookies) => {
+        cookies.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options)
         })
-        cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
       },
     },
   })
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
 
-  if (!user && !request.nextUrl.pathname.startsWith("/auth")) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/auth/login"
-    return NextResponse.redirect(url)
+  if (!session) {
+    return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 
-  return supabaseResponse
+  return response
 }

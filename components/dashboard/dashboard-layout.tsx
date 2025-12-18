@@ -24,10 +24,10 @@ export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
   const router = useRouter()
   const { tab, setTab } = useTabWithQuery("company", companies[0].code)
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push("/auth/login")
+    supabase.auth.signOut()
+    router.replace("/auth/login")
   }
 
 
