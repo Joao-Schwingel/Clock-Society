@@ -6,7 +6,7 @@ import { SalesView } from "./sales-view";
 import { InventoryView } from "./inventory-view";
 import { DashboardView } from "./dashboard-view";
 import { FixedCostsView } from "./fixed-costs-view";
-import { useQueryTab } from "@/hooks/use-queryTab";
+import { useTabWithQuery } from "@/hooks/use-queryTab";
 
 interface CompanyDashboardProps {
   company: Company;
@@ -14,7 +14,7 @@ interface CompanyDashboardProps {
 }
 
 export function CompanyDashboard({ company, userId }: CompanyDashboardProps) {
-  const { value: tab, setValue: setTab } = useQueryTab("tab", "dashboard");
+  const { tab,  setTab } = useTabWithQuery("tab", "dashboard");
 
   return (
     <div className="space-y-6">

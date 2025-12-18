@@ -1,27 +1,34 @@
 "use client"
 
+import { useEffect, useState, startTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
-export function useQueryTab(
+export function useTabWithQuery(
   key: string,
   defaultValue: string
 ) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const value = searchParams.get(key) ?? defaultValue
+  // 1. Estado local = imediato
+  const [tab, setTab] = useState(() => {
+    return searchParams.get(key) ?? defaultValue
+  })
 
-  function setValue(newValue: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set(key, newValue)
+  // 2. Sincroniza URL depois (não bloqueia UI)
+  useEffect(() => {
+    const current = searchParams.get(key)
+    if (current === tab) return
 
-    router.replace(`?${params.toString()}`, {
-      scroll: false,
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set(key, tab)
+      router.replace(`?${params.toString()}`, { scroll: false })
     })
-  }
+  }, [tab])
 
   return {
-    value,
-    setValue,
+    tab,
+    setTab,
   }
 }

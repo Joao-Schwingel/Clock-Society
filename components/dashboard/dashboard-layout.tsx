@@ -11,7 +11,7 @@ import type { User } from "@supabase/supabase-js"
 import { CompanyDashboard } from "./company-dashboard"
 import { ContractsView } from "./contracts-view"
 import { SettingsModal } from "./settings-modal"
-import { useQueryTab } from "@/hooks/use-queryTab"
+import { useTabWithQuery } from "@/hooks/use-queryTab"
 
 interface DashboardLayoutProps {
   companies: Company[]
@@ -22,7 +22,7 @@ export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
   // const [activeTab, setActiveTab] = useState<string>(companies[0]?.code)
   const [showSettings, setShowSettings] = useState(false)
   const router = useRouter()
-  const { value: tab, setValue: setTab } = useQueryTab("company", "A")
+  const { tab, setTab } = useTabWithQuery("company", companies[0].code)
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -56,7 +56,7 @@ export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="A" id="CompaniesTabs" value={tab} onValueChange={setTab}>
+        <Tabs id="CompaniesTabs" value={tab} onValueChange={setTab}>
           <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
             {companies.map((company) => (
               <TabsTrigger key={company.id} value={company.code}>
