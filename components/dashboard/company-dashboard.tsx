@@ -14,7 +14,7 @@ interface CompanyDashboardProps {
 }
 
 export function CompanyDashboard({ company, userId }: CompanyDashboardProps) {
-  const { value: tab, setValue: setTab } = useQueryTab("tab", "dash");
+  const { value: tab, setValue: setTab } = useQueryTab("tab", "dashboard");
 
   return (
     <div className="space-y-6">

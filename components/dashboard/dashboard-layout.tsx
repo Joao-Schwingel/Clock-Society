@@ -56,7 +56,7 @@ export function DashboardLayout({ companies, user }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <Tabs id="CompaniesTabs" value={tab} onValueChange={setTab}>
+        <Tabs defaultValue="A" id="CompaniesTabs" value={tab} onValueChange={setTab}>
           <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
             {companies.map((company) => (
               <TabsTrigger key={company.id} value={company.code}>
