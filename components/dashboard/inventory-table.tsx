@@ -1,38 +1,61 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Pencil, Trash2, Search } from "lucide-react"
-import type { InventoryItem } from "@/lib/types"
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Pencil, Trash2, Search } from "lucide-react";
+import type { InventoryItem } from "@/lib/types";
+import { formatBR } from "@/lib/utils";
 
 interface InventoryTableProps {
-  inventory: InventoryItem[]
-  onEdit: (item: InventoryItem) => void
-  onDelete: (id: string) => void
-  isLoading: boolean
+  inventory: InventoryItem[];
+  onEdit: (item: InventoryItem) => void;
+  onDelete: (id: string) => void;
+  isLoading: boolean;
 }
 
-export function InventoryTable({ inventory, onEdit, onDelete, isLoading }: InventoryTableProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [locationFilter, setLocationFilter] = useState("")
+export function InventoryTable({
+  inventory,
+  onEdit,
+  onDelete,
+  isLoading,
+}: InventoryTableProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
 
   const filteredInventory = useMemo(() => {
     return inventory.filter((item) => {
-      const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesLocation = !locationFilter || item.location?.toLowerCase().includes(locationFilter.toLowerCase())
+      const matchesSearch = item.product_name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesLocation =
+        !locationFilter ||
+        item.location?.toLowerCase().includes(locationFilter.toLowerCase());
 
-      return matchesSearch && matchesLocation
-    })
-  }, [inventory, searchTerm, locationFilter])
+      return matchesSearch && matchesLocation;
+    });
+  }, [inventory, searchTerm, locationFilter]);
 
   const locations = useMemo(() => {
-    return Array.from(new Set(inventory.map((item) => item.location).filter(Boolean)))
-  }, [inventory])
+    return Array.from(
+      new Set(inventory.map((item) => item.location).filter(Boolean)),
+    );
+  }, [inventory]);
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        Carregando...
+      </div>
+    );
   }
 
   return (
@@ -57,8 +80,8 @@ export function InventoryTable({ inventory, onEdit, onDelete, isLoading }: Inven
           <Button
             variant="outline"
             onClick={() => {
-              setSearchTerm("")
-              setLocationFilter("")
+              setSearchTerm("");
+              setLocationFilter("");
             }}
           >
             Limpar
@@ -68,7 +91,9 @@ export function InventoryTable({ inventory, onEdit, onDelete, isLoading }: Inven
 
       {filteredInventory.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          {inventory.length === 0 ? "Nenhum item no estoque ainda." : "Nenhum resultado encontrado."}
+          {inventory.length === 0
+            ? "Nenhum item no estoque ainda."
+            : "Nenhum resultado encontrado."}
         </div>
       ) : (
         <div className="rounded-md border">
@@ -87,27 +112,41 @@ export function InventoryTable({ inventory, onEdit, onDelete, isLoading }: Inven
             <TableBody>
               {filteredInventory.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.product_name}</TableCell>
+                  <TableCell className="font-medium">
+                    {item.product_name}
+                  </TableCell>
                   <TableCell>{item.location || "-"}</TableCell>
                   <TableCell className="text-right">{item.quantity}</TableCell>
                   <TableCell className="text-right">
-                    R$ {Number(item.unit_cost).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R${" "}
+                    {Number(item.unit_cost).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                    })}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    R$ {Number(item.total_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R${" "}
+                    {Number(item.total_value).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                    })}
                   </TableCell>
-                  <TableCell>{new Date(item.last_updated).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell>{formatBR(item.last_updated)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(item)}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          if (confirm("Tem certeza que deseja excluir este item?")) {
-                            onDelete(item.id)
+                          if (
+                            confirm("Tem certeza que deseja excluir este item?")
+                          ) {
+                            onDelete(item.id);
                           }
                         }}
                       >
@@ -122,5 +161,5 @@ export function InventoryTable({ inventory, onEdit, onDelete, isLoading }: Inven
         </div>
       )}
     </div>
-  )
+  );
 }

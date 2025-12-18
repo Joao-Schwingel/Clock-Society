@@ -1,21 +1,34 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { createBrowserClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
+import { useState } from "react";
+import { createBrowserClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { DatePickerBR } from "./date-picker-br";
 
 interface FixedCostFormProps {
-  companyId: string
-  userId: string
-  onFixedCostAdded: () => void
+  companyId: string;
+  userId: string;
+  onFixedCostAdded: () => void;
 }
 
 const COST_CATEGORIES = [
@@ -30,21 +43,25 @@ const COST_CATEGORIES = [
   "Contabilidade",
   "Manutenção",
   "Outros",
-]
+];
 
-export function FixedCostForm({ companyId, userId, onFixedCostAdded }: FixedCostFormProps) {
-  const [name, setName] = useState("")
-  const [category, setCategory] = useState("")
-  const [monthlyValue, setMonthlyValue] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [description, setDescription] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const { toast } = useToast()
-  const supabase = createBrowserClient()
+export function FixedCostForm({
+  companyId,
+  userId,
+  onFixedCostAdded,
+}: FixedCostFormProps) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [monthlyValue, setMonthlyValue] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  const supabase = createBrowserClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsSubmitting(true);
 
     const { error } = await supabase.from("fixed_costs").insert({
       company_id: companyId,
@@ -54,35 +71,37 @@ export function FixedCostForm({ companyId, userId, onFixedCostAdded }: FixedCost
       monthly_value: Number(monthlyValue),
       start_date: startDate,
       description: description || null,
-    })
+    });
 
     if (error) {
       toast({
         title: "Erro",
         description: "Não foi possível adicionar o custo fixo.",
         variant: "destructive",
-      })
+      });
     } else {
       toast({
         title: "Sucesso",
         description: "Custo fixo adicionado com sucesso!",
-      })
-      setName("")
-      setCategory("")
-      setMonthlyValue("")
-      setStartDate("")
-      setDescription("")
-      onFixedCostAdded()
+      });
+      setName("");
+      setCategory("");
+      setMonthlyValue("");
+      setStartDate("");
+      setDescription("");
+      onFixedCostAdded();
     }
 
-    setIsSubmitting(false)
-  }
+    setIsSubmitting(false);
+  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Adicionar Custo Fixo</CardTitle>
-        <CardDescription>Cadastre um novo custo fixo mensal para a empresa</CardDescription>
+        <CardDescription>
+          Cadastre um novo custo fixo mensal para a empresa
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -130,13 +149,12 @@ export function FixedCostForm({ companyId, userId, onFixedCostAdded }: FixedCost
 
             <div className="space-y-2">
               <Label htmlFor="startDate">Data de Início *</Label>
-              <Input
+              <DatePickerBR
                 id="startDate"
-                type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={setStartDate}
                 required
-              />
+              />{" "}
             </div>
           </div>
 
@@ -157,5 +175,5 @@ export function FixedCostForm({ companyId, userId, onFixedCostAdded }: FixedCost
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

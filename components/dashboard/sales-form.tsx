@@ -1,12 +1,18 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -14,60 +20,73 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { createClient } from "@/lib/supabase/client"
-import type { Sale, Salesperson } from "@/lib/types"
+} from "@/components/ui/dialog";
+import { createClient } from "@/lib/supabase/client";
+import type { Sale, Salesperson } from "@/lib/types";
+import { DatePickerBR } from "./date-picker-br";
 
 interface SalesFormProps {
-  companyId: string
-  userId: string
-  sale: Sale | null
-  onSuccess: () => void
-  onCancel: () => void
+  companyId: string;
+  userId: string;
+  sale: Sale | null;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
-export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: SalesFormProps) {
-  const [productName, setProductName] = useState(sale?.product_name || "")
-  const [quantity, setQuantity] = useState(sale?.quantity.toString() || "")
-  const [unitPrice, setUnitPrice] = useState(sale?.unit_price.toString() || "")
-  const [saleDate, setSaleDate] = useState(sale?.sale_date || new Date().toISOString().split("T")[0])
-  const [customerName, setCustomerName] = useState(sale?.customer_name || "")
-  const [salespersonId, setSalespersonId] = useState(sale?.salesperson_id || "")
-  const [notes, setNotes] = useState(sale?.notes || "")
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [salespersons, setSalespersons] = useState<Salesperson[]>([])
+export function SalesForm({
+  companyId,
+  userId,
+  sale,
+  onSuccess,
+  onCancel,
+}: SalesFormProps) {
+  const [productName, setProductName] = useState(sale?.product_name || "");
+  const [quantity, setQuantity] = useState(sale?.quantity.toString() || "");
+  const [unitPrice, setUnitPrice] = useState(sale?.unit_price.toString() || "");
+  const [saleDate, setSaleDate] = useState(
+    sale?.sale_date || new Date().toISOString().split("T")[0],
+  );
+  const [customerName, setCustomerName] = useState(sale?.customer_name || "");
+  const [salespersonId, setSalespersonId] = useState(
+    sale?.salesperson_id || "",
+  );
+  const [notes, setNotes] = useState(sale?.notes || "");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
 
-  const totalPrice = (Number.parseFloat(quantity || "0") * Number.parseFloat(unitPrice || "0")).toFixed(2)
+  const totalPrice = (
+    Number.parseFloat(quantity || "0") * Number.parseFloat(unitPrice || "0")
+  ).toFixed(2);
 
   useEffect(() => {
-    loadSalespersons()
-  }, [companyId, userId])
+    loadSalespersons();
+  }, [companyId, userId]);
 
   const loadSalespersons = async () => {
-    const supabase = createClient()
+    const supabase = createClient();
     const { data, error } = await supabase
       .from("salespersons")
       .select("*")
       .eq("company_id", companyId)
       .eq("user_id", userId)
       .eq("is_active", true)
-      .order("name")
+      .order("name");
 
     if (!error && data) {
-      setSalespersons(data)
+      setSalespersons(data);
       if (!sale && data.length > 0 && !salespersonId) {
-        setSalespersonId(data[0].id)
+        setSalespersonId(data[0].id);
       }
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
-    const supabase = createClient()
+    const supabase = createClient();
 
     const saleData = {
       company_id: companyId,
@@ -81,26 +100,29 @@ export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: Sale
       status: sale?.status || ("pendente" as const),
       notes: notes || null,
       user_id: userId,
-    }
-
+    };
 
     try {
       if (sale) {
-        const { error } = await supabase.from("sales").update(saleData).eq("id", sale.id)
+        const { error } = await supabase
+          .from("sales")
+          .update(saleData)
+          .eq("id", sale.id);
 
-        if (error) throw error
+        if (error) throw error;
       } else {
-        const { error } = await supabase.from("sales").insert([saleData])
-        if (error) throw error
+        const { error } = await supabase.from("sales").insert([saleData]);
+        if (error) throw error;
       }
 
-      onSuccess()
+      onSuccess();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Ocorreu um erro")
+      console.log(err);
+      setError(err instanceof Error ? err.message : "Ocorreu um erro");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
@@ -108,7 +130,9 @@ export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: Sale
         <DialogHeader>
           <DialogTitle>{sale ? "Editar Venda" : "Nova Venda"}</DialogTitle>
           <DialogDescription>
-            {sale ? "Atualize os detalhes da venda" : "Adicione uma nova venda ao registro"}
+            {sale
+              ? "Atualize os detalhes da venda"
+              : "Adicione uma nova venda ao registro"}
           </DialogDescription>
         </DialogHeader>
 
@@ -116,9 +140,13 @@ export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: Sale
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="productName">Nome do Produto *</Label>
-              <Input id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+              <Input
+                id="productName"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                required
+              />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="quantity">Quantidade *</Label>
@@ -149,24 +177,30 @@ export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: Sale
             <div className="grid gap-2">
               <Label>Preço Total</Label>
               <div className="text-2xl font-bold">
-                R$ {Number.parseFloat(totalPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R${" "}
+                {Number.parseFloat(totalPrice).toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}
               </div>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="saleDate">Data da Venda *</Label>
-              <Input
+              <DatePickerBR
                 id="saleDate"
-                type="date"
                 value={saleDate}
-                onChange={(e) => setSaleDate(e.target.value)}
+                onChange={setSaleDate}
                 required
-              />
+              />{" "}
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="customerName">Nome do Cliente</Label>
-              <Input id="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+              <Input
+                id="customerName"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
             </div>
 
             <div className="grid gap-2">
@@ -192,7 +226,12 @@ export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: Sale
 
             <div className="grid gap-2">
               <Label htmlFor="notes">Observações</Label>
-              <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+              />
             </div>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -202,12 +241,15 @@ export function SalesForm({ companyId, userId, sale, onSuccess, onCancel }: Sale
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading || salespersons.length === 0}>
+            <Button
+              type="submit"
+              disabled={isLoading || salespersons.length === 0}
+            >
               {isLoading ? "Salvando..." : sale ? "Atualizar" : "Adicionar"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

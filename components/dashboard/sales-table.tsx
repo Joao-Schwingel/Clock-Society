@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Search, Eye, CheckCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Sale, Salesperson, SaleWithDetails } from "@/lib/types";
+import { formatBR } from "@/lib/utils";
 
 interface SalesTableProps {
   sales: SaleWithDetails[];
@@ -181,9 +182,7 @@ export function SalesTable({
             <TableBody>
               {filteredSales.map((sale) => (
                 <TableRow key={sale.id}>
-                  <TableCell>
-                    {new Date(sale.sale_date).toLocaleDateString("pt-BR")}
-                  </TableCell>
+                  <TableCell>{formatBR(sale.sale_date)}</TableCell>
                   <TableCell className="font-medium">
                     {sale.product_name}
                   </TableCell>

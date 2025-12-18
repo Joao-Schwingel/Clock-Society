@@ -1,20 +1,40 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import type { FixedCost } from "@/lib/types"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trash2, Search, X } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react";
+import type { FixedCost } from "@/lib/types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Trash2, Search, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { formatBR } from "@/lib/utils";
 
 interface FixedCostTableProps {
-  fixedCosts: FixedCost[]
-  onDelete: (id: string) => void
-  isLoading: boolean
+  fixedCosts: FixedCost[];
+  onDelete: (id: string) => void;
+  isLoading: boolean;
 }
 
 const COST_CATEGORIES = [
@@ -29,34 +49,43 @@ const COST_CATEGORIES = [
   "Contabilidade",
   "Manutenção",
   "Outros",
-]
+];
 
-export function FixedCostTable({ fixedCosts, onDelete, isLoading }: FixedCostTableProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState<string>("all")
-  const [dateFilter, setDateFilter] = useState("")
+export function FixedCostTable({
+  fixedCosts,
+  onDelete,
+  isLoading,
+}: FixedCostTableProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState("");
 
   const filteredCosts = fixedCosts.filter((cost) => {
     const matchesSearch =
       cost.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cost.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+      (cost.description?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+        false);
 
-    const matchesCategory = categoryFilter === "all" || cost.category === categoryFilter
+    const matchesCategory =
+      categoryFilter === "all" || cost.category === categoryFilter;
 
-    const matchesDate = !dateFilter || cost.start_date.startsWith(dateFilter)
+    const matchesDate = !dateFilter || cost.start_date.startsWith(dateFilter);
 
-    return matchesSearch && matchesCategory && matchesDate
-  })
+    return matchesSearch && matchesCategory && matchesDate;
+  });
 
   const clearFilters = () => {
-    setSearchTerm("")
-    setCategoryFilter("all")
-    setDateFilter("")
-  }
+    setSearchTerm("");
+    setCategoryFilter("all");
+    setDateFilter("");
+  };
 
-  const hasActiveFilters = searchTerm || categoryFilter !== "all" || dateFilter
+  const hasActiveFilters = searchTerm || categoryFilter !== "all" || dateFilter;
 
-  const totalFiltered = filteredCosts.reduce((sum, cost) => sum + Number(cost.monthly_value), 0)
+  const totalFiltered = filteredCosts.reduce(
+    (sum, cost) => sum + Number(cost.monthly_value),
+    0,
+  );
 
   if (isLoading) {
     return (
@@ -68,14 +97,16 @@ export function FixedCostTable({ fixedCosts, onDelete, isLoading }: FixedCostTab
           <p className="text-center text-muted-foreground">Carregando...</p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Custos Fixos</CardTitle>
-        <CardDescription>Lista de todos os custos fixos cadastrados</CardDescription>
+        <CardDescription>
+          Lista de todos os custos fixos cadastrados
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -113,11 +144,20 @@ export function FixedCostTable({ fixedCosts, onDelete, isLoading }: FixedCostTab
 
             <div className="flex-1 space-y-2">
               <Label htmlFor="date">Data de Início</Label>
-              <Input id="date" type="month" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} />
+              <Input
+                id="date"
+                type="month"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+              />
             </div>
 
             {hasActiveFilters && (
-              <Button variant="outline" onClick={clearFilters} className="gap-2 bg-transparent">
+              <Button
+                variant="outline"
+                onClick={clearFilters}
+                className="gap-2 bg-transparent"
+              >
                 <X className="h-4 w-4" />
                 Limpar Filtros
               </Button>
@@ -147,15 +187,22 @@ export function FixedCostTable({ fixedCosts, onDelete, isLoading }: FixedCostTab
                   <TableBody>
                     {filteredCosts.map((cost) => (
                       <TableRow key={cost.id}>
-                        <TableCell className="font-medium">{cost.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {cost.name}
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline">{cost.category}</Badge>
                         </TableCell>
                         <TableCell>
-                          R$ {Number(cost.monthly_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          R${" "}
+                          {Number(cost.monthly_value).toLocaleString("pt-BR", {
+                            minimumFractionDigits: 2,
+                          })}
                         </TableCell>
-                        <TableCell>{new Date(cost.start_date).toLocaleDateString("pt-BR")}</TableCell>
-                        <TableCell className="max-w-xs truncate">{cost.description || "-"}</TableCell>
+                        <TableCell>{formatBR(cost.start_date)}</TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {cost.description || "-"}
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
@@ -174,12 +221,18 @@ export function FixedCostTable({ fixedCosts, onDelete, isLoading }: FixedCostTab
 
               <div className="flex justify-between items-center pt-4 border-t">
                 <p className="text-sm text-muted-foreground">
-                  Mostrando {filteredCosts.length} de {fixedCosts.length} custos fixos
+                  Mostrando {filteredCosts.length} de {fixedCosts.length} custos
+                  fixos
                 </p>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Total Mensal (Filtrado)</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total Mensal (Filtrado)
+                  </p>
                   <p className="text-2xl font-bold">
-                    R$ {totalFiltered.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R${" "}
+                    {totalFiltered.toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                    })}
                   </p>
                 </div>
               </div>
@@ -188,5 +241,5 @@ export function FixedCostTable({ fixedCosts, onDelete, isLoading }: FixedCostTab
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
