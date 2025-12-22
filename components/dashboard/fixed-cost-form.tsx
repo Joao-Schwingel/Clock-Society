@@ -1,8 +1,9 @@
 "use client";
 
 import type React from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-import { useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,15 +16,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { DatePickerBR } from "./date-picker-br";
+import { z } from "zod";
+
+const fixedCostSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório"),
+  category: z.string().min(1, "Categoria é obrigatória"),
+  months: z
+    .number()
+    .min(1, "Mínimo 1 mês")
+    .max(12, "Máximo 12 meses"),
+  monthlyValue: z
+    .number()
+    .positive("Valor deve ser maior que zero"),
+  startDate: z.string().min(1, "Data de início é obrigatória"),
+  description: z.string().optional(),
+});
+
+export type FixedCostFormData = z.infer<typeof fixedCostSchema>;
 
 interface FixedCostFormProps {
   companyId: string;
@@ -31,68 +42,56 @@ interface FixedCostFormProps {
   onFixedCostAdded: () => void;
 }
 
-const COST_CATEGORIES = [
-  "Salários",
-  "Aluguel",
-  "Tráfego Pago",
-  "Software/Assinaturas",
-  "Energia",
-  "Água",
-  "Internet",
-  "Telefonia",
-  "Contabilidade",
-  "Manutenção",
-  "Outros",
-];
-
 export function FixedCostForm({
   companyId,
   userId,
   onFixedCostAdded,
 }: FixedCostFormProps) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [monthlyValue, setMonthlyValue] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [description, setDescription] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const supabase = createBrowserClient();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FixedCostFormData>({
+    resolver: zodResolver(fixedCostSchema),
+    defaultValues: {
+      months: 1,
+      description: "",
+    },
+  });
 
+  const onSubmit = async (data: FixedCostFormData) => {
     const { error } = await supabase.from("fixed_costs").insert({
       company_id: companyId,
       user_id: userId,
-      name,
-      category,
-      monthly_value: Number(monthlyValue),
-      start_date: startDate,
-      description: description || null,
+      name: data.name,
+      category: data.category,
+      qtdmonths: data.months,
+      monthly_value: data.monthlyValue,
+      start_date: data.startDate,
+      description: data.description || null,
     });
-
+    console.log(error)
     if (error) {
       toast({
         title: "Erro",
         description: "Não foi possível adicionar o custo fixo.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Sucesso",
-        description: "Custo fixo adicionado com sucesso!",
-      });
-      setName("");
-      setCategory("");
-      setMonthlyValue("");
-      setStartDate("");
-      setDescription("");
-      onFixedCostAdded();
+      return;
     }
 
-    setIsSubmitting(false);
+    toast({
+      title: "Sucesso",
+      description: "Custo fixo adicionado com sucesso!",
+    });
+
+    reset();
+    onFixedCostAdded();
   };
 
   return (
@@ -103,70 +102,92 @@ export function FixedCostForm({
           Cadastre um novo custo fixo mensal para a empresa
         </CardDescription>
       </CardHeader>
+
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
+            {/* Nome */}
             <div className="space-y-2">
-              <Label htmlFor="name">Nome do Custo *</Label>
+              <Label>Nome do Custo *</Label>
               <Input
-                id="name"
                 placeholder="Ex: Salário João Silva"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
+                {...register("name")}
               />
+              {errors.name && (
+                <p className="text-sm text-destructive">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="category">Categoria *</Label>
-              <Select value={category} onValueChange={setCategory} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COST_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Categoria + Meses */}
+            <div className="flex gap-4">
+              <div className="space-y-2">
+                <Label>Categoria *</Label>
+                <Input className="w-max" {...register("category")} />
+                {errors.category && (
+                  <p className="text-sm text-destructive">
+                    {errors.category.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Quantidade de Meses</Label>
+                <Input
+                  className="w-max"
+                  max={12}
+                  min={1}
+                  type="number"
+                  {...register("months", { valueAsNumber: true })}
+                />
+                {errors.months && (
+                  <p className="text-sm text-destructive">
+                    {errors.months.message}
+                  </p>
+                )}
+              </div>
             </div>
 
+            {/* Valor mensal */}
             <div className="space-y-2">
-              <Label htmlFor="monthlyValue">Valor Mensal (R$) *</Label>
+              <Label>Valor Mensal (R$) *</Label>
               <Input
-                id="monthlyValue"
                 type="number"
                 step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={monthlyValue}
-                onChange={(e) => setMonthlyValue(e.target.value)}
-                required
+                {...register("monthlyValue", {
+                  valueAsNumber: true,
+                })}
               />
+              {errors.monthlyValue && (
+                <p className="text-sm text-destructive">
+                  {errors.monthlyValue.message}
+                </p>
+              )}
             </div>
 
+            {/* Data início */}
             <div className="space-y-2">
-              <Label htmlFor="startDate">Data de Início *</Label>
-              <DatePickerBR
-                id="startDate"
-                value={startDate}
-                onChange={setStartDate}
-                required
-              />{" "}
+              <Label>Data de Início *</Label>
+              <Controller
+                name="startDate"
+                control={control}
+                render={({ field }) => (
+                  <DatePickerBR {...field} />
+                )}
+              />
+              {errors.startDate && (
+                <p className="text-sm text-destructive">
+                  {errors.startDate.message}
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Descrição */}
           <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              placeholder="Detalhes adicionais sobre o custo fixo..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
+            <Label>Descrição</Label>
+            <Textarea rows={3} {...register("description")} />
           </div>
 
           <Button type="submit" disabled={isSubmitting} className="w-full">

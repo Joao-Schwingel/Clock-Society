@@ -63,7 +63,7 @@ export function FixedCostTable({
   const filteredCosts = fixedCosts.filter((cost) => {
     const matchesSearch =
       cost.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cost.description?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+      (cost.category?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false);
 
     const matchesCategory =
@@ -84,7 +84,7 @@ export function FixedCostTable({
 
   const totalFiltered = filteredCosts.reduce(
     (sum, cost) => sum + Number(cost.monthly_value),
-    0,
+    0
   );
 
   if (isLoading) {
@@ -126,28 +126,12 @@ export function FixedCostTable({
             </div>
 
             <div className="flex-1 space-y-2">
-              <Label htmlFor="category">Categoria</Label>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as categorias" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as categorias</SelectItem>
-                  {COST_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1 space-y-2">
               <Label htmlFor="date">Data de Início</Label>
               <Input
                 id="date"
                 type="month"
                 value={dateFilter}
+                className="w-max"
                 onChange={(e) => setDateFilter(e.target.value)}
               />
             </div>
@@ -178,6 +162,7 @@ export function FixedCostTable({
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Categoria</TableHead>
+                      <TableHead>Nº Meses</TableHead>
                       <TableHead>Valor Mensal</TableHead>
                       <TableHead>Data Início</TableHead>
                       <TableHead>Descrição</TableHead>
@@ -193,6 +178,7 @@ export function FixedCostTable({
                         <TableCell>
                           <Badge variant="outline">{cost.category}</Badge>
                         </TableCell>
+                        <TableCell>{cost.qtdmonths}</TableCell>
                         <TableCell>
                           R${" "}
                           {Number(cost.monthly_value).toLocaleString("pt-BR", {
@@ -207,7 +193,15 @@ export function FixedCostTable({
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => onDelete(cost.id)}
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  "Tem certeza que deseja excluir esta venda?"
+                                )
+                              ) {
+                                onDelete(cost.id);
+                              }
+                            }}
                             className="h-8 w-8 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />

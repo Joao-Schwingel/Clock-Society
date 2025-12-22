@@ -28,7 +28,10 @@ export default function LoginPage() {
         email,
         password,
       })
-      if (error) throw error
+      if (error) {
+        setIsLoading(false)
+        throw error
+      }
       router.replace("/dashboard")
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Ocorreu um erro")

@@ -99,6 +99,7 @@ export interface FixedCost {
   name: string;
   category: string;
   monthly_value: number;
+  qtdmonths: number;
   start_date: string;
   description: string | null;
   created_at: string;
