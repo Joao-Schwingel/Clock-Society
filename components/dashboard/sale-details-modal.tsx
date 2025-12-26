@@ -69,7 +69,16 @@ export function SaleDetailsModal({
   const netProfit = Number(saleData.total_price) - totalCosts;
 
   const entryValue = Number(saleData.entry_value ?? 0);
-  const missingValue = Math.max(0, Number(saleData.total_price) - entryValue);
+
+  const paymentStatus =
+    ((saleData as any).payment_status as "pendente" | "pago") ?? "pendente";
+
+  const saleStatus = saleData.status; // "pendente" | "concluída"
+
+  const missingValue =
+    paymentStatus === "pago"
+      ? 0
+      : Math.max(0, Number(saleData.total_price) - entryValue);
 
   const salespersonName =
     saleData.salesperson_info?.name ?? saleData.salesperson ?? "";
@@ -161,6 +170,33 @@ export function SaleDetailsModal({
                 <p className="text-sm text-muted-foreground">Valor Faltante</p>
                 <p className="font-bold text-lg">R$ {money(missingValue)}</p>
               </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status da Venda</p>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                    saleStatus === "concluída"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  }`}
+                >
+                  {saleStatus === "concluída" ? "Concluída" : "Pendente"}
+                </span>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Status do Pagamento
+                </p>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                    paymentStatus === "pago"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  }`}
+                >
+                  {paymentStatus === "pago" ? "Pago" : "Pendente"}
+                </span>
+              </div>
 
               {saleData.notes && (
                 <div className="md:col-span-2">
@@ -196,8 +232,8 @@ export function SaleDetailsModal({
                     <TableRow>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Descrição</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      <TableHead  >Valor</TableHead>
+                      <TableHead  >Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -207,10 +243,10 @@ export function SaleDetailsModal({
                           {cost.cost_type}
                         </TableCell>
                         <TableCell>{cost.description || "-"}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell  >
                           R$ {money(Number(cost.amount))}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell  >
                           <Button
                             variant="ghost"
                             size="icon"

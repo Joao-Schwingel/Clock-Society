@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import {
   Card,
@@ -43,13 +41,10 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     const { data, error } = await supabase
       .from("sales_with_details")
       .select(
-        "id,company_id,user_id,salesperson_id,entry_value,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,order_number,notes,created_at,salesperson,salesperson_info,costs,total_costs",
+        "id,company_id,user_id,salesperson_id,entry_value,payment_status,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,order_number,notes,created_at,salesperson,salesperson_info,costs,total_costs",
       )
       .eq("company_id", companyId)
       .order("sale_date", { ascending: false });
-
-    console.log(data);
-    console.log("error", error);
 
     if (!error && data) setSales(data as SaleWithDetails[]);
     setIsLoading(false);
@@ -109,6 +104,24 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const completedNetProfit = completedRevenue - completedCosts;
   const pendingNetProfit = pendingRevenue - pendingCosts;
 
+  // =========================
+  // Pagamentos (NOVO)
+  // =========================
+  const paymentsCompleted = sales.filter((s) => s.payment_status === "pago");
+  const paymentsPending = sales.filter((s) => s.payment_status !== "pago");
+
+  const totalEntryValue = sales.reduce(
+    (sum, s) => sum + Number(s.entry_value ?? 0),
+    0,
+  );
+
+  // "faltante" = total_price - entry_value (nunca negativo), apenas para pagamentos pendentes
+  const totalMissingPayments = paymentsPending.reduce((sum, s) => {
+    const total = Number(s.total_price ?? 0);
+    const entry = Number(s.entry_value ?? 0);
+    return sum + Math.max(total - entry, 0);
+  }, 0);
+
   useEffect(() => {
     fetchSales();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,6 +129,9 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
   return (
     <div className="space-y-4">
+      {/* =========================
+          Vendas Concluídas
+         ========================= */}
       <div>
         <h3 className="text-lg font-semibold mb-2 text-green-600">
           Vendas Concluídas
@@ -137,7 +153,6 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
                     minimumFractionDigits: 2,
                   })}
                 </div>
-
                 <p className="text-xs text-muted-foreground">
                   {completedSales.length} vendas aprovadas
                 </p>
@@ -214,6 +229,9 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         </div>
       </div>
 
+      {/* =========================
+          Vendas Pendentes
+         ========================= */}
       <div>
         <h3 className="text-lg font-semibold mb-2 text-yellow-600">
           Vendas Pendentes
@@ -311,6 +329,97 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         </div>
       </div>
 
+      {/* =========================
+          Pagamentos (NOVO)
+         ========================= */}
+      <div>
+        <h3 className="text-lg font-semibold mb-2 text-blue-600">Pagamentos</h3>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Pagamentos Concluídos
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {paymentsCompleted.length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Vendas com pagamento confirmado
+                </p>
+              </CardContent>
+            </Spinner>
+          </Card>
+
+          <Card className="border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Pagamentos Pendentes
+              </CardTitle>
+              <Clock className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {paymentsPending.length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Vendas aguardando pagamento
+                </p>
+              </CardContent>
+            </Spinner>
+          </Card>
+
+          <Card className="border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Valor Total Faltante
+              </CardTitle>
+              <TrendingDown className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <Spinner loading={isLoading} size={"3"}>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  R${" "}
+                  {totalMissingPayments.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Total a receber (total - entrada)
+                </p>
+              </CardContent>
+            </Spinner>
+          </Card>
+
+          {/* <Card className="border-blue-200"> */}
+          {/*   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"> */}
+          {/*     <CardTitle className="text-sm font-medium"> */}
+          {/*       Valor Total de Entrada */}
+          {/*     </CardTitle> */}
+          {/*     <Receipt className="h-4 w-4 text-blue-600" /> */}
+          {/*   </CardHeader> */}
+          {/*   <Spinner loading={isLoading} size={"3"}> */}
+          {/*     <CardContent> */}
+          {/*       <div className="text-2xl font-bold text-blue-600"> */}
+          {/*         R${" "} */}
+          {/*         {totalEntryValue.toLocaleString("pt-BR", { */}
+          {/*           minimumFractionDigits: 2, */}
+          {/*         })} */}
+          {/*       </div> */}
+          {/*       <p className="text-xs text-muted-foreground"> */}
+          {/*         Somatório de entradas */}
+          {/*       </p> */}
+          {/*     </CardContent> */}
+          {/*   </Spinner> */}
+          {/* </Card> */}
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -334,6 +443,15 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             onViewDetails={handleViewDetails}
             onStatusChange={handleStatusChange}
             isLoading={isLoading}
+            onPaymentConfirmed={(saleId) => {
+              setSales((prev) =>
+                prev.map((s) =>
+                  s.id === saleId
+                    ? ({ ...(s as any), payment_status: "pago" } as any)
+                    : s,
+                ),
+              );
+            }}
           />
         </CardContent>
       </Card>

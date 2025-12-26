@@ -12,7 +12,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Search, Eye, CheckCircle } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Search,
+  Eye,
+  CheckCircle,
+  DollarSign,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Sale, Salesperson, SaleWithDetails } from "@/lib/types";
 import { formatBR } from "@/lib/utils";
@@ -24,7 +31,10 @@ interface SalesTableProps {
   onViewDetails: (sale: SaleWithDetails) => void;
   onStatusChange: () => void;
   isLoading: boolean;
+  onPaymentConfirmed?: (saleId: string) => void;
 }
+
+type PaymentStatus = "pendente" | "pago";
 
 export function SalesTable({
   sales,
@@ -33,17 +43,21 @@ export function SalesTable({
   onViewDetails,
   onStatusChange,
   isLoading,
+  onPaymentConfirmed,
 }: SalesTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [onlyWithRemaining, setOnlyWithRemaining] = useState(false);
+
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
+
   const [salespersonsMap, setSalespersonsMap] = useState<
     Record<string, Salesperson>
   >({});
 
   useEffect(() => {
-    loadSalespersons();
+    void loadSalespersons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sales]);
 
@@ -71,6 +85,34 @@ export function SalesTable({
     setSalespersonsMap(map);
   };
 
+  const getSalespersonName = (salespersonId: string | null | undefined) => {
+    if (!salespersonId) return "-";
+    const person = salespersonsMap[salespersonId];
+    return person ? person.name : "Desconhecido";
+  };
+
+  const formatMoneyBR = (value: number) =>
+    value.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+  const totalSaleCost = (sale: SaleWithDetails): number =>
+    Number(sale.costs.reduce((sum, c) => sum + Number(c.amount || 0), 0));
+
+  const paymentStatusOf = (sale: SaleWithDetails): PaymentStatus =>
+    ((sale as any).payment_status as PaymentStatus) ?? "pendente";
+
+  const remainingOf = (sale: SaleWithDetails): number => {
+    const total = Number(sale.total_price);
+    const entry = Number((sale as any).entry_value ?? 0);
+    if (paymentStatusOf(sale) === "pago") return 0;
+    return Math.max(0, total - entry);
+  };
+
+  const isCashPaymentOf = (sale: SaleWithDetails): boolean => {
+    const total = Number(sale.total_price);
+    const entry = Number((sale as any).entry_value ?? 0);
+    return entry === total;
+  };
+
   const filteredSales = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
 
@@ -83,15 +125,11 @@ export function SalesTable({
 
       const matchesDate = !dateFilter || sale.sale_date.startsWith(dateFilter);
 
-      const remaining = Math.max(
-        0,
-        Number(sale.total_price) - Number(sale.entry_value ?? 0),
-      );
-
-      const matchesRemaining = !onlyWithRemaining || remaining > 0;
+      const matchesRemaining = !onlyWithRemaining || remainingOf(sale) > 0;
 
       return matchesSearch && matchesDate && matchesRemaining;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sales, searchTerm, dateFilter, onlyWithRemaining]);
 
   const handleStatusToggle = async (sale: Sale) => {
@@ -116,17 +154,32 @@ export function SalesTable({
     }
   };
 
-  const getSalespersonName = (salespersonId: string | null | undefined) => {
-    if (!salespersonId) return "-";
-    const person = salespersonsMap[salespersonId];
-    return person ? person.name : "Desconhecido";
+  const handleConfirmPayment = async (sale: SaleWithDetails) => {
+    const isCash = isCashPaymentOf(sale);
+    const remaining = remainingOf(sale);
+    const paymentStatus = paymentStatusOf(sale);
+
+    if (isCash || remaining <= 0 || paymentStatus === "pago") return;
+
+    setUpdatingPayment(sale.id);
+    const supabase = createClient();
+
+    try {
+      const { error } = await supabase
+        .from("sales")
+        .update({ payment_status: "pago" })
+        .eq("id", sale.id);
+
+      if (error) throw error;
+
+      onPaymentConfirmed?.(sale.id);
+      onStatusChange();
+    } catch {
+      alert("Erro ao confirmar pagamento");
+    } finally {
+      setUpdatingPayment(null);
+    }
   };
-
-  const formatMoneyBR = (value: number) =>
-    value.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
-
-  const totalSaleCost = (sale: SaleWithDetails): number =>
-    Number(sale.costs.reduce((sum, c) => sum + Number(c.amount || 0), 0));
 
   if (isLoading) {
     return (
@@ -197,48 +250,46 @@ export function SalesTable({
                 <TableHead>Cliente</TableHead>
                 <TableHead>Vendedor</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Quantidade</TableHead>
-                <TableHead className="text-right">Preço Unit.</TableHead>
-                <TableHead className="text-right">Custo Total</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Entrada</TableHead>
-                <TableHead className="text-right">Faltante</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead>Quantidade</TableHead>
+                <TableHead>Preço Unit.</TableHead>
+                <TableHead>Custo Total</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Entrada</TableHead>
+                <TableHead>Faltante</TableHead>
+                <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
               {filteredSales.map((sale) => {
                 const cost = totalSaleCost(sale);
-
                 const total = Number(sale.total_price);
-                const entryRaw = Number(sale.entry_value ?? 0);
 
-                // Regra de exibição: à vista => entry_value == total => mostrar "-"
-                const isCashPayment = entryRaw === total;
-                const entryDisplay = isCashPayment ? null : entryRaw;
+                const entryRaw = Number((sale as any).entry_value ?? 0);
+                const entryDisplay = entryRaw > 0 ? entryRaw : null;
 
-                // Faltante é sempre total - entry_value persistido
-                const remaining = Math.max(0, total - entryRaw);
+                const paymentStatus = paymentStatusOf(sale);
+                const remaining =
+                  paymentStatus === "pago" ? 0 : Math.max(0, total - entryRaw);
+
+                const showConfirmPayment =
+                  entryRaw !== total &&
+                  paymentStatus !== "pago" &&
+                  remaining > 0;
 
                 return (
                   <TableRow key={sale.id}>
                     <TableCell>{formatBR(sale.sale_date)}</TableCell>
-
                     <TableCell className="font-medium">
                       {sale.order_number || "-"}
                     </TableCell>
-
                     <TableCell className="font-medium">
                       {sale.product_name}
                     </TableCell>
-
                     <TableCell>{sale.customer_name || "-"}</TableCell>
-
                     <TableCell>
                       {getSalespersonName(sale.salesperson_id)}
                     </TableCell>
-
                     <TableCell>
                       <Badge
                         variant={
@@ -248,42 +299,37 @@ export function SalesTable({
                         {sale.status === "concluída" ? "Concluída" : "Pendente"}
                       </Badge>
                     </TableCell>
-
-                    <TableCell className="text-right">
-                      {sale.quantity}
-                    </TableCell>
-
-                    <TableCell className="text-right">
+                    <TableCell>{sale.quantity}</TableCell>
+                    <TableCell>
                       R$ {formatMoneyBR(Number(sale.unit_price))}
                     </TableCell>
-
-                    <TableCell className="text-right">
-                      R$ {formatMoneyBR(cost)}
-                    </TableCell>
-
-                    <TableCell className="text-right font-medium">
-                      R$ {formatMoneyBR(Number(sale.total_price) - cost)}
-                    </TableCell>
-
-                    <TableCell className="text-right">
+                    <TableCell>R$ {formatMoneyBR(cost)}</TableCell>
+                    <TableCell>R$ {formatMoneyBR(total - cost)}</TableCell>
+                    <TableCell>
                       {entryDisplay === null
                         ? "-"
                         : `R$ ${formatMoneyBR(entryDisplay)}`}
                     </TableCell>
-
-                    <TableCell className="text-right">
-                      R$ {formatMoneyBR(remaining)}
-                    </TableCell>
-
-                    <TableCell className="text-right">
+                    <TableCell>R$ {formatMoneyBR(remaining)}</TableCell>
+                    <TableCell>
                       <div className="flex justify-end gap-2">
+                        {showConfirmPayment && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleConfirmPayment(sale)}
+                            disabled={updatingPayment === sale.id}
+                          >
+                            <DollarSign className="h-4 w-4 text-green-600" />
+                          </Button>
+                        )}
+
                         {sale.status === "pendente" && (
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleStatusToggle(sale)}
                             disabled={updatingStatus === sale.id}
-                            title="Marcar como Concluída"
                           >
                             <CheckCircle className="h-4 w-4 text-green-600" />
                           </Button>
@@ -293,7 +339,6 @@ export function SalesTable({
                           variant="ghost"
                           size="icon"
                           onClick={() => onViewDetails(sale)}
-                          title="Ver Detalhes"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -302,7 +347,6 @@ export function SalesTable({
                           variant="ghost"
                           size="icon"
                           onClick={() => onEdit(sale)}
-                          title="Editar"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -319,7 +363,6 @@ export function SalesTable({
                               onDelete(sale.id);
                             }
                           }}
-                          title="Excluir"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>

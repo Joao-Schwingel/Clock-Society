@@ -15,6 +15,7 @@ select
   s.total_price,
   s.entry_value,
   s.status,
+  s.payment_status,
   s.notes,
   s.created_at,
   sp as salesperson,
@@ -45,6 +46,8 @@ group by
   s.total_price,
   s.entry_value,
   s.status,
+  s.payment_status,
   s.notes,
   s.created_at,
   sp.id;
+

@@ -33,6 +33,8 @@ interface SalesFormProps {
   onCancel: () => void;
 }
 
+type PaymentStatus = "pendente" | "pago";
+
 export function SalesForm({
   companyId,
   userId,
@@ -54,9 +56,18 @@ export function SalesForm({
     sale?.salesperson_id || "",
   );
   const [notes, setNotes] = useState(sale?.notes || "");
-  const [entryValue, setEntryValue] = useState(
-    sale?.entry_value?.toString() || "0",
-  );
+
+  // vazio => "" (UI), submit => 0 (DB)
+  const [entryValue, setEntryValue] = useState(() => {
+    const v = sale?.entry_value;
+    return v === null || v === undefined ? "" : String(v);
+  });
+
+  // status de pagamento (coluna payment_status)
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() => {
+    const ps = (sale as any)?.payment_status as PaymentStatus | undefined;
+    return ps ?? "pendente";
+  });
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +92,9 @@ export function SalesForm({
 
     if (data) {
       setSalespersons(data);
-      if (!sale && data.length > 0 && !salespersonId) {
+
+      // garante default para UUID (evita "" no submit)
+      if (data.length > 0 && !salespersonId) {
         setSalespersonId(data[0].id);
       }
     }
@@ -93,20 +106,37 @@ export function SalesForm({
     return (q * u).toFixed(2);
   }, [quantity, unitPrice]);
 
+  const parsedEntryValue = useMemo(() => {
+    const v = entryValue.trim();
+    if (v === "") return 0;
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }, [entryValue]);
+
   // Regra: entrada 0 => à vista => entrada efetiva = total
   const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(() => {
     const parsedTotal = Number.parseFloat(totalPrice) || 0;
-    const parsedEntry = Number.parseFloat(entryValue || "0") || 0;
 
-    const cash = parsedEntry === 0;
-    const effectiveEntry = cash ? parsedTotal : parsedEntry;
+    const cash = parsedEntryValue === 0;
+    const effectiveEntry = cash ? parsedTotal : parsedEntryValue;
 
     return {
       isCashPayment: cash,
       effectiveEntryValue: effectiveEntry,
       remainingValue: Math.max(0, parsedTotal - effectiveEntry).toFixed(2),
     };
-  }, [entryValue, totalPrice]);
+  }, [parsedEntryValue, totalPrice]);
+
+  // define payment_status automaticamente baseado em "à vista" ou não
+  useEffect(() => {
+    if (isCashPayment) {
+      if (paymentStatus !== "pago") setPaymentStatus("pago");
+    } else {
+      // para venda nova, default pendente; ao editar, respeita o valor do banco
+      if (!sale && paymentStatus !== "pendente") setPaymentStatus("pendente");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCashPayment]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +144,10 @@ export function SalesForm({
     setError(null);
 
     const supabase = createClient();
+
+    const computedPaymentStatus: PaymentStatus = isCashPayment
+      ? "pago"
+      : paymentStatus;
 
     const saleData = {
       company_id: companyId,
@@ -123,10 +157,18 @@ export function SalesForm({
       quantity: Number.parseInt(quantity, 10),
       unit_price: Number.parseFloat(unitPrice),
       total_price: Number.parseFloat(totalPrice),
-      entry_value: effectiveEntryValue,
+
+      // se usuário não inserir nada => salva 0
+      // (mantém UI de "à vista" baseada em entrada 0)
+      entry_value: entryValue.trim() === "" ? 0 : effectiveEntryValue,
+
+      payment_status: computedPaymentStatus,
       sale_date: saleDate,
       customer_name: customerName || null,
-      salesperson_id: salespersonId,
+
+      // FIX UUID: nunca envia "" para uuid
+      salesperson_id: salespersonId ? salespersonId : null,
+
       status: sale?.status || ("pendente" as const),
       notes: notes || null,
     };
@@ -234,7 +276,6 @@ export function SalesForm({
                   value={entryValue}
                   onChange={(e) => setEntryValue(e.target.value)}
                 />
-                {/* Reservar altura fixa p/ não desalinha a coluna */}
                 <div className="min-h-[20px]">
                   {isCashPayment && (
                     <span className="text-sm text-muted-foreground">
@@ -314,7 +355,9 @@ export function SalesForm({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || salespersons.length === 0}
+              disabled={
+                isLoading || salespersons.length === 0 || !salespersonId
+              }
             >
               {isLoading ? "Salvando..." : sale ? "Atualizar" : "Adicionar"}
             </Button>

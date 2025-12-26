@@ -26,10 +26,12 @@ export interface Sale {
   unit_price: number;
   total_price: number;
   sale_date: string;
+  entry_value: number;
   customer_name: string | null;
   salesperson: "A" | "B" | "C";
   salesperson_id?: string | null;
   status: "pendente" | "concluída";
+  payment_status: "pendente" | "pago";
   notes: string | null;
   user_id: string;
   created_at: string;
