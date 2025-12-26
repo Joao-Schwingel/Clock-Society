@@ -23,13 +23,8 @@ import { z } from "zod";
 const fixedCostSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
-  months: z
-    .number()
-    .min(1, "Mínimo 1 mês")
-    .max(12, "Máximo 12 meses"),
-  monthlyValue: z
-    .number()
-    .positive("Valor deve ser maior que zero"),
+  months: z.number().min(1, "Mínimo 1 mês").max(12, "Máximo 12 meses"),
+  monthlyValue: z.number().positive("Valor deve ser maior que zero"),
   startDate: z.string().min(1, "Data de início é obrigatória"),
   description: z.string().optional(),
 });
@@ -75,7 +70,6 @@ export function FixedCostForm({
       start_date: data.startDate,
       description: data.description || null,
     });
-    console.log(error)
     if (error) {
       toast({
         title: "Erro",
@@ -172,9 +166,7 @@ export function FixedCostForm({
               <Controller
                 name="startDate"
                 control={control}
-                render={({ field }) => (
-                  <DatePickerBR {...field} />
-                )}
+                render={({ field }) => <DatePickerBR {...field} />}
               />
               {errors.startDate && (
                 <p className="text-sm text-destructive">
