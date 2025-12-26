@@ -138,6 +138,29 @@ export function SalesForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCashPayment]);
 
+  const normalizeOrderNumber = (value: string) => value.trim();
+
+  const orderNumberExists = async (
+    supabase: ReturnType<typeof createClient>,
+  ) => {
+    const normalized = normalizeOrderNumber(orderNumber);
+    if (!normalized) return false;
+
+    let query = supabase
+      .from("sales")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("order_number", normalized);
+
+    // ao editar, ignora o próprio registro
+    if (sale?.id) query = query.neq("id", sale.id);
+
+    const { count, error } = await query;
+    if (error) throw error;
+
+    return (count ?? 0) > 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -145,41 +168,46 @@ export function SalesForm({
 
     const supabase = createClient();
 
-    const computedPaymentStatus: PaymentStatus = isCashPayment
-      ? "pago"
-      : paymentStatus;
-
-    const saleData = {
-      company_id: companyId,
-      user_id: userId,
-      order_number: orderNumber,
-      product_name: productName,
-      quantity: Number.parseInt(quantity, 10),
-      unit_price: Number.parseFloat(unitPrice),
-      total_price: Number.parseFloat(totalPrice),
-
-      // se usuário não inserir nada => salva 0
-      // (mantém UI de "à vista" baseada em entrada 0)
-      entry_value: entryValue.trim() === "" ? 0 : effectiveEntryValue,
-
-      payment_status: computedPaymentStatus,
-      sale_date: saleDate,
-      customer_name: customerName || null,
-
-      // FIX UUID: nunca envia "" para uuid
-      salesperson_id: salespersonId ? salespersonId : null,
-
-      status: sale?.status || ("pendente" as const),
-      notes: notes || null,
-    };
-
     try {
+      // valida duplicidade do número do pedido
+      const exists = await orderNumberExists(supabase);
+      if (exists) {
+        setError("Já existe uma venda com este número de pedido.");
+        return;
+      }
+
+      const computedPaymentStatus: PaymentStatus = isCashPayment
+        ? "pago"
+        : paymentStatus;
+
+      const saleData = {
+        company_id: companyId,
+        user_id: userId,
+        order_number: normalizeOrderNumber(orderNumber),
+        product_name: productName,
+        quantity: Number.parseInt(quantity, 10),
+        unit_price: Number.parseFloat(unitPrice),
+        total_price: Number.parseFloat(totalPrice),
+
+        // se usuário não inserir nada => salva 0
+        entry_value: entryValue.trim() === "" ? 0 : effectiveEntryValue,
+
+        payment_status: computedPaymentStatus,
+        sale_date: saleDate,
+        customer_name: customerName || null,
+
+        // FIX UUID: nunca envia "" para uuid
+        salesperson_id: salespersonId ? salespersonId : null,
+
+        status: sale?.status || ("pendente" as const),
+        notes: notes || null,
+      };
+
       if (sale) {
         const { error } = await supabase
           .from("sales")
           .update(saleData)
           .eq("id", sale.id);
-
         if (error) throw error;
       } else {
         const { error } = await supabase.from("sales").insert([saleData]);
