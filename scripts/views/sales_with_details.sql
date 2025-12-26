@@ -13,6 +13,7 @@ select
   s.quantity,
   s.unit_price,
   s.total_price,
+  s.entry_value,
   s.status,
   s.notes,
   s.created_at,
@@ -42,8 +43,8 @@ group by
   s.quantity,
   s.unit_price,
   s.total_price,
+  s.entry_value,
   s.status,
   s.notes,
   s.created_at,
   sp.id;
-

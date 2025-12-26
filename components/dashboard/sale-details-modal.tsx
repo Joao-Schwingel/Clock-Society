@@ -27,7 +27,7 @@ interface SaleDetailsModalProps {
   sale: SaleWithDetails;
   isOpen: boolean;
   onClose: () => void;
-  onChanged: () => void; // refresh list metrics/cards outside
+  onChanged: () => void;
 }
 
 export function SaleDetailsModal({
@@ -51,7 +51,7 @@ export function SaleDetailsModal({
     const { data, error } = await supabase
       .from("sales_with_details")
       .select(
-        "id,company_id,user_id,salesperson_id,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,notes,created_at,salesperson,salesperson_info,costs,total_costs",
+        "id,company_id,user_id,salesperson_id,order_number,product_name,customer_name,sale_date,quantity,unit_price,total_price,entry_value,status,notes,created_at,salesperson,salesperson_info,costs,total_costs",
       )
       .eq("id", saleData.id)
       .single();
@@ -68,6 +68,9 @@ export function SaleDetailsModal({
   const totalCosts = Number(saleData.total_costs ?? 0);
   const netProfit = Number(saleData.total_price) - totalCosts;
 
+  const entryValue = Number(saleData.entry_value ?? 0);
+  const missingValue = Math.max(0, Number(saleData.total_price) - entryValue);
+
   const salespersonName =
     saleData.salesperson_info?.name ?? saleData.salesperson ?? "";
 
@@ -79,16 +82,19 @@ export function SaleDetailsModal({
       .eq("id", costId);
 
     if (!error) {
-      await refreshSale(); // updates costs + totals in the modal
-      onChanged(); // refresh parent aggregates/cards
+      await refreshSale();
+      onChanged();
     }
   };
 
   const handleFormSuccess = async () => {
     setIsFormOpen(false);
-    await refreshSale(); // updates costs + totals in the modal
-    onChanged(); // refresh parent aggregates/cards
+    await refreshSale();
+    onChanged();
   };
+
+  const money = (v: number) =>
+    v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -110,7 +116,7 @@ export function SaleDetailsModal({
                 <p className="text-sm text-muted-foreground">
                   Número do Pedido
                 </p>
-                <p className="font-medium">{saleData.order_number}</p>
+                <p className="font-medium">{saleData.order_number || "-"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Produto</p>
@@ -137,21 +143,25 @@ export function SaleDetailsModal({
               <div>
                 <p className="text-sm text-muted-foreground">Preço Unitário</p>
                 <p className="font-medium">
-                  R${" "}
-                  {Number(saleData.unit_price).toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
+                  R$ {money(Number(saleData.unit_price))}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Valor Total</p>
                 <p className="font-bold text-lg">
-                  R${" "}
-                  {Number(saleData.total_price).toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
+                  R$ {money(Number(saleData.total_price))}
                 </p>
               </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">Entrada</p>
+                <p className="font-medium">R$ {money(entryValue)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Valor Faltante</p>
+                <p className="font-bold text-lg">R$ {money(missingValue)}</p>
+              </div>
+
               {saleData.notes && (
                 <div className="md:col-span-2">
                   <p className="text-sm text-muted-foreground">Observações</p>
@@ -198,16 +208,14 @@ export function SaleDetailsModal({
                         </TableCell>
                         <TableCell>{cost.description || "-"}</TableCell>
                         <TableCell className="text-right">
-                          R${" "}
-                          {Number(cost.amount).toLocaleString("pt-BR", {
-                            minimumFractionDigits: 2,
-                          })}
+                          R$ {money(Number(cost.amount))}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteCost(cost.id)}
+                            aria-label="Excluir custo"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -228,21 +236,27 @@ export function SaleDetailsModal({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Valor da Venda:</span>
                 <span className="font-medium">
-                  R${" "}
-                  {Number(saleData.total_price).toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
+                  R$ {money(Number(saleData.total_price))}
                 </span>
               </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Entrada:</span>
+                <span className="font-medium">R$ {money(entryValue)}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Valor Faltante:</span>
+                <span className="font-medium">R$ {money(missingValue)}</span>
+              </div>
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total de Custos:</span>
                 <span className="font-medium text-destructive">
-                  - R${" "}
-                  {totalCosts.toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
+                  - R$ {money(totalCosts)}
                 </span>
               </div>
+
               <div className="flex justify-between pt-2 border-t">
                 <span className="font-bold">Lucro Líquido:</span>
                 <span
@@ -250,14 +264,12 @@ export function SaleDetailsModal({
                     netProfit >= 0 ? "text-green-600" : "text-destructive"
                   }`}
                 >
-                  R${" "}
-                  {netProfit.toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
+                  R$ {money(netProfit)}
                 </span>
               </div>
             </CardContent>
           </Card>
+
           <Button onClick={onClose} className="justify-self-end flex">
             Concluir
           </Button>

@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,9 +40,12 @@ export function SalesForm({
   onSuccess,
   onCancel,
 }: SalesFormProps) {
+  const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
   const [productName, setProductName] = useState(sale?.product_name || "");
-  const [quantity, setQuantity] = useState(sale?.quantity.toString() || "");
-  const [unitPrice, setUnitPrice] = useState(sale?.unit_price.toString() || "");
+  const [quantity, setQuantity] = useState(sale?.quantity?.toString() || "");
+  const [unitPrice, setUnitPrice] = useState(
+    sale?.unit_price?.toString() || "",
+  );
   const [saleDate, setSaleDate] = useState(
     sale?.sale_date || new Date().toISOString().split("T")[0],
   );
@@ -51,17 +54,17 @@ export function SalesForm({
     sale?.salesperson_id || "",
   );
   const [notes, setNotes] = useState(sale?.notes || "");
+  const [entryValue, setEntryValue] = useState(
+    sale?.entry_value?.toString() || "0",
+  );
+
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
-  const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
-
-  const totalPrice = (
-    Number.parseFloat(quantity || "0") * Number.parseFloat(unitPrice || "0")
-  ).toFixed(2);
 
   useEffect(() => {
-    loadSalespersons();
+    void loadSalespersons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, userId]);
 
   const loadSalespersons = async () => {
@@ -74,13 +77,36 @@ export function SalesForm({
       .eq("is_active", true)
       .order("name");
 
-    if (!error && data) {
+    if (error) return;
+
+    if (data) {
       setSalespersons(data);
       if (!sale && data.length > 0 && !salespersonId) {
         setSalespersonId(data[0].id);
       }
     }
   };
+
+  const totalPrice = useMemo(() => {
+    const q = Number.parseFloat(quantity || "0");
+    const u = Number.parseFloat(unitPrice || "0");
+    return (q * u).toFixed(2);
+  }, [quantity, unitPrice]);
+
+  // Regra: entrada 0 => à vista => entrada efetiva = total
+  const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(() => {
+    const parsedTotal = Number.parseFloat(totalPrice) || 0;
+    const parsedEntry = Number.parseFloat(entryValue || "0") || 0;
+
+    const cash = parsedEntry === 0;
+    const effectiveEntry = cash ? parsedTotal : parsedEntry;
+
+    return {
+      isCashPayment: cash,
+      effectiveEntryValue: effectiveEntry,
+      remainingValue: Math.max(0, parsedTotal - effectiveEntry).toFixed(2),
+    };
+  }, [entryValue, totalPrice]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,17 +117,18 @@ export function SalesForm({
 
     const saleData = {
       company_id: companyId,
+      user_id: userId,
       order_number: orderNumber,
       product_name: productName,
-      quantity: Number.parseInt(quantity),
+      quantity: Number.parseInt(quantity, 10),
       unit_price: Number.parseFloat(unitPrice),
       total_price: Number.parseFloat(totalPrice),
+      entry_value: effectiveEntryValue,
       sale_date: saleDate,
       customer_name: customerName || null,
       salesperson_id: salespersonId,
       status: sale?.status || ("pendente" as const),
       notes: notes || null,
-      user_id: userId,
     };
 
     try {
@@ -119,7 +146,6 @@ export function SalesForm({
 
       onSuccess();
     } catch (err: unknown) {
-      console.log(err);
       setError(err instanceof Error ? err.message : "Ocorreu um erro");
     } finally {
       setIsLoading(false);
@@ -159,6 +185,7 @@ export function SalesForm({
                 required
               />
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="quantity">Quantidade *</Label>
@@ -196,6 +223,38 @@ export function SalesForm({
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4 items-start">
+              <div className="grid gap-2">
+                <Label htmlFor="entryValue">Valor de Entrada (R$)</Label>
+                <Input
+                  id="entryValue"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={entryValue}
+                  onChange={(e) => setEntryValue(e.target.value)}
+                />
+                {/* Reservar altura fixa p/ não desalinha a coluna */}
+                <div className="min-h-[20px]">
+                  {isCashPayment && (
+                    <span className="text-sm text-muted-foreground">
+                      Pagamento à vista
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Valor Faltante</Label>
+                <div className="text-2xl font-bold">
+                  R${" "}
+                  {Number.parseFloat(remainingValue).toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="saleDate">Data da Venda *</Label>
               <DatePickerBR
@@ -203,7 +262,7 @@ export function SalesForm({
                 value={saleDate}
                 onChange={setSaleDate}
                 required
-              />{" "}
+              />
             </div>
 
             <div className="grid gap-2">

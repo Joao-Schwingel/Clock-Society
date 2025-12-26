@@ -36,6 +36,7 @@ export function SalesTable({
 }: SalesTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [onlyWithRemaining, setOnlyWithRemaining] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [salespersonsMap, setSalespersonsMap] = useState<
     Record<string, Salesperson>
@@ -43,6 +44,7 @@ export function SalesTable({
 
   useEffect(() => {
     loadSalespersons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sales]);
 
   const loadSalespersons = async () => {
@@ -60,13 +62,13 @@ export function SalesTable({
       .select("*")
       .in("id", salespersonIds);
 
-    if (data) {
-      const map: Record<string, Salesperson> = {};
-      data.forEach((person) => {
-        map[person.id] = person;
-      });
-      setSalespersonsMap(map);
-    }
+    if (!data) return;
+
+    const map: Record<string, Salesperson> = {};
+    data.forEach((person) => {
+      map[person.id] = person;
+    });
+    setSalespersonsMap(map);
   };
 
   const filteredSales = useMemo(() => {
@@ -81,9 +83,16 @@ export function SalesTable({
 
       const matchesDate = !dateFilter || sale.sale_date.startsWith(dateFilter);
 
-      return matchesSearch && matchesDate;
+      const remaining = Math.max(
+        0,
+        Number(sale.total_price) - Number(sale.entry_value ?? 0),
+      );
+
+      const matchesRemaining = !onlyWithRemaining || remaining > 0;
+
+      return matchesSearch && matchesDate && matchesRemaining;
     });
-  }, [sales, searchTerm, dateFilter]);
+  }, [sales, searchTerm, dateFilter, onlyWithRemaining]);
 
   const handleStatusToggle = async (sale: Sale) => {
     if (sale.status === "concluída") return;
@@ -92,17 +101,15 @@ export function SalesTable({
     const supabase = createClient();
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("sales")
         .update({ status: "concluída" })
-        .eq("id", sale.id)
-        .select();
+        .eq("id", sale.id);
 
       if (error) throw error;
 
       onStatusChange();
-    } catch (error) {
-      console.error(" Error updating status:", error);
+    } catch {
       alert("Erro ao atualizar status da venda");
     } finally {
       setUpdatingStatus(null);
@@ -115,6 +122,12 @@ export function SalesTable({
     return person ? person.name : "Desconhecido";
   };
 
+  const formatMoneyBR = (value: number) =>
+    value.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+  const totalSaleCost = (sale: SaleWithDetails): number =>
+    Number(sale.costs.reduce((sum, c) => sum + Number(c.amount || 0), 0));
+
   if (isLoading) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -123,17 +136,11 @@ export function SalesTable({
     );
   }
 
-  const totalSaleCost = (sale: SaleWithDetails): number => {
-    return Number(
-      sale.costs.reduce((sum, c) => sum + Number(c.amount || 0), 0),
-    );
-  };
-
   return (
     <div className="space-y-4">
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[240px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nº do pedido, produto ou cliente..."
             value={searchTerm}
@@ -141,18 +148,31 @@ export function SalesTable({
             className="pl-9"
           />
         </div>
+
         <Input
           type="month"
           value={dateFilter}
           onChange={(e) => setDateFilter(e.target.value)}
-          className="w-48"
+          className="w-40"
         />
-        {(searchTerm || dateFilter) && (
+
+        <label className="flex items-center gap-2 select-none text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={onlyWithRemaining}
+            onChange={(e) => setOnlyWithRemaining(e.target.checked)}
+          />
+          Somente com valor faltante
+        </label>
+
+        {(searchTerm || dateFilter || onlyWithRemaining) && (
           <Button
             variant="outline"
             onClick={() => {
               setSearchTerm("");
               setDateFilter("");
+              setOnlyWithRemaining(false);
             }}
           >
             Limpar
@@ -181,103 +201,133 @@ export function SalesTable({
                 <TableHead className="text-right">Preço Unit.</TableHead>
                 <TableHead className="text-right">Custo Total</TableHead>
                 <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Entrada</TableHead>
+                <TableHead className="text-right">Faltante</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {filteredSales.map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell>{formatBR(sale.sale_date)}</TableCell>
-                  <TableCell className="font-medium">
-                    {sale.order_number || "-"}
-                  </TableCell>
 
-                  <TableCell className="font-medium">
-                    {sale.product_name}
-                  </TableCell>
-                  <TableCell>{sale.customer_name || "-"}</TableCell>
-                  <TableCell>
-                    {getSalespersonName(sale.salesperson_id)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        sale.status === "concluída" ? "default" : "secondary"
-                      }
-                    >
-                      {sale.status === "concluída" ? "Concluída" : "Pendente"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{sale.quantity}</TableCell>
-                  <TableCell className="text-right">
-                    R${" "}
-                    {Number(sale.unit_price).toLocaleString("pt-BR", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    R${" "}
-                    {totalSaleCost(sale).toLocaleString("pt-BR", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    R${" "}
-                    {Number(
-                      sale.total_price - totalSaleCost(sale),
-                    ).toLocaleString("pt-BR", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {sale.status === "pendente" && (
+            <TableBody>
+              {filteredSales.map((sale) => {
+                const cost = totalSaleCost(sale);
+
+                const total = Number(sale.total_price);
+                const entryRaw = Number(sale.entry_value ?? 0);
+
+                // Regra de exibição: à vista => entry_value == total => mostrar "-"
+                const isCashPayment = entryRaw === total;
+                const entryDisplay = isCashPayment ? null : entryRaw;
+
+                // Faltante é sempre total - entry_value persistido
+                const remaining = Math.max(0, total - entryRaw);
+
+                return (
+                  <TableRow key={sale.id}>
+                    <TableCell>{formatBR(sale.sale_date)}</TableCell>
+
+                    <TableCell className="font-medium">
+                      {sale.order_number || "-"}
+                    </TableCell>
+
+                    <TableCell className="font-medium">
+                      {sale.product_name}
+                    </TableCell>
+
+                    <TableCell>{sale.customer_name || "-"}</TableCell>
+
+                    <TableCell>
+                      {getSalespersonName(sale.salesperson_id)}
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge
+                        variant={
+                          sale.status === "concluída" ? "default" : "secondary"
+                        }
+                      >
+                        {sale.status === "concluída" ? "Concluída" : "Pendente"}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      {sale.quantity}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      R$ {formatMoneyBR(Number(sale.unit_price))}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      R$ {formatMoneyBR(cost)}
+                    </TableCell>
+
+                    <TableCell className="text-right font-medium">
+                      R$ {formatMoneyBR(Number(sale.total_price) - cost)}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      {entryDisplay === null
+                        ? "-"
+                        : `R$ ${formatMoneyBR(entryDisplay)}`}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      R$ {formatMoneyBR(remaining)}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {sale.status === "pendente" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleStatusToggle(sale)}
+                            disabled={updatingStatus === sale.id}
+                            title="Marcar como Concluída"
+                          >
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          </Button>
+                        )}
+
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleStatusToggle(sale)}
-                          disabled={updatingStatus === sale.id}
-                          title="Marcar como Concluída"
+                          onClick={() => onViewDetails(sale)}
+                          title="Ver Detalhes"
                         >
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onViewDetails(sale)}
-                        title="Ver Detalhes"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(sale)}
-                        title="Editar"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          if (
-                            confirm(
-                              "Tem certeza que deseja excluir esta venda?",
-                            )
-                          ) {
-                            onDelete(sale.id);
-                          }
-                        }}
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onEdit(sale)}
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                "Tem certeza que deseja excluir esta venda?",
+                              )
+                            ) {
+                              onDelete(sale.id);
+                            }
+                          }}
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
