@@ -54,6 +54,7 @@ export function SalesForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
+  const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
 
   const totalPrice = (
     Number.parseFloat(quantity || "0") * Number.parseFloat(unitPrice || "0")
@@ -90,6 +91,7 @@ export function SalesForm({
 
     const saleData = {
       company_id: companyId,
+      order_number: orderNumber,
       product_name: productName,
       quantity: Number.parseInt(quantity),
       unit_price: Number.parseFloat(unitPrice),
@@ -138,6 +140,16 @@ export function SalesForm({
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="orderNumber">Número do Pedido *</Label>
+              <Input
+                id="orderNumber"
+                value={orderNumber}
+                onChange={(e) => setOrderNumber(e.target.value)}
+                required
+              />
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="productName">Nome do Produto *</Label>
               <Input

@@ -43,10 +43,13 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     const { data, error } = await supabase
       .from("sales_with_details")
       .select(
-        "id,company_id,user_id,salesperson_id,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,notes,created_at,salesperson,salesperson_info,costs,total_costs",
+        "id,company_id,user_id,salesperson_id,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,order_number,notes,created_at,salesperson,salesperson_info,costs,total_costs",
       )
       .eq("company_id", companyId)
       .order("sale_date", { ascending: false });
+
+    console.log(data);
+    console.log("error", error);
 
     if (!error && data) setSales(data as SaleWithDetails[]);
     setIsLoading(false);

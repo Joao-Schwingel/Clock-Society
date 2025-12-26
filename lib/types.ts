@@ -21,6 +21,7 @@ export interface Sale {
   id: string;
   company_id: string;
   product_name: string;
+  order_number: string;
   quantity: number;
   unit_price: number;
   total_price: number;

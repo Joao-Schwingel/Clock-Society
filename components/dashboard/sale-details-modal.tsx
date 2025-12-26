@@ -107,6 +107,12 @@ export function SaleDetailsModal({
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div>
+                <p className="text-sm text-muted-foreground">
+                  Número do Pedido
+                </p>
+                <p className="font-medium">{saleData.order_number}</p>
+              </div>
+              <div>
                 <p className="text-sm text-muted-foreground">Produto</p>
                 <p className="font-medium">{saleData.product_name}</p>
               </div>
@@ -252,7 +258,9 @@ export function SaleDetailsModal({
               </div>
             </CardContent>
           </Card>
-          <Button onClick={onClose} className="justify-self-end flex">Concluir</Button>
+          <Button onClick={onClose} className="justify-self-end flex">
+            Concluir
+          </Button>
         </div>
 
         {isFormOpen && (

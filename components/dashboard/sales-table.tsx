@@ -70,10 +70,14 @@ export function SalesTable({
   };
 
   const filteredSales = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+
     return sales.filter((sale) => {
       const matchesSearch =
-        sale.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sale.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());
+        !q ||
+        sale.product_name.toLowerCase().includes(q) ||
+        sale.customer_name?.toLowerCase().includes(q) ||
+        sale.order_number?.toLowerCase().includes(q);
 
       const matchesDate = !dateFilter || sale.sale_date.startsWith(dateFilter);
 
@@ -131,7 +135,7 @@ export function SalesTable({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por produto ou cliente..."
+            placeholder="Buscar por nº do pedido, produto ou cliente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -168,6 +172,7 @@ export function SalesTable({
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
+                <TableHead>Nº Pedido</TableHead>
                 <TableHead>Produto</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Vendedor</TableHead>
@@ -183,6 +188,10 @@ export function SalesTable({
               {filteredSales.map((sale) => (
                 <TableRow key={sale.id}>
                   <TableCell>{formatBR(sale.sale_date)}</TableCell>
+                  <TableCell className="font-medium">
+                    {sale.order_number || "-"}
+                  </TableCell>
+
                   <TableCell className="font-medium">
                     {sale.product_name}
                   </TableCell>
