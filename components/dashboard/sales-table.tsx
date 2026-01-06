@@ -240,7 +240,7 @@ export function SalesTable({
             : "Nenhum resultado encontrado."}
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-md border relative">
           <Table>
             <TableHeader>
               <TableRow>
@@ -256,7 +256,7 @@ export function SalesTable({
                 <TableHead>Total</TableHead>
                 <TableHead>Entrada</TableHead>
                 <TableHead>Faltante</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead className="text-right sticky right-0 bg-background rounded-md">Ações</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -311,7 +311,7 @@ export function SalesTable({
                         : `R$ ${formatMoneyBR(entryDisplay)}`}
                     </TableCell>
                     <TableCell>R$ {formatMoneyBR(remaining)}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right sticky right-0 bg-background rounded-md">
                       <div className="flex justify-end gap-2">
                         {showConfirmPayment && (
                           <Button
