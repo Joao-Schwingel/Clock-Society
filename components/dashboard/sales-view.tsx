@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import {
   Card,
@@ -21,6 +23,7 @@ import { SalesForm } from "./sales-form";
 import { SalesTable } from "./sales-table";
 import { SaleDetailsModal } from "./sale-details-modal";
 import { Spinner } from "@radix-ui/themes";
+import { DashboardFilters } from "./dashboards-filters";
 
 interface SalesViewProps {
   companyId: string;
@@ -33,18 +36,38 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const [editingSale, setEditingSale] = useState<SaleWithDetails | null>(null);
   const [viewingSale, setViewingSale] = useState<SaleWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [months, setMonths] = useState<number[]>([]);
+  const [year, setYear] = useState("2026");
+
+  useEffect(() => {
+    console.log(year);
+    console.log(months);
+  }, [year, months]);
 
   const fetchSales = async () => {
     setIsLoading(true);
     const supabase = createClient();
-
-    const { data, error } = await supabase
+    let query = supabase
       .from("sales_with_details")
       .select(
-        "id,company_id,user_id,salesperson_id,entry_value,payment_status,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,order_number,notes,created_at,salesperson,salesperson_info,costs,total_costs",
+        "id,company_id,user_id,salesperson_id,entry_value,payment_status,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,order_number,notes,created_at,salesperson,salesperson_info,costs,total_costs"
       )
       .eq("company_id", companyId)
       .order("sale_date", { ascending: false });
+
+    if (months.length > 0) {
+      const ranges = months.map((m) => {
+        const start = new Date(Number(year), m, 1);
+        const end = new Date(Number(year), m + 1, 1);
+        return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
+      });
+
+      query = query.or(ranges.join(","));
+    }
+
+    const { data, error } = await query.order("sale_date", {
+      ascending: false,
+    });
 
     if (!error && data) setSales(data as SaleWithDetails[]);
     setIsLoading(false);
@@ -85,20 +108,20 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
   const completedRevenue = completedSales.reduce(
     (sum, s) => sum + Number(s.total_price),
-    0,
+    0
   );
   const pendingRevenue = pendingSales.reduce(
     (sum, s) => sum + Number(s.total_price),
-    0,
+    0
   );
 
   const completedCosts = completedSales.reduce(
     (sum, s) => sum + Number(s.total_costs ?? 0),
-    0,
+    0
   );
   const pendingCosts = pendingSales.reduce(
     (sum, s) => sum + Number(s.total_costs ?? 0),
-    0,
+    0
   );
 
   const completedNetProfit = completedRevenue - completedCosts;
@@ -112,7 +135,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
   const totalEntryValue = sales.reduce(
     (sum, s) => sum + Number(s.entry_value ?? 0),
-    0,
+    0
   );
 
   // "faltante" = total_price - entry_value (nunca negativo), apenas para pagamentos pendentes
@@ -125,7 +148,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   useEffect(() => {
     fetchSales();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId]);
+  }, [companyId, months, year]);
 
   return (
     <div className="space-y-4">
@@ -133,10 +156,17 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
           Vendas Concluídas
          ========================= */}
       <div>
-        <h3 className="text-lg font-semibold mb-2 text-green-600">
-          Vendas Concluídas
-        </h3>
-
+        <div className="flex gap-6 items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-green-600">
+            Vendas Concluídas
+          </h3>
+          <DashboardFilters
+            value={months}
+            yearValue={year}
+            onChange={setMonths}
+            onYearChange={setYear}
+          ></DashboardFilters>
+        </div>
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -448,8 +478,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
                 prev.map((s) =>
                   s.id === saleId
                     ? ({ ...(s as any), payment_status: "pago" } as any)
-                    : s,
-                ),
+                    : s
+                )
               );
             }}
           />

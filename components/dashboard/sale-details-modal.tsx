@@ -150,7 +150,7 @@ export function SaleDetailsModal({
                 <p className="font-medium">{saleData.quantity}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Preço Unitário</p>
+                <p className="text-sm text-muted-foreground">Valor Líquido</p>
                 <p className="font-medium">
                   R$ {money(Number(saleData.unit_price))}
                 </p>
