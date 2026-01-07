@@ -270,7 +270,7 @@ export function SalesForm({
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="unitPrice">Preço Unitário (R$) *</Label>
+                <Label htmlFor="unitPrice">Preço Líquido (R$) *</Label>
                 <Input
                   id="unitPrice"
                   type="number"

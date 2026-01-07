@@ -251,7 +251,7 @@ export function SalesTable({
                 <TableHead>Vendedor</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Quantidade</TableHead>
-                <TableHead>Preço Unit.</TableHead>
+                <TableHead>Preço Liq.</TableHead>
                 <TableHead>Custo Total</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Entrada</TableHead>
