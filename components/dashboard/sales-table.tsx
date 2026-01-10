@@ -56,8 +56,16 @@ export function SalesTable({
     Record<string, Salesperson>
   >({});
 
+  const [qtySumBySaleId, setQtySumBySaleId] = useState<Record<string, number>>(
+    {},
+  );
+  const [productNamesBySaleId, setProductNamesBySaleId] = useState<
+    Record<string, string>
+  >({});
+
   useEffect(() => {
     void loadSalespersons();
+    void loadSaleItemsAgg();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sales]);
 
@@ -83,6 +91,52 @@ export function SalesTable({
       map[person.id] = person;
     });
     setSalespersonsMap(map);
+  };
+
+  const loadSaleItemsAgg = async () => {
+    if (sales.length === 0) {
+      setQtySumBySaleId({});
+      setProductNamesBySaleId({});
+      return;
+    }
+
+    const supabase = createClient();
+    const saleIds = sales.map((s) => s.id);
+
+    const { data, error } = await supabase
+      .from("sale_items")
+      .select("sale_id,product_name,quantity")
+      .in("sale_id", saleIds);
+
+    if (error || !data) {
+      setQtySumBySaleId({});
+      setProductNamesBySaleId({});
+      return;
+    }
+
+    const qtyMap: Record<string, number> = {};
+    const namesMap: Record<string, Set<string>> = {};
+
+    for (const row of data as Array<{
+      sale_id: string;
+      product_name: string;
+      quantity: number;
+    }>) {
+      qtyMap[row.sale_id] =
+        (qtyMap[row.sale_id] ?? 0) + Number(row.quantity || 0);
+
+      const name = (row.product_name ?? "").trim();
+      if (!name) continue;
+      (namesMap[row.sale_id] ??= new Set()).add(name);
+    }
+
+    const productStrMap: Record<string, string> = {};
+    for (const [saleId, set] of Object.entries(namesMap)) {
+      productStrMap[saleId] = Array.from(set).join(", ");
+    }
+
+    setQtySumBySaleId(qtyMap);
+    setProductNamesBySaleId(productStrMap);
   };
 
   const getSalespersonName = (salespersonId: string | null | undefined) => {
@@ -117,20 +171,22 @@ export function SalesTable({
     const q = searchTerm.trim().toLowerCase();
 
     return sales.filter((sale) => {
+      const productsLabel =
+        productNamesBySaleId[sale.id] || sale.product_name || "";
+
       const matchesSearch =
         !q ||
-        sale.product_name.toLowerCase().includes(q) ||
+        productsLabel.toLowerCase().includes(q) ||
         sale.customer_name?.toLowerCase().includes(q) ||
         sale.order_number?.toLowerCase().includes(q);
 
       const matchesDate = !dateFilter || sale.sale_date.startsWith(dateFilter);
-
       const matchesRemaining = !onlyWithRemaining || remainingOf(sale) > 0;
 
       return matchesSearch && matchesDate && matchesRemaining;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sales, searchTerm, dateFilter, onlyWithRemaining]);
+  }, [sales, searchTerm, dateFilter, onlyWithRemaining, productNamesBySaleId]);
 
   const handleStatusToggle = async (sale: Sale) => {
     if (sale.status === "concluída") return;
@@ -145,7 +201,6 @@ export function SalesTable({
         .eq("id", sale.id);
 
       if (error) throw error;
-
       onStatusChange();
     } catch {
       alert("Erro ao atualizar status da venda");
@@ -246,17 +301,18 @@ export function SalesTable({
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Nº Pedido</TableHead>
-                <TableHead>Produto</TableHead>
+                <TableHead>Produtos</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Vendedor</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Quantidade</TableHead>
-                <TableHead>Preço Liq.</TableHead>
                 <TableHead>Custo Total</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Entrada</TableHead>
                 <TableHead>Faltante</TableHead>
-                <TableHead className="text-right sticky right-0 bg-background rounded-md">Ações</TableHead>
+                <TableHead className="text-right sticky right-0 bg-background rounded-md">
+                  Ações
+                </TableHead>
               </TableRow>
             </TableHeader>
 
@@ -277,14 +333,22 @@ export function SalesTable({
                   paymentStatus !== "pago" &&
                   remaining > 0;
 
+                const qtySum = qtySumBySaleId[sale.id] ?? sale.quantity ?? 0;
+
+                const productsLabel =
+                  productNamesBySaleId[sale.id] || sale.product_name || "-";
+
                 return (
                   <TableRow key={sale.id}>
                     <TableCell>{formatBR(sale.sale_date)}</TableCell>
                     <TableCell className="font-medium">
                       {sale.order_number || "-"}
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {sale.product_name}
+                    <TableCell
+                      className="font-medium max-w-[280px] truncate"
+                      title={productsLabel}
+                    >
+                      {productsLabel}
                     </TableCell>
                     <TableCell>{sale.customer_name || "-"}</TableCell>
                     <TableCell>
@@ -299,10 +363,7 @@ export function SalesTable({
                         {sale.status === "concluída" ? "Concluída" : "Pendente"}
                       </Badge>
                     </TableCell>
-                    <TableCell>{sale.quantity}</TableCell>
-                    <TableCell>
-                      R$ {formatMoneyBR(Number(sale.unit_price))}
-                    </TableCell>
+                    <TableCell>{qtySum}</TableCell>
                     <TableCell>R$ {formatMoneyBR(cost)}</TableCell>
                     <TableCell>R$ {formatMoneyBR(total - cost)}</TableCell>
                     <TableCell>

@@ -35,6 +35,40 @@ interface SalesFormProps {
 
 type PaymentStatus = "pendente" | "pago";
 
+type LineItem = {
+  id: string; // ui id
+  product_name: string;
+  quantity: string;
+  unit_price: string;
+};
+
+const newLineItem = (): LineItem => ({
+  id: crypto.randomUUID(),
+  product_name: "",
+  quantity: "1",
+  unit_price: "",
+});
+
+const toNumber = (v: string) => {
+  const n = Number.parseFloat(v || "0");
+  return Number.isFinite(n) ? n : 0;
+};
+
+const toInt = (v: string) => {
+  const n = Number.parseInt(v || "0", 10);
+  return Number.isFinite(n) ? n : 0;
+};
+
+type SaleItemRow = {
+  id: string;
+  sale_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price?: number; // generated in db
+  created_at?: string;
+};
+
 export function SalesForm({
   companyId,
   userId,
@@ -43,11 +77,9 @@ export function SalesForm({
   onCancel,
 }: SalesFormProps) {
   const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
-  const [productName, setProductName] = useState(sale?.product_name || "");
-  const [quantity, setQuantity] = useState(sale?.quantity?.toString() || "");
-  const [unitPrice, setUnitPrice] = useState(
-    sale?.unit_price?.toString() || "",
-  );
+
+  const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
+
   const [saleDate, setSaleDate] = useState(
     sale?.sale_date || new Date().toISOString().split("T")[0],
   );
@@ -57,13 +89,11 @@ export function SalesForm({
   );
   const [notes, setNotes] = useState(sale?.notes || "");
 
-  // vazio => "" (UI), submit => 0 (DB)
   const [entryValue, setEntryValue] = useState(() => {
     const v = sale?.entry_value;
     return v === null || v === undefined ? "" : String(v);
   });
 
-  // status de pagamento (coluna payment_status)
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() => {
     const ps = (sale as any)?.payment_status as PaymentStatus | undefined;
     return ps ?? "pendente";
@@ -77,6 +107,11 @@ export function SalesForm({
     void loadSalespersons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, userId]);
+
+  useEffect(() => {
+    void loadSaleItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sale?.id]);
 
   const loadSalespersons = async () => {
     const supabase = createClient();
@@ -92,19 +127,55 @@ export function SalesForm({
 
     if (data) {
       setSalespersons(data);
-
-      // garante default para UUID (evita "" no submit)
-      if (data.length > 0 && !salespersonId) {
-        setSalespersonId(data[0].id);
-      }
+      if (data.length > 0 && !salespersonId) setSalespersonId(data[0].id);
     }
   };
 
-  const totalPrice = useMemo(() => {
-    const q = Number.parseFloat(quantity || "0");
-    const u = Number.parseFloat(unitPrice || "0");
-    return (q * u).toFixed(2);
-  }, [quantity, unitPrice]);
+  const loadSaleItems = async () => {
+    if (!sale?.id) {
+      // compat: novo sale
+      setItems([newLineItem()]);
+      return;
+    }
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("sale_items")
+      .select("id,sale_id,product_name,quantity,unit_price")
+      .eq("sale_id", sale.id)
+      .order("created_at", { ascending: true });
+
+    // fallback: se ainda não existe itens (venda legacy), cria 1 item pela sale
+    if (error || !data || data.length === 0) {
+      setItems([
+        {
+          id: crypto.randomUUID(),
+          product_name: sale.product_name ?? "",
+          quantity: sale.quantity?.toString() ?? "1",
+          unit_price: sale.unit_price?.toString() ?? "",
+        },
+      ]);
+      return;
+    }
+
+    setItems(
+      data.map((it: SaleItemRow) => ({
+        id: it.id, // mantém id real do db (útil pro update)
+        product_name: it.product_name,
+        quantity: String(it.quantity),
+        unit_price: String(it.unit_price),
+      })),
+    );
+  };
+
+  const itemsTotal = useMemo(() => {
+    return items.reduce(
+      (acc, it) => acc + toInt(it.quantity) * toNumber(it.unit_price),
+      0,
+    );
+  }, [items]);
+
+  const totalPrice = useMemo(() => itemsTotal.toFixed(2), [itemsTotal]);
 
   const parsedEntryValue = useMemo(() => {
     const v = entryValue.trim();
@@ -113,7 +184,6 @@ export function SalesForm({
     return Number.isFinite(n) ? n : 0;
   }, [entryValue]);
 
-  // Regra: entrada 0 => à vista => entrada efetiva = total
   const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(() => {
     const parsedTotal = Number.parseFloat(totalPrice) || 0;
 
@@ -127,12 +197,10 @@ export function SalesForm({
     };
   }, [parsedEntryValue, totalPrice]);
 
-  // define payment_status automaticamente baseado em "à vista" ou não
   useEffect(() => {
     if (isCashPayment) {
       if (paymentStatus !== "pago") setPaymentStatus("pago");
     } else {
-      // para venda nova, default pendente; ao editar, respeita o valor do banco
       if (!sale && paymentStatus !== "pendente") setPaymentStatus("pendente");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,7 +220,6 @@ export function SalesForm({
       .eq("company_id", companyId)
       .eq("order_number", normalized);
 
-    // ao editar, ignora o próprio registro
     if (sale?.id) query = query.neq("id", sale.id);
 
     const { count, error } = await query;
@@ -160,6 +227,28 @@ export function SalesForm({
 
     return (count ?? 0) > 0;
   };
+
+  const updateItem = (id: string, patch: Partial<LineItem>) => {
+    setItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, ...patch } : it)),
+    );
+  };
+
+  const addItem = () => setItems((prev) => [...prev, newLineItem()]);
+
+  const removeItem = (id: string) => {
+    setItems((prev) =>
+      prev.length <= 1 ? prev : prev.filter((it) => it.id !== id),
+    );
+  };
+
+  const toSaleItemInsertRows = (saleId: string) =>
+    items.map((it) => ({
+      sale_id: saleId,
+      product_name: it.product_name.trim(),
+      quantity: toInt(it.quantity),
+      unit_price: toNumber(it.unit_price),
+    }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,7 +258,6 @@ export function SalesForm({
     const supabase = createClient();
 
     try {
-      // valida duplicidade do número do pedido
       const exists = await orderNumberExists(supabase);
       if (exists) {
         setError("Já existe uma venda com este número de pedido.");
@@ -180,39 +268,71 @@ export function SalesForm({
         ? "pago"
         : paymentStatus;
 
-      const saleData = {
+      const first = items[0];
+
+      const saleHeader = {
         company_id: companyId,
         user_id: userId,
         order_number: normalizeOrderNumber(orderNumber),
-        product_name: productName,
-        quantity: Number.parseInt(quantity, 10),
-        unit_price: Number.parseFloat(unitPrice),
+
+        // compat (se ainda existe no schema)
+        product_name: first?.product_name ?? "",
+        quantity: toInt(first?.quantity ?? "1"),
+        unit_price: toNumber(first?.unit_price ?? "0"),
+
+        // total é soma dos itens (trigger pode recalcular depois também)
         total_price: Number.parseFloat(totalPrice),
 
-        // se usuário não inserir nada => salva 0
         entry_value: entryValue.trim() === "" ? 0 : effectiveEntryValue,
-
         payment_status: computedPaymentStatus,
         sale_date: saleDate,
         customer_name: customerName || null,
-
-        // FIX UUID: nunca envia "" para uuid
         salesperson_id: salespersonId ? salespersonId : null,
-
         status: sale?.status || ("pendente" as const),
         notes: notes || null,
       };
 
-      if (sale) {
-        const { error } = await supabase
+      if (!sale) {
+        // CREATE: cria header e depois itens
+        const { data: inserted, error: insErr } = await supabase
           .from("sales")
-          .update(saleData)
-          .eq("id", sale.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("sales").insert([saleData]);
-        if (error) throw error;
+          .insert([saleHeader])
+          .select("id")
+          .single();
+
+        if (insErr) throw insErr;
+        if (!inserted?.id)
+          throw new Error("Falha ao criar venda (id ausente).");
+
+        const rows = toSaleItemInsertRows(inserted.id);
+
+        const { error: itemsErr } = await supabase
+          .from("sale_items")
+          .insert(rows);
+        if (itemsErr) throw itemsErr;
+
+        onSuccess();
+        return;
       }
+
+      // UPDATE: atualiza header, depois substitui itens (delete + insert)
+      const { error: upErr } = await supabase
+        .from("sales")
+        .update(saleHeader)
+        .eq("id", sale.id);
+      if (upErr) throw upErr;
+
+      const { error: delErr } = await supabase
+        .from("sale_items")
+        .delete()
+        .eq("sale_id", sale.id);
+      if (delErr) throw delErr;
+
+      const rows = toSaleItemInsertRows(sale.id);
+      const { error: itemsErr } = await supabase
+        .from("sale_items")
+        .insert(rows);
+      if (itemsErr) throw itemsErr;
 
       onSuccess();
     } catch (err: unknown) {
@@ -224,7 +344,7 @@ export function SalesForm({
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[650px]">
         <DialogHeader>
           <DialogTitle>{sale ? "Editar Venda" : "Nova Venda"}</DialogTitle>
           <DialogDescription>
@@ -247,39 +367,87 @@ export function SalesForm({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="productName">Nome do Produto *</Label>
-              <Input
-                id="productName"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="quantity">Quantidade *</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  required
-                />
+              <div className="flex items-center justify-between">
+                <Label>Produtos *</Label>
+                <Button type="button" variant="outline" onClick={addItem}>
+                  + Adicionar produto
+                </Button>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="unitPrice">Valor Líquido (R$) *</Label>
-                <Input
-                  id="unitPrice"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={unitPrice}
-                  onChange={(e) => setUnitPrice(e.target.value)}
-                  required
-                />
+              <div className="grid gap-3">
+                {items.map((it, idx) => (
+                  <div key={it.id} className="rounded-md border p-3 grid gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium">Item {idx + 1}</div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => removeItem(it.id)}
+                        disabled={items.length <= 1}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor={`productName-${it.id}`}>
+                        Nome do Produto *
+                      </Label>
+                      <Input
+                        id={`productName-${it.id}`}
+                        value={it.product_name}
+                        onChange={(e) =>
+                          updateItem(it.id, { product_name: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor={`quantity-${it.id}`}>
+                          Quantidade *
+                        </Label>
+                        <Input
+                          id={`quantity-${it.id}`}
+                          type="number"
+                          min="1"
+                          value={it.quantity}
+                          onChange={(e) =>
+                            updateItem(it.id, { quantity: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor={`unitPrice-${it.id}`}>
+                          Valor Líquido (R$) *
+                        </Label>
+                        <Input
+                          id={`unitPrice-${it.id}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={it.unit_price}
+                          onChange={(e) =>
+                            updateItem(it.id, { unit_price: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-muted-foreground">
+                      Subtotal: R${" "}
+                      {(
+                        toInt(it.quantity) * toNumber(it.unit_price)
+                      ).toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
