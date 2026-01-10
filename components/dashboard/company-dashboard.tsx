@@ -14,7 +14,7 @@ interface CompanyDashboardProps {
 }
 
 export function CompanyDashboard({ company, userId }: CompanyDashboardProps) {
-  const { tab,  setTab } = useTabWithQuery("tab", "dashboard");
+  const { tab, setTab } = useTabWithQuery("tab", "dashboard");
 
   return (
     <div className="space-y-6">
@@ -25,12 +25,18 @@ export function CompanyDashboard({ company, userId }: CompanyDashboardProps) {
         </p>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab} id="ContentTabs" defaultValue="dashboard" className="space-y-4">
+      <Tabs
+        value={tab}
+        onValueChange={setTab}
+        id="ContentTabs"
+        defaultValue="dashboard"
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="vendas">Vendas</TabsTrigger>
           <TabsTrigger value="estoque">Estoque</TabsTrigger>
-          <TabsTrigger value="custos-fixos">Custos Fixos</TabsTrigger>
+          <TabsTrigger value="custos-fixos">Custos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-4">

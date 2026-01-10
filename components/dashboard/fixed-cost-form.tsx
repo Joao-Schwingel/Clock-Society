@@ -1,8 +1,8 @@
 "use client";
 
-import type React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 import { createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,19 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { DatePickerBR } from "./date-picker-br";
-import { z } from "zod";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const fixedCostSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
-  category: z.string().min(1, "Categoria é obrigatória"),
+  category: z.enum(["Fixo", "Variável"], {
+    required_error: "Categoria é obrigatória",
+  }),
   months: z.number().min(1, "Mínimo 1 mês").max(12, "Máximo 12 meses"),
   monthlyValue: z.number().positive("Valor deve ser maior que zero"),
   startDate: z.string().min(1, "Data de início é obrigatória"),
@@ -54,8 +62,10 @@ export function FixedCostForm({
   } = useForm<FixedCostFormData>({
     resolver: zodResolver(fixedCostSchema),
     defaultValues: {
+      category: "Fixo",
       months: 1,
       description: "",
+      startDate: "",
     },
   });
 
@@ -70,6 +80,7 @@ export function FixedCostForm({
       start_date: data.startDate,
       description: data.description || null,
     });
+
     if (error) {
       toast({
         title: "Erro",
@@ -91,7 +102,7 @@ export function FixedCostForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Adicionar Custo Fixo</CardTitle>
+        <CardTitle>Adicionar Custo</CardTitle>
         <CardDescription>
           Cadastre um novo custo fixo mensal para a empresa
         </CardDescription>
@@ -100,7 +111,6 @@ export function FixedCostForm({
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Nome */}
             <div className="space-y-2">
               <Label>Nome do Custo *</Label>
               <Input
@@ -114,11 +124,24 @@ export function FixedCostForm({
               )}
             </div>
 
-            {/* Categoria + Meses */}
             <div className="flex gap-4">
               <div className="space-y-2">
                 <Label>Categoria *</Label>
-                <Input className="w-max" {...register("category")} />
+                <Controller
+                  control={control}
+                  name="category"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Fixo">Fixo</SelectItem>
+                        <SelectItem value="Variável">Variável</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 {errors.category && (
                   <p className="text-sm text-destructive">
                     {errors.category.message}
@@ -143,15 +166,12 @@ export function FixedCostForm({
               </div>
             </div>
 
-            {/* Valor mensal */}
             <div className="space-y-2">
               <Label>Valor Mensal (R$) *</Label>
               <Input
                 type="number"
                 step="0.01"
-                {...register("monthlyValue", {
-                  valueAsNumber: true,
-                })}
+                {...register("monthlyValue", { valueAsNumber: true })}
               />
               {errors.monthlyValue && (
                 <p className="text-sm text-destructive">
@@ -160,13 +180,19 @@ export function FixedCostForm({
               )}
             </div>
 
-            {/* Data início */}
             <div className="space-y-2">
               <Label>Data de Início *</Label>
               <Controller
                 name="startDate"
                 control={control}
-                render={({ field }) => <DatePickerBR {...field} />}
+                render={({ field }) => (
+                  <DatePickerBR
+                    id="startDate"
+                    value={field.value}
+                    onChange={field.onChange}
+                    required
+                  />
+                )}
               />
               {errors.startDate && (
                 <p className="text-sm text-destructive">
@@ -176,14 +202,13 @@ export function FixedCostForm({
             </div>
           </div>
 
-          {/* Descrição */}
           <div className="space-y-2">
             <Label>Descrição</Label>
             <Textarea rows={3} {...register("description")} />
           </div>
 
           <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Adicionando..." : "Adicionar Custo Fixo"}
+            {isSubmitting ? "Adicionando..." : "Adicionar Custo"}
           </Button>
         </form>
       </CardContent>
