@@ -451,11 +451,11 @@ export function SalesForm({
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="totalPrice">Preço Total</Label>
+                <Label htmlFor="totalPrice">Valor Líquido Total</Label>
                 <Input
                   id="totalPrice"
                   type="number"
-                  step="10"
+                  step="0.01"
                   min={0}
                   value={totalPrice}
                   onChange={(e) => setTotalPrice(e.target.value)}
