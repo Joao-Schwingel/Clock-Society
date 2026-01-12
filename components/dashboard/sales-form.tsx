@@ -46,7 +46,7 @@ const newLineItem = (): LineItem => ({
   id: crypto.randomUUID(),
   product_name: "",
   quantity: "1",
-  unit_price: "",
+  unit_price: "0.00",
 });
 
 const toNumber = (v: string) => {
@@ -79,13 +79,14 @@ export function SalesForm({
   const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
 
   const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
+  const [totalPrice, setTotalPrice] = useState("")
 
   const [saleDate, setSaleDate] = useState(
-    sale?.sale_date || new Date().toISOString().split("T")[0],
+    sale?.sale_date || new Date().toISOString().split("T")[0]
   );
   const [customerName, setCustomerName] = useState(sale?.customer_name || "");
   const [salespersonId, setSalespersonId] = useState(
-    sale?.salesperson_id || "",
+    sale?.salesperson_id || ""
   );
   const [notes, setNotes] = useState(sale?.notes || "");
 
@@ -162,22 +163,22 @@ export function SalesForm({
         product_name: it.product_name,
         quantity: String(it.quantity),
         unit_price: String(it.unit_price),
-      })),
+      }))
     );
   };
 
-  const itemsTotal = useMemo(() => {
-    return items.reduce(
-      (acc, it) => acc + toInt(it.quantity) * toNumber(it.unit_price),
-      0,
-    );
-  }, [items]);
+  // const itemsTotal = useMemo(() => {
+  //   return items.reduce(
+  //     (acc, it) => acc + toInt(it.quantity) * toNumber(it.unit_price),
+  //     0,
+  //   );
+  // }, [items]);
 
-  const totalPrice = useMemo(() => itemsTotal.toFixed(2), [itemsTotal]);
+  // const totalPrice = useMemo(() => itemsTotal.toFixed(2), [itemsTotal]);
 
   const parsedEntryValue = useMemo(() => {
     const v = entryValue.trim();
-    if (v === "") return 0;
+    if (v === "" || v === "0") return 0;
     const n = Number.parseFloat(v);
     return Number.isFinite(n) ? n : 0;
   }, [entryValue]);
@@ -207,7 +208,7 @@ export function SalesForm({
   const normalizeOrderNumber = (value: string) => value.trim();
 
   const orderNumberExists = async (
-    supabase: ReturnType<typeof createClient>,
+    supabase: ReturnType<typeof createClient>
   ) => {
     const normalized = normalizeOrderNumber(orderNumber);
     if (!normalized) return false;
@@ -228,7 +229,7 @@ export function SalesForm({
 
   const updateItem = (id: string, patch: Partial<LineItem>) => {
     setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, ...patch } : it)),
+      prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
     );
   };
 
@@ -236,7 +237,7 @@ export function SalesForm({
 
   const removeItem = (id: string) => {
     setItems((prev) =>
-      prev.length <= 1 ? prev : prev.filter((it) => it.id !== id),
+      prev.length <= 1 ? prev : prev.filter((it) => it.id !== id)
     );
   };
 
@@ -279,7 +280,7 @@ export function SalesForm({
 
         total_price: Number.parseFloat(totalPrice),
 
-        entry_value: entryValue.trim() === "" ? 0 : effectiveEntryValue,
+        entry_value: entryValue.trim() === "" || entryValue.trim() === "0"? 0 : effectiveEntryValue,
         payment_status: computedPaymentStatus,
         sale_date: saleDate,
         customer_name: customerName || null,
@@ -287,20 +288,18 @@ export function SalesForm({
         status: sale?.status || ("pendente" as const),
         notes: notes || null,
       };
-
       if (!sale) {
         const { data: inserted, error: insErr } = await supabase
           .from("sales")
           .insert([saleHeader])
           .select("id")
           .single();
-
         if (insErr) throw insErr;
         if (!inserted?.id)
           throw new Error("Falha ao criar venda (id ausente).");
 
         const rows = toSaleItemInsertRows(inserted.id);
-
+        
         const { error: itemsErr } = await supabase
           .from("sale_items")
           .insert(rows);
@@ -422,7 +421,7 @@ export function SalesForm({
                           />
                         </div>
 
-                        <div className="grid gap-2">
+                        {/* <div className="grid gap-2">
                           <Label htmlFor={`unitPrice-${it.id}`}>
                             Valor Líquido (R$) *
                           </Label>
@@ -437,28 +436,37 @@ export function SalesForm({
                             }
                             required
                           />
-                        </div>
+                        </div> */}
                       </div>
 
-                      <div className="text-sm text-muted-foreground">
+                      {/* <div className="text-sm text-muted-foreground">
                         Subtotal: R${" "}
                         {(
                           toInt(it.quantity) * toNumber(it.unit_price)
                         ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </div>
+                      </div> */}
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="grid gap-2">
-                <Label>Preço Total</Label>
-                <div className="text-2xl font-bold">
+                <Label htmlFor="totalPrice">Preço Total</Label>
+                <Input
+                  id="totalPrice"
+                  type="number"
+                  step="10"
+                  min={0}
+                  value={totalPrice}
+                  onChange={(e) => setTotalPrice(e.target.value)}
+                  className="text-2xl font-bold"
+                />
+                {/* <div className="text-2xl font-bold">
                   R${" "}
                   {Number.parseFloat(totalPrice).toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,
                   })}
-                </div>
+                </div> */}
               </div>
 
               <div className="grid grid-cols-2 gap-4 items-start">

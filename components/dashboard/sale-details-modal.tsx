@@ -42,6 +42,7 @@ export function SaleDetailsModal({
 
   useEffect(() => {
     setSaleData(sale);
+    console.log(saleData)
   }, [sale]);
 
   const refreshSale = async () => {
