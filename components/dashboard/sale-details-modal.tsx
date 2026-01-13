@@ -23,6 +23,16 @@ import { createClient } from "@/lib/supabase/client";
 import type { SaleCost, SaleWithDetails } from "@/lib/types";
 import { SaleCostForm } from "./sale-cost-form";
 
+type PaymentStatus = "pendente" | "pago";
+
+type SaleItemRow = {
+  id: string;
+  sale_id: string;
+  product_name: string;
+  quantity: number;
+  created_at: string;
+};
+
 interface SaleDetailsModalProps {
   sale: SaleWithDetails;
   isOpen: boolean;
@@ -40,10 +50,42 @@ export function SaleDetailsModal({
   const [saleData, setSaleData] = useState<SaleWithDetails>(sale);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const [items, setItems] = useState<SaleItemRow[]>([]);
+
   useEffect(() => {
     setSaleData(sale);
-    console.log(saleData)
   }, [sale]);
+
+  useEffect(() => {
+    void loadSaleItems(sale.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sale.id]);
+
+  const loadSaleItems = async (saleId: string) => {
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("sale_items")
+      .select("id,sale_id,product_name,quantity,created_at")
+      .eq("sale_id", saleId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      // fallback legacy
+      setItems([
+        {
+          id: "legacy",
+          sale_id: saleId,
+          product_name: (saleData as any).product_name ?? "",
+          quantity: Number((saleData as any).quantity ?? 0),
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      return;
+    }
+
+    setItems((data as SaleItemRow[]) ?? []);
+  };
 
   const refreshSale = async () => {
     setIsRefreshing(true);
@@ -52,12 +94,14 @@ export function SaleDetailsModal({
     const { data, error } = await supabase
       .from("sales_with_details")
       .select(
-        "id,company_id,user_id,salesperson_id,order_number,product_name,customer_name,sale_date,quantity,unit_price,total_price,entry_value,status,notes,created_at,salesperson,salesperson_info,costs,total_costs",
+        "id,company_id,user_id,salesperson_id,order_number,customer_name,sale_date,total_price,entry_value,status,notes,created_at,salesperson,salesperson_info,costs,total_costs,payment_status",
       )
       .eq("id", saleData.id)
       .single();
 
     if (!error && data) setSaleData(data as SaleWithDetails);
+
+    await loadSaleItems(saleData.id);
     setIsRefreshing(false);
   };
 
@@ -66,23 +110,32 @@ export function SaleDetailsModal({
     [saleData.costs],
   );
 
-  const totalCosts = Number(saleData.total_costs ?? 0);
-  const netProfit = Number(saleData.total_price) - totalCosts;
+  const totalCosts = Number((saleData as any).total_costs ?? 0);
+  const saleTotal = Number(saleData.total_price);
+  const netProfit = saleTotal - totalCosts;
 
-  const entryValue = Number(saleData.entry_value ?? 0);
+  const entryValue = Number((saleData as any).entry_value ?? 0);
 
-  const paymentStatus =
-    ((saleData as any).payment_status as "pendente" | "pago") ?? "pendente";
+  const paymentStatus: PaymentStatus =
+    ((saleData as any).payment_status as PaymentStatus) ?? "pendente";
 
-  const saleStatus = saleData.status; // "pendente" | "concluída"
+  const saleStatus = saleData.status;
 
   const missingValue =
-    paymentStatus === "pago"
-      ? 0
-      : Math.max(0, Number(saleData.total_price) - entryValue);
+    paymentStatus === "pago" ? 0 : Math.max(0, saleTotal - entryValue);
 
   const salespersonName =
-    saleData.salesperson_info?.name ?? saleData.salesperson ?? "";
+    (saleData as any).salesperson_info?.name ??
+    (saleData as any).salesperson ??
+    "";
+
+  const totalQty = useMemo(
+    () => items.reduce((sum, it) => sum + Number(it.quantity || 0), 0),
+    [items],
+  );
+
+  const money = (v: number) =>
+    v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   const handleDeleteCost = async (costId: string) => {
     const supabase = createClient();
@@ -103,9 +156,6 @@ export function SaleDetailsModal({
     onChanged();
   };
 
-  const money = (v: number) =>
-    v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg md:max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -121,6 +171,7 @@ export function SaleDetailsModal({
             <CardHeader>
               <CardTitle className="text-lg">Informações da Venda</CardTitle>
             </CardHeader>
+
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div>
                 <p className="text-sm text-muted-foreground">
@@ -128,49 +179,46 @@ export function SaleDetailsModal({
                 </p>
                 <p className="font-medium">{saleData.order_number || "-"}</p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Produto</p>
-                <p className="font-medium">{saleData.product_name}</p>
-              </div>
+
               <div>
                 <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">{saleData.customer_name || "-"}</p>
               </div>
+
               <div>
                 <p className="text-sm text-muted-foreground">Vendedor</p>
-                <p className="font-medium">{salespersonName}</p>
+                <p className="font-medium">{salespersonName || "-"}</p>
               </div>
+
               <div>
                 <p className="text-sm text-muted-foreground">Data</p>
                 <p className="font-medium">
                   {new Date(saleData.sale_date).toLocaleDateString("pt-BR")}
                 </p>
               </div>
+
               <div>
-                <p className="text-sm text-muted-foreground">Quantidade</p>
-                <p className="font-medium">{saleData.quantity}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Valor Líquido</p>
-                <p className="font-medium">
-                  R$ {money(Number(saleData.unit_price))}
+                <p className="text-sm text-muted-foreground">
+                  Quantidade de Itens
                 </p>
+                <p className="font-medium">{totalQty}</p>
               </div>
+
               <div>
                 <p className="text-sm text-muted-foreground">Valor Total</p>
-                <p className="font-bold text-lg">
-                  R$ {money(Number(saleData.total_price))}
-                </p>
+                <p className="font-bold text-lg">R$ {money(saleTotal)}</p>
               </div>
 
               <div>
                 <p className="text-sm text-muted-foreground">Entrada</p>
                 <p className="font-medium">R$ {money(entryValue)}</p>
               </div>
+
               <div>
                 <p className="text-sm text-muted-foreground">Valor Faltante</p>
                 <p className="font-bold text-lg">R$ {money(missingValue)}</p>
               </div>
+
               <div>
                 <p className="text-sm text-muted-foreground">Status da Venda</p>
                 <span
@@ -208,6 +256,43 @@ export function SaleDetailsModal({
             </CardContent>
           </Card>
 
+          {/* NEW: lista de produtos (sem preços) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Produtos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isRefreshing ? (
+                <p className="text-center text-muted-foreground py-4">
+                  Atualizando...
+                </p>
+              ) : items.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">
+                  Nenhum produto registrado
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produto</TableHead>
+                      <TableHead className="w-[140px]">Quantidade</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((it) => (
+                      <TableRow key={it.id}>
+                        <TableCell className="font-medium">
+                          {it.product_name}
+                        </TableCell>
+                        <TableCell>{it.quantity}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -233,8 +318,8 @@ export function SaleDetailsModal({
                     <TableRow>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Descrição</TableHead>
-                      <TableHead  >Valor</TableHead>
-                      <TableHead  >Ações</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -244,10 +329,8 @@ export function SaleDetailsModal({
                           {cost.cost_type}
                         </TableCell>
                         <TableCell>{cost.description || "-"}</TableCell>
-                        <TableCell  >
-                          R$ {money(Number(cost.amount))}
-                        </TableCell>
-                        <TableCell  >
+                        <TableCell>R$ {money(Number(cost.amount))}</TableCell>
+                        <TableCell>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -272,9 +355,7 @@ export function SaleDetailsModal({
             <CardContent className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Valor da Venda:</span>
-                <span className="font-medium">
-                  R$ {money(Number(saleData.total_price))}
-                </span>
+                <span className="font-medium">R$ {money(saleTotal)}</span>
               </div>
 
               <div className="flex justify-between">
