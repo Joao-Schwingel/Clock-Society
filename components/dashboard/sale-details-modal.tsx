@@ -275,16 +275,16 @@ export function SaleDetailsModal({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Produto</TableHead>
-                      <TableHead className="w-[140px]">Quantidade</TableHead>
+                      <TableHead>Quantidade</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((it) => (
                       <TableRow key={it.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium max-w-[500px] truncate">
                           {it.product_name}
                         </TableCell>
-                        <TableCell>{it.quantity}</TableCell>
+                        <TableCell className="text-center">{it.quantity}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -303,7 +303,7 @@ export function SaleDetailsModal({
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto w-full">
               {isRefreshing ? (
                 <p className="text-center text-muted-foreground py-4">
                   Atualizando...
@@ -313,13 +313,13 @@ export function SaleDetailsModal({
                   Nenhum custo extra registrado
                 </p>
               ) : (
-                <Table>
+                <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Ações</TableHead>
+                      <TableHead className="w-[10%]">Tipo</TableHead>
+                      <TableHead className="w-[60%]">Descrição</TableHead>
+                      <TableHead className="w-[15%]">Valor</TableHead>
+                      <TableHead className="w-[15%]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -328,7 +328,7 @@ export function SaleDetailsModal({
                         <TableCell className="font-medium">
                           {cost.cost_type}
                         </TableCell>
-                        <TableCell>{cost.description || "-"}</TableCell>
+                        <TableCell className="truncate" title={cost.description ?? "Sem Descrição"}>{cost.description || "-"}</TableCell>
                         <TableCell>R$ {money(Number(cost.amount))}</TableCell>
                         <TableCell>
                           <Button
