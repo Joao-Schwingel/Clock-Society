@@ -39,11 +39,6 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const [months, setMonths] = useState<number[]>([]);
   const [year, setYear] = useState("2026");
 
-  useEffect(() => {
-    console.log(year);
-    console.log(months);
-  }, [year, months]);
-
   const fetchSales = async () => {
     setIsLoading(true);
     const supabase = createClient();
@@ -79,6 +74,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   };
 
   const handleEdit = (sale: SaleWithDetails) => {
+    console.log(sale)
     setEditingSale(sale);
     setIsFormOpen(true);
   };
