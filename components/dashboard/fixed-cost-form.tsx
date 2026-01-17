@@ -167,7 +167,7 @@ export function FixedCostForm({
             </div>
 
             <div className="space-y-2">
-              <Label>Valor Mensal (R$) *</Label>
+              <Label>Valor</Label>
               <Input
                 type="number"
                 step="0.01"
