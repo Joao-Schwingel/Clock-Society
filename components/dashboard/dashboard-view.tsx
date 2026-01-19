@@ -19,6 +19,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { Skeleton } from "@radix-ui/themes";
+import { DashboardFilters } from "./dashboards-filters";
 
 interface DashboardViewProps {
   companyId: string;
@@ -42,12 +43,32 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
   const [totalFixedCosts, setTotalFixedCosts] = useState(0);
   const [netProfit, setNetProfit] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [months, setMonths] = useState<number[]>(() => [new Date().getMonth()]);
+  const [year, setYear] = useState("2026");
 
   useEffect(() => {
     loadCommissionData();
-  }, [companyId, userId]);
+  }, [companyId, userId, months, year]);
+
+  function filterFixedCosts(fixedCosts: any) {
+    let total = 0;
+
+    for (const cost of fixedCosts) {
+      const start = new Date(cost.start_date);
+      for (const month of months) {
+
+        if ((start.getMonth() == month || (start.getMonth() < month && start.getMonth() + cost.qtdmonths - 1 >= month))) {
+          console.log(cost)
+          total += cost.monthly_value;
+        }
+      }
+    }
+
+    return total;
+  }
 
   const loadCommissionData = async () => {
+    setIsLoading(true);
     const supabase = createClient();
 
     try {
@@ -61,12 +82,23 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
 
       if (salespersonsError) throw salespersonsError;
 
-      const { data: sales, error } = await supabase
+      let query = supabase
         .from("sales")
         .select("*")
         .eq("company_id", companyId)
         .eq("user_id", userId)
         .eq("status", "concluída");
+
+      if (months.length > 0) {
+        const ranges = months.map((m) => {
+          const start = new Date(Number(year), m, 1);
+          const end = new Date(Number(year), m + 1, 1);
+          return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
+        });
+
+        query = query.or(ranges.join(","));
+      }
+      const { data: sales, error } = await query;
 
       if (error) throw error;
 
@@ -84,11 +116,8 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
 
       const saleCostsTotal =
         saleCosts?.reduce((sum, cost) => sum + Number(cost.amount), 0) || 0;
-      const fixedCostsTotal =
-        fixedCosts?.reduce(
-          (sum, cost) => sum + Number(cost.monthly_value),
-          0,
-        ) || 0;
+
+      const fixedCostsTotal = filterFixedCosts(fixedCosts);
 
       const salesByPerson: Record<
         string,
@@ -181,9 +210,17 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
     <div className="space-y-6">
       <div className="space-y-1">
         <Skeleton loading={isLoading}>
-          <h3 className="w-max text-2xl font-bold tracking-tight">
-            Dashboard de Comissões
-          </h3>
+          <div className="flex gap-6 items-center justify-between mb-2">
+            <h3 className="w-max text-2xl font-bold tracking-tight">
+              Dashboard de Comissões
+            </h3>
+            <DashboardFilters
+              value={months}
+              yearValue={year}
+              onChange={setMonths}
+              onYearChange={setYear}
+            ></DashboardFilters>
+          </div>
         </Skeleton>
         <Skeleton loading={isLoading}>
           <p className="text-muted-foreground w-max">

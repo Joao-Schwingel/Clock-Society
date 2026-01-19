@@ -219,9 +219,6 @@ export function FixedCostTable({
                   fixos
                 </p>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">
-                    Total Mensal (Filtrado)
-                  </p>
                   <p className="text-2xl font-bold">
                     R${" "}
                     {totalFiltered.toLocaleString("pt-BR", {

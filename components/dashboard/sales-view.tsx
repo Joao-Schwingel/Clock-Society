@@ -60,8 +60,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       query = query.or(ranges.join(","));
     }
 
-    const { data, error } = await query.order("sale_date", {
-      ascending: false,
+    const { data, error } = await query.order("order_number", {
+      ascending: true,
     });
 
     if (!error && data) setSales(data as SaleWithDetails[]);
