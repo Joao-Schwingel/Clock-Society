@@ -26,17 +26,35 @@ interface DashboardViewProps {
   userId: string;
 }
 
-interface SalespersonCommission {
-  salesperson: Salesperson;
+type SalespersonSummary = {
+  salesperson_id: string;
+  salesperson_name: string;
+  sales_count: number;
+  total_sales: number;
+  total_costs: number;
+  net_profit: number;
+  total_commission: number;
+};
+
+
+type SalespersonCommission = {
+  salesperson: {
+    id: string;
+    name: string;
+  };
+  totalCost: number;
   totalSales: number;
-  totalCosts: number;
   netProfit: number;
-  commission: number;
+  totalCommission: number;
   salesCount: number;
-}
+};
 
 export function DashboardView({ companyId, userId }: DashboardViewProps) {
   const [commissions, setCommissions] = useState<SalespersonCommission[]>([]);
+  // const [saleSellers, setSaleSellers] = useState<SalespersonSummary[]>([]);
+  const [salePeople, setSalePeople] = useState([
+    { name: "", is_active: false, id: "" },
+  ]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCommissions, setTotalCommissions] = useState(0);
   const [completedCosts, setTotalSaleCosts] = useState(0);
@@ -56,9 +74,11 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
     for (const cost of fixedCosts) {
       const start = new Date(cost.start_date);
       for (const month of months) {
-
-        if ((start.getMonth() == month || (start.getMonth() < month && start.getMonth() + cost.qtdmonths - 1 >= month))) {
-          console.log(cost)
+        if (
+          start.getMonth() == month ||
+          (start.getMonth() < month &&
+            start.getMonth() + cost.qtdmonths - 1 >= month)
+        ) {
           total += cost.monthly_value;
         }
       }
@@ -74,13 +94,14 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
     try {
       const { data: salespersons, error: salespersonsError } = await supabase
         .from("salespersons")
-        .select("*")
+        .select("name, is_active, id")
         .eq("company_id", companyId)
         .eq("user_id", userId)
         .eq("is_active", true)
         .order("name");
 
       if (salespersonsError) throw salespersonsError;
+      setSalePeople(salespersons);
 
       let query = supabase
         .from("sales")
@@ -119,82 +140,49 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
 
       const fixedCostsTotal = filterFixedCosts(fixedCosts);
 
-      const salesByPerson: Record<
-        string,
+      const { data, error: errorSummary } = await supabase.rpc(
+        "salesperson_summary_by_months",
         {
-          totalSales: number;
-          totalCosts: number;
-          netProfit: number;
-          count: number;
-        }
-      > = {};
-
-      // Initialize for each salesperson
-      for (const person of salespersons || []) {
-        salesByPerson[person.id] = {
-          totalSales: 0,
-          totalCosts: 0,
-          netProfit: 0,
-          count: 0,
-        };
-      }
-
-      let revenue = 0;
-
-      for (const sale of sales || []) {
-        const saleValue = Number(sale.total_price);
-        revenue += saleValue;
-
-        // Get costs for this specific sale
-        const costsForSale =
-          saleCosts?.filter((c) => c.sale_id === sale.id) || [];
-        const costTotal = costsForSale.reduce(
-          (sum, c) => sum + Number(c.amount),
-          0,
-        );
-        const saleNetProfit = saleValue - costTotal;
-
-        // Check if this salesperson exists in our records
-        if (sale.salesperson_id && salesByPerson[sale.salesperson_id]) {
-          salesByPerson[sale.salesperson_id].totalSales += saleValue;
-          salesByPerson[sale.salesperson_id].totalCosts += costTotal;
-          salesByPerson[sale.salesperson_id].netProfit += saleNetProfit;
-          salesByPerson[sale.salesperson_id].count += 1;
-        }
-      }
-
-      const commissionData: SalespersonCommission[] = (salespersons || []).map(
-        (person) => {
-          const personData = salesByPerson[person.id] || {
-            totalSales: 0,
-            totalCosts: 0,
-            netProfit: 0,
-            count: 0,
-          };
-          const commissionRate = Number(person.commission_percentage) / 100;
-
-          return {
-            salesperson: person,
-            totalSales: personData.totalSales,
-            totalCosts: personData.totalCosts,
-            netProfit: personData.netProfit,
-            commission: personData.netProfit * commissionRate,
-            salesCount: personData.count,
-          };
+          p_year: Number(year),
+          p_months: months.map((month) => month + 1),
         },
       );
 
-      const totalComm = commissionData
-        .filter((c) => c.salesperson.commission_percentage > 0)
-        .reduce((sum, c) => sum + c.commission, 0);
+      if (errorSummary) throw errorSummary;
+
+      const salesByPerson: SalespersonSummary[] = data ?? [];
+
+      const totalComm = salesByPerson.reduce(
+        (sum: number, x: SalespersonSummary) =>
+          sum + Number(x.total_commission ?? 0),
+        0,
+      );
+
+      const commissions: SalespersonCommission[] = salesByPerson.map((x) => ({
+        salesperson: {
+          id: x.salesperson_id,
+          name: x.salesperson_name,
+        },
+        totalSales: Number(x.total_sales),
+        totalCommission: Number(x.total_commission),
+        salesCount: x.sales_count,
+        netProfit: x.net_profit,
+        totalCost: x.total_costs
+      }));
+
+      let revenue = sales.reduce(
+        (sum, x) => sum + Number(x.total_price ?? 0),
+        0,
+      );
+
       const overallNetProfit = revenue - saleCostsTotal - fixedCostsTotal;
 
-      setCommissions(commissionData);
       setTotalRevenue(revenue);
+      setNetProfit(overallNetProfit);
+      setCommissions(commissions);
       setTotalCommissions(totalComm);
       setTotalSaleCosts(saleCostsTotal);
       setTotalFixedCosts(fixedCostsTotal);
-      setNetProfit(overallNetProfit);
     } catch (err) {
       console.error("Error loading commission data:", err);
     } finally {
@@ -333,9 +321,6 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
                   minimumFractionDigits: 2,
                 })}
               </div>
-              <p className="text-xs text-muted-foreground">
-                10% do lucro líquido
-              </p>
             </CardContent>
           </Card>
         </Skeleton>
@@ -350,7 +335,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {commissions.filter((c) => c.salesCount > 0).length}
+                {salePeople.filter((c) => c.is_active == true).length}
               </div>
               <p className="text-xs text-muted-foreground">
                 Com vendas concluídas
@@ -361,104 +346,79 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {commissions.length > 0 ? (
-          commissions.map((commission) => (
-            <Skeleton key={commission.salesperson.id} loading={isLoading}>
-              <Card key={commission.salesperson.id}>
+        {salePeople.map((person) => {
+          const commission = commissions.find(
+            (c) => c.salesperson.id === person.id,
+          );
+          const totalSales = commission?.totalSales ?? 0;
+          const totalCommission = commission?.totalCommission ?? 0;
+          const salesCount = commission?.salesCount ?? 0;
+          const netProfit = commission?.netProfit ?? 0;
+          const totalCosts = commission?.totalCost ?? 0
+
+          return (
+            <Skeleton key={person.id} loading={isLoading}>
+              <Card>
                 <CardHeader>
-                  <CardTitle>{commission.salesperson.name}</CardTitle>
+                  <CardTitle>{person.name}</CardTitle>
                   <CardDescription>
-                    {commission.salesCount} venda
-                    {commission.salesCount !== 1 ? "s" : ""} concluída
-                    {commission.salesCount !== 1 ? "s" : ""}
-                    {commission.salesperson.commission_percentage > 0
-                      ? ` • Comissão de ${commission.salesperson.commission_percentage}%`
+                    {salesCount} venda{salesCount !== 1 ? "s" : ""} concluída
+                    {salesCount > 0
+                      ? ` • Comissão de ${salesCount}`
                       : " • Sem comissão"}
                   </CardDescription>
                 </CardHeader>
+
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Total de Vendas:
-                      </span>
-                      <span className="font-medium">
-                        R${" "}
-                        {commission.totalSales.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Custos das Vendas:
-                      </span>
-                      <span className="font-medium text-orange-600">
-                        - R${" "}
-                        {commission.totalCosts.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Lucro Líquido:
-                      </span>
-                      <span className="font-medium text-green-600">
-                        R${" "}
-                        {commission.netProfit.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                    {commission.salesperson.commission_percentage > 0 && (
-                      <div className="flex justify-between pt-2 border-t">
-                        <span className="text-sm text-muted-foreground">
-                          Comissão (
-                          {commission.salesperson.commission_percentage}% do
-                          lucro líquido):
-                        </span>
-                        <span className="text-xl font-bold text-primary">
-                          R${" "}
-                          {commission.commission.toLocaleString("pt-BR", {
-                            minimumFractionDigits: 2,
-                          })}
-                        </span>
-                      </div>
-                    )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Total de Vendas:
+                    </span>
+                    <span className="font-medium">
+                      R${" "}
+                      {totalSales.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Custos das Vendas:
+                    </span>
+                    <span className="font-medium text-orange-600">
+                      - R${" "}
+                      {totalCosts.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
                   </div>
 
-                  <div className="pt-4 border-t">
-                    <div className="text-xs text-muted-foreground">
-                      Média por venda:{" "}
-                      <span className="font-medium text-foreground">
-                        R${" "}
-                        {commission.salesCount > 0
-                          ? (
-                              commission.totalSales / commission.salesCount
-                            ).toLocaleString("pt-BR", {
-                              minimumFractionDigits: 2,
-                            })
-                          : "0,00"}
-                      </span>
-                    </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Lucro Líquido</span>
+                    <span className="font-medium text-primary">
+                      R${" "}
+                      {netProfit.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="text-muted-foreground">
+                      Comissão Total:
+                    </span>
+                    <span className="font-medium text-green-600">
+                      R${" "}
+                      {totalCommission.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
             </Skeleton>
-          ))
-        ) : (
-          <Skeleton loading={isLoading}>
-            <Card className="col-span-2">
-              <CardContent className="py-8 text-center text-muted-foreground">
-                <p>Nenhum vendedor ativo cadastrado.</p>
-                <p className="text-sm mt-2">
-                  Use o botão de configurações para adicionar vendedores.
-                </p>
-              </CardContent>
-            </Card>
-          </Skeleton>
-        )}
+          );
+        })}
       </div>
     </div>
   );

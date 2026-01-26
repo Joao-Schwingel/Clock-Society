@@ -45,7 +45,26 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     let query = supabase
       .from("sales_with_details")
       .select(
-        "id,company_id,user_id,salesperson_id,entry_value,payment_status,product_name,customer_name,sale_date,quantity,unit_price,total_price,status,order_number,notes,created_at,salesperson,salesperson_info,costs,total_costs"
+        `
+        id,
+        company_id,
+        user_id,
+        entry_value,
+        payment_status,
+        product_name,
+        customer_name,
+        sale_date,
+        quantity,
+        unit_price,
+        total_price,
+        status,
+        order_number,
+        notes,
+        created_at,
+        salespersons,
+        costs,
+        total_costs
+        `,
       )
       .eq("company_id", companyId)
       .order("sale_date", { ascending: false });
@@ -74,7 +93,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   };
 
   const handleEdit = (sale: SaleWithDetails) => {
-    console.log(sale)
+    console.log(sale);
     setEditingSale(sale);
     setIsFormOpen(true);
   };
@@ -104,20 +123,20 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
   const completedRevenue = completedSales.reduce(
     (sum, s) => sum + Number(s.total_price),
-    0
+    0,
   );
   const pendingRevenue = pendingSales.reduce(
     (sum, s) => sum + Number(s.total_price),
-    0
+    0,
   );
 
   const completedCosts = completedSales.reduce(
     (sum, s) => sum + Number(s.total_costs ?? 0),
-    0
+    0,
   );
   const pendingCosts = pendingSales.reduce(
     (sum, s) => sum + Number(s.total_costs ?? 0),
-    0
+    0,
   );
 
   const completedNetProfit = completedRevenue - completedCosts;
@@ -131,7 +150,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
   const totalEntryValue = sales.reduce(
     (sum, s) => sum + Number(s.entry_value ?? 0),
-    0
+    0,
   );
 
   // "faltante" = total_price - entry_value (nunca negativo), apenas para pagamentos pendentes
@@ -474,8 +493,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
                 prev.map((s) =>
                   s.id === saleId
                     ? ({ ...(s as any), payment_status: "pago" } as any)
-                    : s
-                )
+                    : s,
+                ),
               );
             }}
           />

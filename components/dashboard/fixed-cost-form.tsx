@@ -33,7 +33,7 @@ const fixedCostSchema = z.object({
   }),
   months: z.number().min(1, "Mínimo 1 mês").max(12, "Máximo 12 meses"),
   monthlyValue: z.number().positive("Valor deve ser maior que zero"),
-  startDate: z.string().min(1, "Data de início é obrigatória"),
+  startDate: z.string().min(1, "Data é obrigatória"),
   description: z.string().optional(),
 });
 

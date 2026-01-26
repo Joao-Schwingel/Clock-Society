@@ -29,7 +29,6 @@ export interface Sale {
   entry_value: number;
   customer_name: string | null;
   salesperson: "A" | "B" | "C";
-  salesperson_id?: string | null;
   status: "pendente" | "concluída";
   payment_status: "pendente" | "pago";
   notes: string | null;
@@ -109,8 +108,14 @@ export interface FixedCost {
   updated_at: string;
 }
 
+type SaleSalesperson = {
+  id: string;
+  name: string;
+  commission_percent: number;
+};
+
 export type SaleWithDetails = Sale & {
   costs: SaleCost[];
   total_costs: number;
-  salesperson_info: { id: string; name: string } | null;
+  salespersons: SaleSalesperson[];
 };

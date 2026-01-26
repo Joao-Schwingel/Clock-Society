@@ -21,7 +21,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { Sale, Salesperson, SaleWithDetails } from "@/lib/types";
+import type { Sale, SaleWithDetails } from "@/lib/types";
 import { formatBR } from "@/lib/utils";
 
 interface SalesTableProps {
@@ -52,10 +52,6 @@ export function SalesTable({
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
 
-  const [salespersonsMap, setSalespersonsMap] = useState<
-    Record<string, Salesperson>
-  >({});
-
   const [qtySumBySaleId, setQtySumBySaleId] = useState<Record<string, number>>(
     {},
   );
@@ -64,34 +60,9 @@ export function SalesTable({
   >({});
 
   useEffect(() => {
-    void loadSalespersons();
     void loadSaleItemsAgg();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sales]);
-
-  const loadSalespersons = async () => {
-    if (sales.length === 0) return;
-
-    const supabase = createClient();
-    const salespersonIds = [
-      ...new Set(sales.map((s) => s.salesperson_id).filter(Boolean)),
-    ];
-
-    if (salespersonIds.length === 0) return;
-
-    const { data } = await supabase
-      .from("salespersons")
-      .select("*")
-      .in("id", salespersonIds);
-
-    if (!data) return;
-
-    const map: Record<string, Salesperson> = {};
-    data.forEach((person) => {
-      map[person.id] = person;
-    });
-    setSalespersonsMap(map);
-  };
 
   const loadSaleItemsAgg = async () => {
     if (sales.length === 0) {
@@ -139,11 +110,6 @@ export function SalesTable({
     setProductNamesBySaleId(productStrMap);
   };
 
-  const getSalespersonName = (salespersonId: string | null | undefined) => {
-    if (!salespersonId) return "-";
-    const person = salespersonsMap[salespersonId];
-    return person ? person.name : "Desconhecido";
-  };
 
   const formatMoneyBR = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
@@ -352,7 +318,7 @@ export function SalesTable({
                     </TableCell>
                     <TableCell>{sale.customer_name || "-"}</TableCell>
                     <TableCell>
-                      {getSalespersonName(sale.salesperson_id)}
+                      {(sale.salespersons.map((person) => person.name).join(","))}
                     </TableCell>
                     <TableCell>
                       <Badge

@@ -126,7 +126,7 @@ export function FixedCostTable({
             </div>
 
             <div className="flex-1 space-y-2">
-              <Label htmlFor="date">Data de Início</Label>
+              <Label htmlFor="date">Data</Label>
               <Input
                 id="date"
                 type="month"
@@ -196,7 +196,7 @@ export function FixedCostTable({
                             onClick={() => {
                               if (
                                 confirm(
-                                  "Tem certeza que deseja excluir esta venda?"
+                                  "Tem certeza que deseja excluir este custo?"
                                 )
                               ) {
                                 onDelete(cost.id);

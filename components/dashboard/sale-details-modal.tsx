@@ -162,7 +162,7 @@ export function SaleDetailsModal({
         <DialogHeader>
           <DialogTitle>Detalhes da Venda</DialogTitle>
           <DialogDescription>
-            Visualize informações completas e custos extras desta venda
+            Visualize informações completas e custos desta venda
           </DialogDescription>
         </DialogHeader>
 
@@ -296,7 +296,7 @@ export function SaleDetailsModal({
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Custos Extras</CardTitle>
+                <CardTitle className="text-lg">Custos</CardTitle>
                 <Button size="sm" onClick={() => setIsFormOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Adicionar Custo

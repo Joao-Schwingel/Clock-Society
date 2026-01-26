@@ -68,7 +68,7 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
     const salespersonData = {
       name,
       company_id: companyId,
-      commission_percentage: Number.parseFloat(commissionPercentage),
+      commission_percentage: 0,
       is_active: isActive,
       user_id: userId,
     }
@@ -151,7 +151,6 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Empresa</TableHead>
-                      <TableHead>Comissão (%)</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -161,7 +160,6 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
                       <TableRow key={salesperson.id}>
                         <TableCell className="font-medium">{salesperson.name}</TableCell>
                         <TableCell>{getCompanyName(salesperson.company_id)}</TableCell>
-                        <TableCell>{salesperson.commission_percentage}%</TableCell>
                         <TableCell>
                           {salesperson.is_active ? (
                             <Badge variant="default">Ativo</Badge>
@@ -214,21 +212,6 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="commission">Porcentagem de Comissão (%) *</Label>
-                <Input
-                  id="commission"
-                  type="number"
-                  step="1.00"
-                  min="0"
-                  max="100"
-                  value={commissionPercentage}
-                  onChange={(e) => setCommissionPercentage(e.target.value)}
-                  required
-                />
-                <p className="text-sm text-muted-foreground">Comissão sobre o lucro líquido de cada venda</p>
               </div>
 
               <div className="grid gap-2">

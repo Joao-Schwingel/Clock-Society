@@ -33,6 +33,11 @@ interface SalesFormProps {
   onCancel: () => void;
 }
 
+type SellerInput = {
+  salespersonId: string;
+  commission: number;
+};
+
 type PaymentStatus = "pendente" | "pago";
 
 type LineItem = {
@@ -79,15 +84,13 @@ export function SalesForm({
   const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
 
   const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
-  const [totalPrice, setTotalPrice] = useState(sale?.total_price || "")
+  const [totalPrice, setTotalPrice] = useState(sale?.total_price || 0);
 
   const [saleDate, setSaleDate] = useState(
-    sale?.sale_date || new Date().toISOString().split("T")[0]
+    sale?.sale_date || new Date().toISOString().split("T")[0],
   );
   const [customerName, setCustomerName] = useState(sale?.customer_name || "");
-  const [salespersonId, setSalespersonId] = useState(
-    sale?.salesperson_id || ""
-  );
+  
   const [notes, setNotes] = useState(sale?.notes || "");
 
   const [entryValue, setEntryValue] = useState(() => {
@@ -103,6 +106,26 @@ export function SalesForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
+  const [sellers, setSellers] = useState<SellerInput[]>([
+    {
+      salespersonId: "",
+      commission: 0,
+    },
+  ]);
+
+  function updateSeller(index: number, field: keyof SellerInput, value: any) {
+    setSellers((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
+    );
+  }
+
+  function addSeller() {
+    setSellers((prev) => [...prev, { salespersonId: "", commission: 0 }]);
+  }
+
+  function removeSeller(index: number) {
+    setSellers((prev) => prev.filter((_, i) => i !== index));
+  }
 
   useEffect(() => {
     void loadSalespersons();
@@ -128,7 +151,6 @@ export function SalesForm({
 
     if (data) {
       setSalespersons(data);
-      if (data.length > 0 && !salespersonId) setSalespersonId(data[0].id);
     }
   };
 
@@ -163,7 +185,7 @@ export function SalesForm({
         product_name: it.product_name,
         quantity: String(it.quantity),
         unit_price: String(it.unit_price),
-      }))
+      })),
     );
   };
 
@@ -184,7 +206,7 @@ export function SalesForm({
   }, [entryValue]);
 
   const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(() => {
-    const parsedTotal = Number.parseFloat(totalPrice) || 0;
+    const parsedTotal = totalPrice || 0;
 
     const cash = parsedEntryValue === 0;
     const effectiveEntry = cash ? parsedTotal : parsedEntryValue;
@@ -208,7 +230,7 @@ export function SalesForm({
   const normalizeOrderNumber = (value: string) => value.trim();
 
   const orderNumberExists = async (
-    supabase: ReturnType<typeof createClient>
+    supabase: ReturnType<typeof createClient>,
   ) => {
     const normalized = normalizeOrderNumber(orderNumber);
     if (!normalized) return false;
@@ -229,7 +251,7 @@ export function SalesForm({
 
   const updateItem = (id: string, patch: Partial<LineItem>) => {
     setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
+      prev.map((it) => (it.id === id ? { ...it, ...patch } : it)),
     );
   };
 
@@ -237,7 +259,7 @@ export function SalesForm({
 
   const removeItem = (id: string) => {
     setItems((prev) =>
-      prev.length <= 1 ? prev : prev.filter((it) => it.id !== id)
+      prev.length <= 1 ? prev : prev.filter((it) => it.id !== id),
     );
   };
 
@@ -251,6 +273,7 @@ export function SalesForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log(sellers);
     setIsLoading(true);
     setError(null);
 
@@ -278,13 +301,15 @@ export function SalesForm({
         quantity: toInt(first?.quantity ?? "1"),
         unit_price: toNumber(first?.unit_price ?? "0"),
 
-        total_price: Number.parseFloat(totalPrice),
+        total_price: totalPrice,
 
-        entry_value: entryValue.trim() === "" || entryValue.trim() === "0"? 0 : effectiveEntryValue,
+        entry_value:
+          entryValue.trim() === "" || entryValue.trim() === "0"
+            ? 0
+            : effectiveEntryValue,
         payment_status: computedPaymentStatus,
         sale_date: saleDate,
         customer_name: customerName || null,
-        salesperson_id: salespersonId ? salespersonId : null,
         status: sale?.status || ("pendente" as const),
         notes: notes || null,
       };
@@ -299,11 +324,24 @@ export function SalesForm({
           throw new Error("Falha ao criar venda (id ausente).");
 
         const rows = toSaleItemInsertRows(inserted.id);
-        
+
         const { error: itemsErr } = await supabase
           .from("sale_items")
           .insert(rows);
+
         if (itemsErr) throw itemsErr;
+
+        const sellerRows = sellers.map((s) => ({
+          sale_id: inserted.id,
+          salesperson_id: s.salespersonId,
+          commission_percent: s.commission,
+        }));
+
+        const { error: sellersErr } = await supabase
+          .from("sale_salespersons")
+          .insert(sellerRows);
+
+        if (sellersErr) throw sellersErr;
 
         onSuccess();
         return;
@@ -326,6 +364,25 @@ export function SalesForm({
         .from("sale_items")
         .insert(rows);
       if (itemsErr) throw itemsErr;
+
+      const { error: delSellersErr } = await supabase
+        .from("sale_salespersons")
+        .delete()
+        .eq("sale_id", sale.id);
+
+      if (delSellersErr) throw delSellersErr;
+
+      const sellerRows = sellers.map((s) => ({
+        sale_id: sale.id,
+        salesperson_id: s.salespersonId,
+        commission_percent: s.commission,
+      }));
+
+      const { error: insSellersErr } = await supabase
+        .from("sale_salespersons")
+        .insert(sellerRows);
+
+      if (insSellersErr) throw insSellersErr;
 
       onSuccess();
     } catch (err: unknown) {
@@ -457,8 +514,10 @@ export function SalesForm({
                   type="number"
                   step="0.01"
                   min={0}
-                  value={totalPrice}
-                  onChange={(e) => setTotalPrice(e.target.value)}
+                  value={totalPrice ?? 0}
+                  onChange={(e) =>
+                    setTotalPrice(Math.max(0, Number(e.target.value) || 0))
+                  }
                   className="text-2xl font-bold"
                 />
                 {/* <div className="text-2xl font-bold">
@@ -519,25 +578,63 @@ export function SalesForm({
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="salesperson">Vendedor *</Label>
-                <Select value={salespersonId} onValueChange={setSalespersonId}>
-                  <SelectTrigger id="salesperson">
-                    <SelectValue placeholder="Selecione um vendedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {salespersons.map((person) => (
-                      <SelectItem key={person.id} value={person.id}>
-                        {person.name} ({person.commission_percentage}% comissão)
-                      </SelectItem>
-                    ))}
-                    {salespersons.length === 0 && (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        Nenhum vendedor ativo. Configure vendedores primeiro.
-                      </div>
+              <div className="grid gap-4">
+                {sellers.map((seller, index) => (
+                  <div key={index} className="flex gap-2 items-end">
+                    <div className="grid gap-2">
+                      <Label>Vendedor *</Label>
+                      <Select
+                        value={seller.salespersonId}
+                        onValueChange={(v) =>
+                          updateSeller(index, "salespersonId", v)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um vendedor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {salespersons.map((person) => (
+                            <SelectItem key={person.id} value={person.id}>
+                              {person.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Comissão %</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={seller.commission}
+                        onChange={(e) =>
+                          updateSeller(
+                            index,
+                            "commission",
+                            Number(e.target.value),
+                          )
+                        }
+                      />
+                    </div>
+
+                    {sellers.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="bg-red-500"
+                        onClick={() => removeSeller(index)}
+                      >
+                        Remover
+                      </Button>
                     )}
-                  </SelectContent>
-                </Select>
+                  </div>
+                ))}
+
+                <Button type="button" variant="outline" onClick={addSeller}>
+                  + Adicionar vendedor
+                </Button>
               </div>
 
               <div className="grid gap-2">
@@ -561,7 +658,7 @@ export function SalesForm({
               <Button
                 type="submit"
                 disabled={
-                  isLoading || salespersons.length === 0 || !salespersonId
+                  isLoading || salespersons.length === 0
                 }
               >
                 {isLoading ? "Salvando..." : sale ? "Atualizar" : "Adicionar"}
