@@ -94,7 +94,26 @@ export function SaleDetailsModal({
     const { data, error } = await supabase
       .from("sales_with_details")
       .select(
-        "id,company_id,user_id,salesperson_id,order_number,customer_name,sale_date,total_price,entry_value,status,notes,created_at,salesperson,salesperson_info,costs,total_costs,payment_status",
+        `
+        id,
+        company_id,
+        user_id,
+        entry_value,
+        payment_status,
+        product_name,
+        customer_name,
+        sale_date,
+        quantity,
+        unit_price,
+        total_price,
+        status,
+        order_number,
+        notes,
+        created_at,
+        salespersons,
+        costs,
+        total_costs
+        `,
       )
       .eq("id", saleData.id)
       .single();
@@ -105,6 +124,7 @@ export function SaleDetailsModal({
     setIsRefreshing(false);
   };
 
+  console.log(saleData)
   const costs = useMemo<SaleCost[]>(
     () => (saleData.costs ?? []) as SaleCost[],
     [saleData.costs],
@@ -123,11 +143,6 @@ export function SaleDetailsModal({
 
   const missingValue =
     paymentStatus === "pago" ? 0 : Math.max(0, saleTotal - entryValue);
-
-  const salespersonName =
-    (saleData as any).salesperson_info?.name ??
-    (saleData as any).salesperson ??
-    "";
 
   const totalQty = useMemo(
     () => items.reduce((sum, it) => sum + Number(it.quantity || 0), 0),
@@ -187,7 +202,7 @@ export function SaleDetailsModal({
 
               <div>
                 <p className="text-sm text-muted-foreground">Vendedor</p>
-                <p className="font-medium">{salespersonName || "-"}</p>
+                <p className="font-medium">{saleData.salespersons.map((person) => person.name).join(",") || "-"}</p>
               </div>
 
               <div>
