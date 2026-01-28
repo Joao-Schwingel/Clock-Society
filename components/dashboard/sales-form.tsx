@@ -84,13 +84,13 @@ export function SalesForm({
   const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
 
   const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
-  const [totalPrice, setTotalPrice] = useState(sale?.total_price || 0);
+  const [totalPrice, setTotalPrice] = useState<number | "">("");
 
   const [saleDate, setSaleDate] = useState(
     sale?.sale_date || new Date().toISOString().split("T")[0],
   );
   const [customerName, setCustomerName] = useState(sale?.customer_name || "");
-  
+
   const [notes, setNotes] = useState(sale?.notes || "");
 
   const [entryValue, setEntryValue] = useState(() => {
@@ -509,15 +509,20 @@ export function SalesForm({
 
               <div className="grid gap-2">
                 <Label htmlFor="totalPrice">Valor Líquido Total</Label>
+
                 <Input
                   id="totalPrice"
                   type="number"
                   step="0.01"
                   min={0}
-                  value={totalPrice ?? 0}
-                  onChange={(e) =>
-                    setTotalPrice(Math.max(0, Number(e.target.value) || 0))
-                  }
+                  value={totalPrice}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setTotalPrice(v === "" ? "" : Number(v));
+                  }}
+                  onBlur={() => {
+                    if (totalPrice === "") setTotalPrice(0);
+                  }}
                   className="text-2xl font-bold"
                 />
                 {/* <div className="text-2xl font-bold">
@@ -657,9 +662,7 @@ export function SalesForm({
               </Button>
               <Button
                 type="submit"
-                disabled={
-                  isLoading || salespersons.length === 0
-                }
+                disabled={isLoading || salespersons.length === 0}
               >
                 {isLoading ? "Salvando..." : sale ? "Atualizar" : "Adicionar"}
               </Button>
