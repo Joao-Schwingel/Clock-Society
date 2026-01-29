@@ -84,7 +84,7 @@ export function SalesForm({
   const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
 
   const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
-  const [totalPrice, setTotalPrice] = useState(sale?.total_price || 0);
+  const [totalPrice, setTotalPrice] = useState(String(sale?.total_price) || "");
 
   const [saleDate, setSaleDate] = useState(
     sale?.sale_date || new Date().toISOString().split("T")[0],
@@ -206,7 +206,7 @@ export function SalesForm({
   }, [entryValue]);
 
   const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(() => {
-    const parsedTotal = totalPrice || 0;
+    const parsedTotal = Number(totalPrice) || 0;
 
     const cash = parsedEntryValue === 0;
     const effectiveEntry = cash ? parsedTotal : parsedEntryValue;
@@ -214,7 +214,7 @@ export function SalesForm({
     return {
       isCashPayment: cash,
       effectiveEntryValue: effectiveEntry,
-      remainingValue: Math.max(0, parsedTotal - effectiveEntry).toFixed(2),
+      remainingValue: Math.max(0, Number(parsedTotal) - Number(effectiveEntry)).toFixed(2),
     };
   }, [parsedEntryValue, totalPrice]);
 
@@ -301,7 +301,7 @@ export function SalesForm({
         quantity: toInt(first?.quantity ?? "1"),
         unit_price: toNumber(first?.unit_price ?? "0"),
 
-        total_price: totalPrice,
+        total_price: toNumber(totalPrice),
 
         entry_value:
           entryValue.trim() === "" || entryValue.trim() === "0"
@@ -514,9 +514,9 @@ export function SalesForm({
                   type="number"
                   step="0.01"
                   min={0}
-                  value={totalPrice ?? 0}
+                  value={totalPrice}
                   onChange={(e) =>
-                    setTotalPrice(Math.max(0, Number(e.target.value) || 0))
+                    setTotalPrice((e.target.value))
                   }
                   className="text-2xl font-bold"
                 />

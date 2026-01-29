@@ -186,7 +186,7 @@ export function FixedCostTable({
                           })}
                         </TableCell>
                         <TableCell>{formatBR(cost.start_date)}</TableCell>
-                        <TableCell className="max-w-xs truncate">
+                        <TableCell className="max-w-xs truncate" title={cost.description || "-"}>
                           {cost.description || "-"}
                         </TableCell>
                         <TableCell className="text-right">

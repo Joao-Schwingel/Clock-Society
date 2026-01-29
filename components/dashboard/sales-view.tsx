@@ -67,7 +67,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         `,
       )
       .eq("company_id", companyId)
-      .order("sale_date", { ascending: false });
+      // .order("sale_date", { ascending: false });
 
     if (months.length > 0) {
       const ranges = months.map((m) => {

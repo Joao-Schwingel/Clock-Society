@@ -18,6 +18,7 @@ import {
   Search,
   Eye,
   CheckCircle,
+  CircleX, 
   DollarSign,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -135,7 +136,7 @@ export function SalesTable({
 
   const filteredSales = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-
+    
     return sales.filter((sale) => {
       const productsLabel =
         productNamesBySaleId[sale.id] || sale.product_name || "";
@@ -155,7 +156,7 @@ export function SalesTable({
   }, [sales, searchTerm, dateFilter, onlyWithRemaining, productNamesBySaleId]);
 
   const handleStatusToggle = async (sale: Sale) => {
-    if (sale.status === "concluída") return;
+    const nextStatus = sale.status == "concluída" ? "pendente" : "concluída"
 
     setUpdatingStatus(sale.id);
     const supabase = createClient();
@@ -163,7 +164,7 @@ export function SalesTable({
     try {
       const { error } = await supabase
         .from("sales")
-        .update({ status: "concluída" })
+        .update({ status: nextStatus })
         .eq("id", sale.id);
 
       if (error) throw error;
@@ -351,7 +352,7 @@ export function SalesTable({
                           </Button>
                         )}
 
-                        {sale.status === "pendente" && (
+                        {sale.status === "pendente" ? (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -360,7 +361,14 @@ export function SalesTable({
                           >
                             <CheckCircle className="h-4 w-4 text-green-600" />
                           </Button>
-                        )}
+                        ): <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleStatusToggle(sale)}
+                            disabled={updatingStatus === sale.id}
+                          >
+                            <CircleX className="h-4 w-4 text-red-600" />
+                          </Button>}
 
                         <Button
                           variant="ghost"
