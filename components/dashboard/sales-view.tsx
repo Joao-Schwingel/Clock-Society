@@ -80,7 +80,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     }
 
     const { data, error } = await query.order("order_number", {
-      ascending: true,
+      ascending: false,
     });
 
     if (!error && data) setSales(data as SaleWithDetails[]);
