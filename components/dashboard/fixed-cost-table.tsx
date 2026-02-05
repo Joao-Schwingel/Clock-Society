@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -59,6 +60,7 @@ export function FixedCostTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState("");
+  const [saleType, setSaleType] = useState("ambos");
 
   const filteredCosts = fixedCosts.filter((cost) => {
     const matchesSearch =
@@ -69,9 +71,28 @@ export function FixedCostTable({
     const matchesCategory =
       categoryFilter === "all" || cost.category === categoryFilter;
 
-    const matchesDate = !dateFilter || cost.start_date.startsWith(dateFilter);
+    const matchesDate = (() => {
+      if (!dateFilter) return true;
 
-    return matchesSearch && matchesCategory && matchesDate;
+      const start = new Date(cost.start_date);
+      const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+
+      const endMonth = new Date(
+        startMonth.getFullYear(),
+        startMonth.getMonth() + cost.qtdmonths,
+        1,
+      );
+
+      const [year, month] = dateFilter.split("-").map(Number);
+      const filterMonth = new Date(year, month - 1, 1);
+
+      return filterMonth >= startMonth && filterMonth < endMonth;
+    })();
+
+    const matchesType =
+      saleType === "ambos" || cost.category.toLowerCase() === saleType;
+
+    return matchesSearch && matchesCategory && matchesDate && matchesType;
   });
 
   const clearFilters = () => {
@@ -84,7 +105,7 @@ export function FixedCostTable({
 
   const totalFiltered = filteredCosts.reduce(
     (sum, cost) => sum + Number(cost.monthly_value),
-    0
+    0,
   );
 
   if (isLoading) {
@@ -104,9 +125,7 @@ export function FixedCostTable({
     <Card>
       <CardHeader>
         <CardTitle>Custos Fixos</CardTitle>
-        <CardDescription>
-          Lista de todos os custos fixos cadastrados
-        </CardDescription>
+        <CardDescription>Lista de todos os custos cadastrados</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -134,6 +153,25 @@ export function FixedCostTable({
                 className="w-max"
                 onChange={(e) => setDateFilter(e.target.value)}
               />
+            </div>
+
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="date">Tipo de custo</Label>
+              <Select
+                defaultValue="ambos"
+                onValueChange={(v) => setSaleType(v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um tipo de custos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="ambos">Ambos</SelectItem>
+                    <SelectItem value="fixo">Fixo</SelectItem>
+                    <SelectItem value="variável">Variavel</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
 
             {hasActiveFilters && (
@@ -186,7 +224,10 @@ export function FixedCostTable({
                           })}
                         </TableCell>
                         <TableCell>{formatBR(cost.start_date)}</TableCell>
-                        <TableCell className="max-w-xs truncate" title={cost.description || "-"}>
+                        <TableCell
+                          className="max-w-xs truncate"
+                          title={cost.description || "-"}
+                        >
                           {cost.description || "-"}
                         </TableCell>
                         <TableCell className="text-right">
@@ -196,7 +237,7 @@ export function FixedCostTable({
                             onClick={() => {
                               if (
                                 confirm(
-                                  "Tem certeza que deseja excluir este custo?"
+                                  "Tem certeza que deseja excluir este custo?",
                                 )
                               ) {
                                 onDelete(cost.id);

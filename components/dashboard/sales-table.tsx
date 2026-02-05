@@ -262,7 +262,7 @@ export function SalesTable({
             : "Nenhum resultado encontrado."}
         </div>
       ) : (
-        <div className="rounded-md border relative">
+        <div className="rounded-md border relative h-dvh overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>

@@ -84,7 +84,7 @@ export function SalesForm({
   const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
 
   const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
-  const [totalPrice, setTotalPrice] = useState<number | "">("");
+  const [totalPrice, setTotalPrice] = useState<number | "">(sale?.total_price || "");
 
   const [saleDate, setSaleDate] = useState(
     sale?.sale_date || new Date().toISOString().split("T")[0],

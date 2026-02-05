@@ -25,7 +25,7 @@ export function FixedCostsView({ companyId, userId }: FixedCostsViewProps) {
       .select("*")
       .eq("company_id", companyId)
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("start_date", { ascending: true });
 
     if (!error && data) {
       setFixedCosts(data);
@@ -111,7 +111,7 @@ export function FixedCostsView({ companyId, userId }: FixedCostsViewProps) {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Mensal</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Mensal Médio</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>

@@ -22,6 +22,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { SaleCost, SaleWithDetails } from "@/lib/types";
 import { SaleCostForm } from "./sale-cost-form";
+import { formatBR } from "@/lib/utils";
 
 type PaymentStatus = "pendente" | "pago";
 
@@ -124,7 +125,6 @@ export function SaleDetailsModal({
     setIsRefreshing(false);
   };
 
-  console.log(saleData)
   const costs = useMemo<SaleCost[]>(
     () => (saleData.costs ?? []) as SaleCost[],
     [saleData.costs],
@@ -208,7 +208,7 @@ export function SaleDetailsModal({
               <div>
                 <p className="text-sm text-muted-foreground">Data</p>
                 <p className="font-medium">
-                  {new Date(saleData.sale_date).toLocaleDateString("pt-BR")}
+                  {formatBR(sale.sale_date)}
                 </p>
               </div>
 
