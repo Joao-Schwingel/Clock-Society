@@ -61,39 +61,49 @@ export function FixedCostTable({
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState("");
   const [saleType, setSaleType] = useState("ambos");
+  const [sortDirection, setSortDirection] = useState<"desc" | "asc">("desc");
 
-  const filteredCosts = fixedCosts.filter((cost) => {
-    const matchesSearch =
-      cost.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cost.category?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-        false);
+  const filteredCosts = fixedCosts
+    .filter((cost) => {
+      const matchesSearch =
+        cost.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (cost.category?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+          false);
 
-    const matchesCategory =
-      categoryFilter === "all" || cost.category === categoryFilter;
+      const matchesCategory =
+        categoryFilter === "all" || cost.category === categoryFilter;
 
-    const matchesDate = (() => {
-      if (!dateFilter) return true;
+      const matchesDate = (() => {
+        if (!dateFilter) return true;
 
-      const start = new Date(cost.start_date);
-      const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+        const start = new Date(cost.start_date);
+        const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
 
-      const endMonth = new Date(
-        startMonth.getFullYear(),
-        startMonth.getMonth() + cost.qtdmonths,
-        1,
-      );
+        const endMonth = new Date(
+          startMonth.getFullYear(),
+          startMonth.getMonth() + cost.qtdmonths,
+          1,
+        );
 
-      const [year, month] = dateFilter.split("-").map(Number);
-      const filterMonth = new Date(year, month - 1, 1);
+        const [year, month] = dateFilter.split("-").map(Number);
+        const filterMonth = new Date(year, month - 1, 1);
 
-      return filterMonth >= startMonth && filterMonth < endMonth;
-    })();
+        return filterMonth >= startMonth && filterMonth < endMonth;
+      })();
 
-    const matchesType =
-      saleType === "ambos" || cost.category.toLowerCase() === saleType;
+      const matchesType =
+        saleType === "ambos" || cost.category.toLowerCase() === saleType;
 
-    return matchesSearch && matchesCategory && matchesDate && matchesType;
-  });
+      return matchesSearch && matchesCategory && matchesDate && matchesType;
+    })
+    .sort((a, b) => {
+      const valueA = new Date(a.start_date).getTime();
+      const valueB = new Date(b.start_date).getTime();
+
+      if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
+      if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -144,7 +154,7 @@ export function FixedCostTable({
               </div>
             </div>
 
-            <div className="flex-1 space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="date">Data</Label>
               <Input
                 id="date"
@@ -155,7 +165,7 @@ export function FixedCostTable({
               />
             </div>
 
-            <div className="flex-1 space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="date">Tipo de custo</Label>
               <Select
                 defaultValue="ambos"
@@ -169,6 +179,24 @@ export function FixedCostTable({
                     <SelectItem value="ambos">Ambos</SelectItem>
                     <SelectItem value="fixo">Fixo</SelectItem>
                     <SelectItem value="variável">Variavel</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date">Ordem</Label>
+              <Select
+                defaultValue="desc"
+                onValueChange={(v :"asc"|"desc") => setSortDirection(v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um tipo de custos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="asc">Crescente</SelectItem>
+                    <SelectItem value="desc">Decrescente</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
