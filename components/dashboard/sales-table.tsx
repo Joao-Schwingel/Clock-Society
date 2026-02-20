@@ -11,6 +11,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge";
 import {
   Pencil,
@@ -18,7 +29,7 @@ import {
   Search,
   Eye,
   CheckCircle,
-  CircleX, 
+  CircleX,
   DollarSign,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -111,7 +122,6 @@ export function SalesTable({
     setProductNamesBySaleId(productStrMap);
   };
 
-
   const formatMoneyBR = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
@@ -136,7 +146,7 @@ export function SalesTable({
 
   const filteredSales = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    
+
     return sales.filter((sale) => {
       const productsLabel =
         productNamesBySaleId[sale.id] || sale.product_name || "";
@@ -156,7 +166,7 @@ export function SalesTable({
   }, [sales, searchTerm, dateFilter, onlyWithRemaining, productNamesBySaleId]);
 
   const handleStatusToggle = async (sale: Sale) => {
-    const nextStatus = sale.status == "concluída" ? "pendente" : "concluída"
+    const nextStatus = sale.status == "concluída" ? "pendente" : "concluída";
 
     setUpdatingStatus(sale.id);
     const supabase = createClient();
@@ -319,7 +329,7 @@ export function SalesTable({
                     </TableCell>
                     <TableCell>{sale.customer_name || "-"}</TableCell>
                     <TableCell>
-                      {(sale.salespersons.map((person) => person.name).join(","))}
+                      {sale.salespersons.map((person) => person.name).join(",")}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -361,14 +371,16 @@ export function SalesTable({
                           >
                             <CheckCircle className="h-4 w-4 text-green-600" />
                           </Button>
-                        ): <Button
+                        ) : (
+                          <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleStatusToggle(sale)}
                             disabled={updatingStatus === sale.id}
                           >
                             <CircleX className="h-4 w-4 text-red-600" />
-                          </Button>}
+                          </Button>
+                        )}
 
                         <Button
                           variant="ghost"
@@ -386,21 +398,30 @@ export function SalesTable({
                           <Pencil className="h-4 w-4" />
                         </Button>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            if (
-                              confirm(
-                                "Tem certeza que deseja excluir esta venda?",
-                              )
-                            ) {
-                              onDelete(sale.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Essa ação não poderá ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => onDelete(sale.id)}
+                              >
+                                Confirmar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>

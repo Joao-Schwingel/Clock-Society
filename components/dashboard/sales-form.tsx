@@ -22,13 +22,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
-import type { Sale, Salesperson } from "@/lib/types";
+import type { Salesperson, SaleWithDetails } from "@/lib/types";
 import { DatePickerBR } from "./date-picker-br";
 
 interface SalesFormProps {
   companyId: string;
   userId: string;
-  sale: Sale | null;
+  sale: SaleWithDetails | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -81,10 +81,13 @@ export function SalesForm({
   onSuccess,
   onCancel,
 }: SalesFormProps) {
+  console.log(sale?.salespersons);
   const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
 
   const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
-  const [totalPrice, setTotalPrice] = useState<number | "">(sale?.total_price || "");
+  const [totalPrice, setTotalPrice] = useState<number | "">(
+    sale?.total_price || "",
+  );
 
   const [saleDate, setSaleDate] = useState(
     sale?.sale_date || new Date().toISOString().split("T")[0],
@@ -106,12 +109,17 @@ export function SalesForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
-  const [sellers, setSellers] = useState<SellerInput[]>([
-    {
-      salespersonId: "",
-      commission: 0,
-    },
-  ]);
+  const [sellers, setSellers] = useState<SellerInput[]>(
+    sale?.salespersons?.map((sp) => ({
+      salespersonId: sp.id,
+      commission: sp.commission_percent,
+    })) ?? [
+      {
+        salespersonId: "",
+        commission: 0,
+      },
+    ],
+  );
 
   function updateSeller(index: number, field: keyof SellerInput, value: any) {
     setSellers((prev) =>
@@ -214,7 +222,10 @@ export function SalesForm({
     return {
       isCashPayment: cash,
       effectiveEntryValue: effectiveEntry,
-      remainingValue: Math.max(0, Number(parsedTotal) - Number(effectiveEntry)).toFixed(2),
+      remainingValue: Math.max(
+        0,
+        Number(parsedTotal) - Number(effectiveEntry),
+      ).toFixed(2),
     };
   }, [parsedEntryValue, totalPrice]);
 
@@ -273,7 +284,6 @@ export function SalesForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(sellers);
     setIsLoading(true);
     setError(null);
 
