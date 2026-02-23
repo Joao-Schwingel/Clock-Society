@@ -24,6 +24,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { Salesperson, SaleWithDetails } from "@/lib/types";
 import { DatePickerBR } from "./date-picker-br";
+import { toast } from "sonner";
 
 interface SalesFormProps {
   companyId: string;
@@ -296,6 +297,11 @@ export function SalesForm({
         return;
       }
 
+      if (sellers.length == 0 || sellers[0].salespersonId == "") {
+        setError("Sem vendedor associado.");
+        return;
+      }
+
       const computedPaymentStatus: PaymentStatus = isCashPayment
         ? "pago"
         : paymentStatus;
@@ -330,8 +336,10 @@ export function SalesForm({
           .select("id")
           .single();
         if (insErr) throw insErr;
-        if (!inserted?.id)
+        if (!inserted?.id) {
+          toast.error("Falha ao criar venda", { position: "top-center" });
           throw new Error("Falha ao criar venda (id ausente).");
+        }
 
         const rows = toSaleItemInsertRows(inserted.id);
 

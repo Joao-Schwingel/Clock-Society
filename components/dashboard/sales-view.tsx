@@ -24,6 +24,7 @@ import { SalesTable } from "./sales-table";
 import { SaleDetailsModal } from "./sale-details-modal";
 import { Spinner } from "@radix-ui/themes";
 import { DashboardFilters } from "./dashboards-filters";
+import { toast } from "sonner";
 
 interface SalesViewProps {
   companyId: string;
@@ -107,6 +108,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const handleFormSuccess = () => {
     setIsFormOpen(false);
     setEditingSale(null);
+    toast.success("Venda cadastrada com sucesso", {position: "top-center"})
     fetchSales();
   };
 
