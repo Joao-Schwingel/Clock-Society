@@ -56,7 +56,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
   // ── Filtros da tabela (lifted do SalesTable) ───────────────────
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [onlyWithRemaining, setOnlyWithRemaining] = useState(false);
 
@@ -64,12 +64,6 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<SaleWithDetails | null>(null);
   const [viewingSale, setViewingSale] = useState<SaleWithDetails | null>(null);
-
-  // Debounce de 400ms no campo de busca
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchTerm), 400);
-    return () => clearTimeout(t);
-  }, [searchTerm]);
 
   // ── Query de estatísticas (sem paginação) ──────────────────────
   const fetchSales = async () => {
@@ -115,8 +109,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     }
 
     // Filtro de busca (produto, cliente, nº pedido)
-    if (debouncedSearch.trim()) {
-      const q = debouncedSearch.trim();
+    if (appliedSearch.trim()) {
+      const q = appliedSearch.trim();
       query = query.or(
         `customer_name.ilike.%${q}%,order_number.ilike.%${q}%,product_name.ilike.%${q}%`,
       );
@@ -167,7 +161,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     companyId,
     months,
     year,
-    debouncedSearch,
+    appliedSearch,
     dateFilter,
     onlyWithRemaining,
     tablePage,
@@ -214,6 +208,14 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   // ── Handlers de filtros da tabela (sempre resetam pra página 0) ─
   const handleSearchChange = (v: string) => {
     setSearchTerm(v);
+    if (v === "") {
+      setAppliedSearch("");
+      setTablePage(0);
+    }
+  };
+
+  const handleSearchConfirm = () => {
+    setAppliedSearch(searchTerm);
     setTablePage(0);
   };
 
@@ -229,7 +231,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
   const handleClearFilters = () => {
     setSearchTerm("");
-    setDebouncedSearch(""); // bypass debounce para resposta imediata
+    setAppliedSearch("");
     setDateFilter("");
     setOnlyWithRemaining(false);
     setTablePage(0);
@@ -591,6 +593,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             // Filtros controlados pelo pai
             searchTerm={searchTerm}
             onSearchChange={handleSearchChange}
+            onSearchConfirm={handleSearchConfirm}
             dateFilter={dateFilter}
             onDateFilterChange={handleDateFilterChange}
             onlyWithRemaining={onlyWithRemaining}

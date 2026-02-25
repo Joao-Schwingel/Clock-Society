@@ -49,6 +49,7 @@ interface SalesTableProps {
   // Filtros controlados pelo pai
   searchTerm: string;
   onSearchChange: (v: string) => void;
+  onSearchConfirm: () => void;
   dateFilter: string;
   onDateFilterChange: (v: string) => void;
   onlyWithRemaining: boolean;
@@ -74,6 +75,7 @@ export function SalesTable({
   onPaymentConfirmed,
   searchTerm,
   onSearchChange,
+  onSearchConfirm,
   dateFilter,
   onDateFilterChange,
   onlyWithRemaining,
@@ -233,14 +235,22 @@ export function SalesTable({
     <div className="space-y-4">
       {/* ── Filtros ───────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nº do pedido, produto ou cliente..."
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9"
-          />
+        <div className="relative flex-1 min-w-[240px] flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nº do pedido, produto ou cliente..."
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSearchConfirm();
+              }}
+              className="pl-9"
+            />
+          </div>
+          <Button onClick={onSearchConfirm}>
+            Buscar
+          </Button>
         </div>
 
         <Input
