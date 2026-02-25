@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Pencil,
@@ -31,6 +31,8 @@ import {
   CheckCircle,
   CircleX,
   DollarSign,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Sale, SaleWithDetails } from "@/lib/types";
@@ -44,6 +46,20 @@ interface SalesTableProps {
   onStatusChange: () => void;
   isLoading: boolean;
   onPaymentConfirmed?: (saleId: string) => void;
+  // Filtros controlados pelo pai
+  searchTerm: string;
+  onSearchChange: (v: string) => void;
+  dateFilter: string;
+  onDateFilterChange: (v: string) => void;
+  onlyWithRemaining: boolean;
+  onOnlyWithRemainingChange: (v: boolean) => void;
+  onClearFilters: () => void;
+  // Paginação
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
 }
 
 type PaymentStatus = "pendente" | "pago";
@@ -56,11 +72,19 @@ export function SalesTable({
   onStatusChange,
   isLoading,
   onPaymentConfirmed,
+  searchTerm,
+  onSearchChange,
+  dateFilter,
+  onDateFilterChange,
+  onlyWithRemaining,
+  onOnlyWithRemainingChange,
+  onClearFilters,
+  page,
+  totalPages,
+  totalCount,
+  pageSize,
+  onPageChange,
 }: SalesTableProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
-  const [onlyWithRemaining, setOnlyWithRemaining] = useState(false);
-
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
 
@@ -144,27 +168,6 @@ export function SalesTable({
     return entry === total;
   };
 
-  const filteredSales = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-
-    return sales.filter((sale) => {
-      const productsLabel =
-        productNamesBySaleId[sale.id] || sale.product_name || "";
-
-      const matchesSearch =
-        !q ||
-        productsLabel.toLowerCase().includes(q) ||
-        sale.customer_name?.toLowerCase().includes(q) ||
-        sale.order_number?.toLowerCase().includes(q);
-
-      const matchesDate = !dateFilter || sale.sale_date.startsWith(dateFilter);
-      const matchesRemaining = !onlyWithRemaining || remainingOf(sale) > 0;
-
-      return matchesSearch && matchesDate && matchesRemaining;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sales, searchTerm, dateFilter, onlyWithRemaining, productNamesBySaleId]);
-
   const handleStatusToggle = async (sale: Sale) => {
     const nextStatus = sale.status == "concluída" ? "pendente" : "concluída";
 
@@ -213,6 +216,11 @@ export function SalesTable({
     }
   };
 
+  const hasFilters = searchTerm || dateFilter || onlyWithRemaining;
+
+  const rangeStart = totalCount === 0 ? 0 : page * pageSize + 1;
+  const rangeEnd = Math.min((page + 1) * pageSize, totalCount);
+
   if (isLoading) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -223,13 +231,14 @@ export function SalesTable({
 
   return (
     <div className="space-y-4">
+      {/* ── Filtros ───────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nº do pedido, produto ou cliente..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -237,7 +246,7 @@ export function SalesTable({
         <Input
           type="month"
           value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
+          onChange={(e) => onDateFilterChange(e.target.value)}
           className="w-40"
         />
 
@@ -246,33 +255,27 @@ export function SalesTable({
             type="checkbox"
             className="h-4 w-4"
             checked={onlyWithRemaining}
-            onChange={(e) => setOnlyWithRemaining(e.target.checked)}
+            onChange={(e) => onOnlyWithRemainingChange(e.target.checked)}
           />
           Somente com valor faltante
         </label>
 
-        {(searchTerm || dateFilter || onlyWithRemaining) && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSearchTerm("");
-              setDateFilter("");
-              setOnlyWithRemaining(false);
-            }}
-          >
+        {hasFilters && (
+          <Button variant="outline" onClick={onClearFilters}>
             Limpar
           </Button>
         )}
       </div>
 
-      {filteredSales.length === 0 ? (
+      {/* ── Tabela ───────────────────────────────────────────── */}
+      {sales.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          {sales.length === 0
+          {totalCount === 0 && !hasFilters
             ? "Nenhuma venda registrada ainda."
             : "Nenhum resultado encontrado."}
         </div>
       ) : (
-        <div className="rounded-md border relative h-dvh overflow-y-auto">
+        <div className="rounded-md border relative overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -294,7 +297,7 @@ export function SalesTable({
             </TableHeader>
 
             <TableBody>
-              {filteredSales.map((sale) => {
+              {sales.map((sale) => {
                 const cost = totalSaleCost(sale);
                 const total = Number(sale.total_price);
 
@@ -429,6 +432,38 @@ export function SalesTable({
               })}
             </TableBody>
           </Table>
+
+          {/* ── Paginação ──────────────────────────────────────── */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <p className="text-sm text-muted-foreground">
+                {rangeStart}–{rangeEnd} de {totalCount} vendas
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(page - 1)}
+                  disabled={page === 0}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+                <span className="text-sm tabular-nums">
+                  {page + 1} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(page + 1)}
+                  disabled={page >= totalPages - 1}
+                >
+                  Próximo
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

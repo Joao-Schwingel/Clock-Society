@@ -23,7 +23,7 @@ export function ContractsForm({ userId, onSuccess }: ContractsFormProps) {
     name: "",
     monthly_value: "",
     start_date: "",
-    discount: "",
+    end_date: "",
     description: "",
   });
 
@@ -37,7 +37,7 @@ export function ContractsForm({ userId, onSuccess }: ContractsFormProps) {
       name: formData.name,
       monthly_value: Number.parseFloat(formData.monthly_value),
       start_date: formData.start_date,
-      discount: formData.discount ? Number.parseFloat(formData.discount) : 0,
+      end_date: formData.end_date || null,
       description: formData.description || null,
     });
 
@@ -56,7 +56,7 @@ export function ContractsForm({ userId, onSuccess }: ContractsFormProps) {
         name: "",
         monthly_value: "",
         start_date: "",
-        discount: "",
+        end_date: "",
         description: "",
       });
       onSuccess();
@@ -107,15 +107,12 @@ export function ContractsForm({ userId, onSuccess }: ContractsFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="discount">Desconto (R$)</Label>
-          <Input
-            id="discount"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={formData.discount}
-            onChange={(e) =>
-              setFormData({ ...formData, discount: e.target.value })
+          <Label htmlFor="end_date">Data de Fim</Label>
+          <DatePickerBR
+            id="end_date"
+            value={formData.end_date}
+            onChange={(value) =>
+              setFormData((prev) => ({ ...prev, end_date: value }))
             }
           />
         </div>

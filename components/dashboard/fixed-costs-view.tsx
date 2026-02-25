@@ -49,54 +49,41 @@ export function FixedCostsView({ companyId, userId }: FixedCostsViewProps) {
     }
   };
 
-  const totalMonthly = fixedCosts
-    .filter((x) => {
-      const [year, month, day] = x.start_date.split("-").map(Number);
+  // Retorna true se o custo está ativo no ano*12+mês informado
+  function isActiveInYM(cost: FixedCost, ym: number): boolean {
+    const [cy, cm] = cost.start_date.split("-").map(Number);
+    const startYM = cy * 12 + (cm - 1);
+    const endYM = startYM + cost.qtdmonths - 1;
+    return ym >= startYM && ym <= endYM;
+  }
 
-      const d = new Date(year, month - 1, day);
-      const now = new Date();
-      return (
-        d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-      );
-    })
+  const now = new Date();
+  const currentYM = now.getFullYear() * 12 + now.getMonth();
+
+  // Soma de custos ativos no mês atual
+  const totalMonthly = fixedCosts
+    .filter((cost) => isActiveInYM(cost, currentYM))
     .reduce((sum, cost) => sum + Number(cost.monthly_value), 0);
 
-  function calculateRemaningMonths(cost: FixedCost) {
-    const month = cost.start_date.split("-")[1];
+  // Quantos meses do ano atual o custo está ativo
+  function getMonthsInCurrentYear(cost: FixedCost): number {
+    const [cy, cm] = cost.start_date.split("-").map(Number);
+    const costStartYM = cy * 12 + (cm - 1);
+    const costEndYM = costStartYM + cost.qtdmonths - 1;
 
-    return cost.qtdmonths - (12 - Number(month) + 1);
+    const yearStartYM = now.getFullYear() * 12;
+    const yearEndYM = yearStartYM + 11;
+
+    const effStart = Math.max(costStartYM, yearStartYM);
+    const effEnd = Math.min(costEndYM, yearEndYM);
+
+    return effStart > effEnd ? 0 : effEnd - effStart + 1;
   }
 
-  function getMonthsInCurrentYear(cost: FixedCost) {
-    const [year, month, day] = cost.start_date.split("-").map(Number);
-
-    const start = new Date(year, month - 1, day);
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + cost.qtdmonths);
-
-    const now = new Date();
-    const yearStart = new Date(now.getFullYear(), 0, 1);
-    const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
-
-    const effectiveStart = start > yearStart ? start : yearStart;
-    const effectiveEnd = end < yearEnd ? end : yearEnd;
-
-    if (effectiveStart >= effectiveEnd) return 0;
-
-    return (
-      (effectiveEnd.getFullYear() - effectiveStart.getFullYear()) * 12 +
-      (effectiveEnd.getMonth() - effectiveStart.getMonth())
-    );
-  }
-
-  function calculateTotalAnnual() {
-    return fixedCosts.reduce((total, cost) => {
-      const months = getMonthsInCurrentYear(cost);
-      return total + cost.monthly_value * months;
-    }, 0);
-  }
-
-  const totalAnnual = calculateTotalAnnual();
+  const totalAnnual = fixedCosts.reduce(
+    (total, cost) => total + Number(cost.monthly_value) * getMonthsInCurrentYear(cost),
+    0,
+  );
   const costCount = fixedCosts.length;
 
   return (

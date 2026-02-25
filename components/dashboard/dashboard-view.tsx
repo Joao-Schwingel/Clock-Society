@@ -9,11 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import type { Salesperson } from "@/lib/types";
 import {
   DollarSign,
   TrendingUp,
-  Users,
   TrendingDown,
   Receipt,
   Banknote,
@@ -26,214 +24,247 @@ interface DashboardViewProps {
   userId: string;
 }
 
-type SalespersonSummary = {
-  salesperson_id: string;
-  salesperson_name: string;
-  sales_count: number;
-  total_sales: number;
-  total_costs: number;
-  net_profit: number;
-  total_commission: number;
+type SalespersonEntry = {
+  id: string;
+  name: string;
+  commission_percent: number;
 };
 
+type SaleRow = {
+  id: string;
+  total_price: number;
+  salespersons: SalespersonEntry[];
+};
 
-type SalespersonCommission = {
-  salesperson: {
-    id: string;
-    name: string;
-  };
-  totalCost: number;
+type CommissionSummary = {
+  id: string;
+  name: string;
+  salesCount: number;
   totalSales: number;
+  totalCosts: number;
   netProfit: number;
   totalCommission: number;
-  salesCount: number;
 };
 
 export function DashboardView({ companyId, userId }: DashboardViewProps) {
-  const [commissions, setCommissions] = useState<SalespersonCommission[]>([]);
-  // const [saleSellers, setSaleSellers] = useState<SalespersonSummary[]>([]);
-  const [salePeople, setSalePeople] = useState([
-    { name: "", is_active: false, id: "" },
-  ]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [totalCommissions, setTotalCommissions] = useState(0);
-  const [completedCosts, setTotalSaleCosts] = useState(0);
-  const [totalFixedCosts, setTotalFixedCosts] = useState(0);
-  const [netProfit, setNetProfit] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [months, setMonths] = useState<number[]>(() => [new Date().getMonth()]);
+  const [months, setMonths] = useState<number[]>([]);
   const [year, setYear] = useState("2026");
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalSaleCosts, setTotalSaleCosts] = useState(0);
+  const [totalFixedCosts, setTotalFixedCosts] = useState(0);
+  const [totalCommissions, setTotalCommissions] = useState(0);
+  const [netProfit, setNetProfit] = useState(0);
+
+  const [commissionSummaries, setCommissionSummaries] = useState<
+    CommissionSummary[]
+  >([]);
+  const [salePeople, setSalePeople] = useState<
+    { id: string; name: string }[]
+  >([]);
 
   useEffect(() => {
-    loadCommissionData();
+    void loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, userId, months, year]);
 
-  function filterFixedCosts(fixedCosts: any) {
-    let total = 0;
+  // Soma o valor de cada custo fixo nos meses selecionados do ano selecionado.
+  // Quando months=[] (sem filtro), considera todos os 12 meses do ano selecionado.
+  function sumFixedCostsForPeriod(
+    fixedCosts: { monthly_value: number; start_date: string; qtdmonths: number }[],
+  ): number {
+    const activeMonths =
+      months.length > 0 ? months : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
+    let total = 0;
     for (const cost of fixedCosts) {
-      const start = new Date(cost.start_date);
-      for (const month of months) {
+      // start_date vem como "YYYY-MM-DD" — parse sem conversão de timezone
+      const [sy, sm] = cost.start_date.split("-").map(Number);
+      const startYearMonth = sy * 12 + (sm - 1); // sm é 1-based
+      const endYearMonth = startYearMonth + cost.qtdmonths - 1;
+
+      for (const month of activeMonths) {
+        const filterYearMonth = Number(year) * 12 + month; // month é 0-based
         if (
-          start.getMonth() == month ||
-          (start.getMonth() < month &&
-            start.getMonth() + cost.qtdmonths - 1 >= month)
+          filterYearMonth >= startYearMonth &&
+          filterYearMonth <= endYearMonth
         ) {
-          total += cost.monthly_value;
+          total += Number(cost.monthly_value);
         }
       }
     }
-
     return total;
   }
 
-  const loadCommissionData = async () => {
+  const loadData = async () => {
     setIsLoading(true);
     const supabase = createClient();
 
     try {
-      const { data: salespersons, error: salespersonsError } = await supabase
-        .from("salespersons")
-        .select("name, is_active, id")
-        .eq("company_id", companyId)
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .order("name");
-
-      if (salespersonsError) throw salespersonsError;
-      setSalePeople(salespersons);
-
-      let query = supabase
-        .from("sales")
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("user_id", userId)
-        .eq("status", "concluída");
-
+      // ── Monta filtro de data ──────────────────────────────────
+      let dateOr: string | null = null;
       if (months.length > 0) {
         const ranges = months.map((m) => {
           const start = new Date(Number(year), m, 1);
           const end = new Date(Number(year), m + 1, 1);
           return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
         });
-
-        query = query.or(ranges.join(","));
+        dateOr = ranges.join(",");
       }
-      const { data: sales, error } = await query;
 
-      if (error) throw error;
-
-      const saleIds = sales?.map((s) => s.id) || [];
-      const { data: saleCosts } = await supabase
-        .from("sale_costs")
-        .select("*")
-        .in("sale_id", saleIds);
-
-      const { data: fixedCosts } = await supabase
-        .from("fixed_costs")
-        .select("*")
+      // ── Queries paralelas ─────────────────────────────────────
+      let salesQ = supabase
+        .from("sales_with_salespersons")
+        .select("id, total_price, salespersons")
         .eq("company_id", companyId)
-        .eq("user_id", userId);
+        .eq("status", "concluída");
 
-      const saleCostsTotal =
-        saleCosts?.reduce((sum, cost) => sum + Number(cost.amount), 0) || 0;
+      if (dateOr) salesQ = salesQ.or(dateOr);
 
-      const fixedCostsTotal = filterFixedCosts(fixedCosts);
+      const [
+        { data: salespersonsData },
+        { data: salesRaw, error: salesError },
+        { data: fixedCostsData },
+      ] = await Promise.all([
+        supabase
+          .from("salespersons")
+          .select("id, name")
+          .eq("company_id", companyId)
+          .eq("is_active", true)
+          .order("name"),
+        salesQ,
+        supabase
+          .from("fixed_costs")
+          .select("monthly_value, start_date, qtdmonths")
+          .eq("company_id", companyId)
+          .eq("user_id", userId),
+      ]);
 
-      const { data, error: errorSummary } = await supabase.rpc(
-        "salesperson_summary_by_months",
-        {
-          p_year: Number(year),
-          p_months: months.map((month) => month + 1),
-        },
-      );
+      if (salesError) throw salesError;
 
-      if (errorSummary) throw errorSummary;
+      setSalePeople(salespersonsData ?? []);
 
-      const salesByPerson: SalespersonSummary[] = data ?? [];
-
-      const totalComm = salesByPerson.reduce(
-        (sum: number, x: SalespersonSummary) =>
-          sum + Number(x.total_commission ?? 0),
-        0,
-      );
-
-      const commissions: SalespersonCommission[] = salesByPerson.map((x) => ({
-        salesperson: {
-          id: x.salesperson_id,
-          name: x.salesperson_name,
-        },
-        totalSales: Number(x.total_sales),
-        totalCommission: Number(x.total_commission),
-        salesCount: x.sales_count,
-        netProfit: x.net_profit,
-        totalCost: x.total_costs
+      const sales: SaleRow[] = (salesRaw ?? []).map((s: any) => ({
+        id: String(s.id),
+        total_price: Number(s.total_price ?? 0),
+        salespersons: Array.isArray(s.salespersons) ? (s.salespersons as SalespersonEntry[]) : [],
       }));
 
-      let revenue = sales.reduce(
-        (sum, x) => sum + Number(x.total_price ?? 0),
-        0,
+      // ── Custos de vendas ──────────────────────────────────────
+      const costsBySaleId: Record<string, number> = {};
+      const saleIds = sales.map((s) => s.id);
+
+      if (saleIds.length > 0) {
+        const { data: costsRaw } = await supabase
+          .from("sale_costs")
+          .select("sale_id, amount")
+          .in("sale_id", saleIds);
+
+        for (const c of (costsRaw ?? []) as { sale_id: string; amount: number }[]) {
+          costsBySaleId[c.sale_id] = (costsBySaleId[c.sale_id] ?? 0) + Number(c.amount);
+        }
+      }
+
+      // ── Totais ────────────────────────────────────────────────
+      const revenue = sales.reduce((sum, s) => sum + s.total_price, 0);
+      const saleCostsTotal = Object.values(costsBySaleId).reduce((sum, v) => sum + v, 0);
+      const fixedCostsTotal = sumFixedCostsForPeriod(
+        (fixedCostsData ?? []) as { monthly_value: number; start_date: string; qtdmonths: number }[],
       );
 
-      const overallNetProfit = revenue - saleCostsTotal - fixedCostsTotal;
+      // ── Comissões por vendedor ────────────────────────────────
+      const commMap: Record<string, CommissionSummary> = {};
+
+      for (const sale of sales) {
+        const saleCost = costsBySaleId[sale.id] ?? 0;
+        const saleNet = sale.total_price - saleCost;
+
+        for (const sp of sale.salespersons) {
+          if (!commMap[sp.id]) {
+            commMap[sp.id] = {
+              id: sp.id,
+              name: sp.name,
+              salesCount: 0,
+              totalSales: 0,
+              totalCosts: 0,
+              netProfit: 0,
+              totalCommission: 0,
+            };
+          }
+          commMap[sp.id].salesCount += 1;
+          commMap[sp.id].totalSales += sale.total_price;
+          commMap[sp.id].totalCosts += saleCost;
+          commMap[sp.id].netProfit += saleNet;
+          commMap[sp.id].totalCommission += (saleNet * Number(sp.commission_percent)) / 100;
+        }
+      }
+
+      const summaries = Object.values(commMap);
+      const totalComm = summaries.reduce((sum, s) => sum + s.totalCommission, 0);
 
       setTotalRevenue(revenue);
-      setNetProfit(overallNetProfit);
-      setCommissions(commissions);
-      setTotalCommissions(totalComm);
       setTotalSaleCosts(saleCostsTotal);
       setTotalFixedCosts(fixedCostsTotal);
+      setTotalCommissions(totalComm);
+      setNetProfit(revenue - saleCostsTotal - fixedCostsTotal);
+      setCommissionSummaries(summaries);
     } catch (err) {
-      console.error("Error loading commission data:", err);
+      console.error("Erro ao carregar dashboard:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // if (isLoading) {
-  //   return <div className="text-center py-8">Carregando...</div>
-  // }
+  const fmt = (v: number) =>
+    v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <Skeleton loading={isLoading}>
-          <div className="flex gap-6 items-center justify-between mb-2">
-            <h3 className="w-max text-2xl font-bold tracking-tight">
-              Dashboard de Comissões
-            </h3>
-            <DashboardFilters
-              value={months}
-              yearValue={year}
-              onChange={setMonths}
-              onYearChange={setYear}
-            ></DashboardFilters>
-          </div>
-        </Skeleton>
-        <Skeleton loading={isLoading}>
-          <p className="text-muted-foreground w-max">
-            Comissões sobre lucro líquido (apenas vendas concluídas)
+      {/* ── Cabeçalho com filtro ──────────────────────────────── */}
+      <div className="flex gap-6 items-center justify-between">
+        <div>
+          <h3 className="text-2xl font-bold tracking-tight">Dashboard</h3>
+          <p className="text-sm text-muted-foreground">
+            Apenas vendas concluídas
           </p>
-        </Skeleton>
+        </div>
+        <DashboardFilters
+          value={months}
+          yearValue={year}
+          onChange={setMonths}
+          onYearChange={setYear}
+        />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      {/* ── Cards principais (ordem: Receita → Comissões → Custos de Vendas → Despesas Gerais → Lucro) ── */}
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         <Skeleton className="rounded-xl" loading={isLoading}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Receita Total
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Receita</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                R${" "}
-                {totalRevenue.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
+              <div className="text-2xl font-bold">R$ {fmt(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">Vendas concluídas</p>
+            </CardContent>
+          </Card>
+        </Skeleton>
+
+        <Skeleton loading={isLoading}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Comissões</CardTitle>
+              <TrendingUp className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                R$ {fmt(totalCommissions)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total de comissões
+              </p>
             </CardContent>
           </Card>
         </Skeleton>
@@ -244,37 +275,14 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
               <CardTitle className="text-sm font-medium">
                 Custos de Vendas
               </CardTitle>
-              <Receipt className="h-4 w-4 text-muted-foreground" />
+              <Receipt className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                R${" "}
-                {completedCosts.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
+                R$ {fmt(totalSaleCosts)}
               </div>
               <p className="text-xs text-muted-foreground">
-                Transporte, tarifas, etc
-              </p>
-            </CardContent>
-          </Card>
-        </Skeleton>
-
-        <Skeleton loading={isLoading}>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Custos</CardTitle>
-              <Banknote className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                R${" "}
-                {totalFixedCosts.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Salários, aluguel, etc
+                Transporte, tarifas…
               </p>
             </CardContent>
           </Card>
@@ -284,8 +292,25 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Lucro Líquido
+                Custos Gerais
               </CardTitle>
+              <Banknote className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                R$ {fmt(totalFixedCosts)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Salários, aluguel…
+              </p>
+            </CardContent>
+          </Card>
+        </Skeleton>
+
+        <Skeleton loading={isLoading}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Lucro</CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -294,131 +319,81 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
                   netProfit >= 0 ? "text-green-600" : "text-red-600"
                 }`}
               >
-                R${" "}
-                {netProfit.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
+                R$ {fmt(netProfit)}
               </div>
               <p className="text-xs text-muted-foreground">
-                Após todos os custos
-              </p>
-            </CardContent>
-          </Card>
-        </Skeleton>
-
-        <Skeleton loading={isLoading}>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Comissões Totais
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                R${" "}
-                {totalCommissions.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </Skeleton>
-
-        <Skeleton loading={isLoading}>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Vendedores Ativos
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {salePeople.filter((c) => c.is_active == true).length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Com vendas concluídas
+                Receita − vendas − fixos
               </p>
             </CardContent>
           </Card>
         </Skeleton>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {salePeople.map((person) => {
-          const commission = commissions.find(
-            (c) => c.salesperson.id === person.id,
-          );
-          const totalSales = commission?.totalSales ?? 0;
-          const totalCommission = commission?.totalCommission ?? 0;
-          const salesCount = commission?.salesCount ?? 0;
-          const netProfit = commission?.netProfit ?? 0;
-          const totalCosts = commission?.totalCost ?? 0
+      {/* ── Comissões por vendedor ────────────────────────────── */}
+      <div>
+        <h4 className="text-lg font-semibold mb-3">Comissões por Vendedor</h4>
+        <div className="grid gap-4 md:grid-cols-2">
+          {salePeople.length === 0 && !isLoading && (
+            <p className="text-muted-foreground col-span-2">
+              Nenhum vendedor ativo cadastrado.
+            </p>
+          )}
+          {salePeople.map((person) => {
+            const s = commissionSummaries.find((c) => c.id === person.id);
+            const totalSales = s?.totalSales ?? 0;
+            const totalCosts = s?.totalCosts ?? 0;
+            const personNet = s?.netProfit ?? 0;
+            const totalCommission = s?.totalCommission ?? 0;
+            const salesCount = s?.salesCount ?? 0;
 
-          return (
-            <Skeleton key={person.id} loading={isLoading}>
-              <Card>
-                <CardHeader>
-                  <CardTitle>{person.name}</CardTitle>
-                  <CardDescription>
-                    {salesCount} venda{salesCount !== 1 ? "s" : ""} concluída
-                    {salesCount > 0
-                      ? ` • Comissão de ${salesCount}`
-                      : " • Sem comissão"}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Total de Vendas:
-                    </span>
-                    <span className="font-medium">
-                      R${" "}
-                      {totalSales.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Custos das Vendas:
-                    </span>
-                    <span className="font-medium text-orange-600">
-                      - R${" "}
-                      {totalCosts.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Lucro Líquido</span>
-                    <span className="font-medium text-primary">
-                      R${" "}
-                      {netProfit.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-sm border-t pt-2">
-                    <span className="text-muted-foreground">
-                      Comissão Total:
-                    </span>
-                    <span className="font-medium text-green-600">
-                      R${" "}
-                      {totalCommission.toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Skeleton>
-          );
-        })}
+            return (
+              <Skeleton key={person.id} loading={isLoading}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{person.name}</CardTitle>
+                    <CardDescription>
+                      {salesCount} venda{salesCount !== 1 ? "s" : ""}{" "}
+                      concluída{salesCount !== 1 ? "s" : ""}
+                      {salesCount === 0 && " • Sem comissão no período"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Total de Vendas:
+                      </span>
+                      <span className="font-medium">R$ {fmt(totalSales)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Custos das Vendas:
+                      </span>
+                      <span className="font-medium text-orange-600">
+                        − R$ {fmt(totalCosts)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Lucro Líquido:
+                      </span>
+                      <span className="font-medium text-primary">
+                        R$ {fmt(personNet)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm border-t pt-2">
+                      <span className="text-muted-foreground">
+                        Comissão Total:
+                      </span>
+                      <span className="font-medium text-green-600">
+                        R$ {fmt(totalCommission)}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Skeleton>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import type { Contract } from "@/lib/types"
 import { ContractsForm } from "./contracts-form"
 import { ContractsTable } from "./contracts-table"
-import { FileText, DollarSign, Calendar } from "lucide-react"
+import { FileText, DollarSign, CalendarOff } from "lucide-react"
 
 interface ContractsViewProps {
   userId: string
@@ -34,20 +34,54 @@ export function ContractsView({ userId }: ContractsViewProps) {
     fetchContracts()
   }, [userId])
 
-  const totalMonthly = contracts.reduce((sum, contract) => {
-    return sum + (contract.monthly_value - (contract.discount || 0))
-  }, 0)
+  const today = new Date().toISOString().split("T")[0]
+  const currentYear = new Date().getFullYear()
 
-  const totalDiscount = contracts.reduce((sum, contract) => sum + (contract.discount || 0), 0)
+  const activeContracts = contracts.filter(
+    (c) => !c.end_date || c.end_date >= today,
+  )
 
-  const activeContracts = contracts.length
+  const totalMonthly = activeContracts.reduce(
+    (sum, c) => sum + Number(c.monthly_value),
+    0,
+  )
+
+  const activeCount = activeContracts.length
+
+  // Conta quantos meses do ano atual cada contrato está ativo usando índice ano*12+mês
+  function getActiveMonthsInYear(contract: Contract, year: number): number {
+    const [sy, sm] = contract.start_date.split("-").map(Number)
+    const startYM = sy * 12 + (sm - 1)
+
+    const endYM = contract.end_date
+      ? (() => { const [ey, em] = contract.end_date!.split("-").map(Number); return ey * 12 + (em - 1) })()
+      : Infinity
+
+    const yearStartYM = year * 12
+    const yearEndYM = year * 12 + 11
+
+    const effStart = Math.max(startYM, yearStartYM)
+    const effEnd = Math.min(endYM, yearEndYM)
+
+    return effStart > effEnd ? 0 : effEnd - effStart + 1
+  }
+
+  const totalAnnual = contracts.reduce(
+    (sum, c) => sum + Number(c.monthly_value) * getActiveMonthsInYear(c, currentYear),
+    0,
+  )
+
+  const fmt = (v: number) =>
+    v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold">Contratos e Custos Fixos</h2>
-        <p className="text-muted-foreground">Gerencie contratos, aluguéis, terceirizados e outros custos fixos</p>
+        <h2 className="text-3xl font-bold">Contratos</h2>
+        <p className="text-muted-foreground">
+          Gerencie contratos, aluguéis, terceirizados e outros custos fixos
+        </p>
       </div>
 
       {/* Summary Cards */}
@@ -58,8 +92,8 @@ export function ContractsView({ userId }: ContractsViewProps) {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalMonthly.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Valor após descontos</p>
+            <div className="text-2xl font-bold">R$ {fmt(totalMonthly)}</div>
+            <p className="text-xs text-muted-foreground">Contratos ativos</p>
           </CardContent>
         </Card>
 
@@ -69,19 +103,23 @@ export function ContractsView({ userId }: ContractsViewProps) {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeContracts}</div>
-            <p className="text-xs text-muted-foreground">Total de contratos</p>
+            <div className="text-2xl font-bold">{activeCount}</div>
+            <p className="text-xs text-muted-foreground">
+              {contracts.length - activeCount > 0
+                ? `${contracts.length - activeCount} encerrado(s)`
+                : "Todos em vigor"}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Descontos Totais</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Anual</CardTitle>
+            <CalendarOff className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalDiscount.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Economia mensal</p>
+            <div className="text-2xl font-bold">R$ {fmt(totalAnnual)}</div>
+            <p className="text-xs text-muted-foreground">Meses ativos em {currentYear}</p>
           </CardContent>
         </Card>
       </div>
@@ -101,7 +139,7 @@ export function ContractsView({ userId }: ContractsViewProps) {
       <Card>
         <CardHeader>
           <CardTitle>Lista de Contratos</CardTitle>
-          <CardDescription>Todos os custos fixos cadastrados</CardDescription>
+          <CardDescription>Todos os contratos cadastrados</CardDescription>
         </CardHeader>
         <CardContent>
           <ContractsTable contracts={contracts} onUpdate={fetchContracts} loading={loading} />

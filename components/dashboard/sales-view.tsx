@@ -31,44 +31,54 @@ interface SalesViewProps {
   userId: string;
 }
 
+const TABLE_PAGE_SIZE = 10;
+
+// Campos mínimos para os cards de estatísticas
+const STATS_SELECT =
+  "id, status, total_price, total_costs, quantity, payment_status, entry_value";
+
+// Todos os campos necessários para renderizar a tabela
+const TABLE_SELECT =
+  "id, company_id, user_id, entry_value, payment_status, product_name, customer_name, sale_date, quantity, unit_price, total_price, status, order_number, notes, created_at, salespersons, costs, total_costs";
+
 export function SalesView({ companyId, userId }: SalesViewProps) {
+  // ── Estado dos cards de estatísticas ──────────────────────────
   const [sales, setSales] = useState<SaleWithDetails[]>([]);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingSale, setEditingSale] = useState<SaleWithDetails | null>(null);
-  const [viewingSale, setViewingSale] = useState<SaleWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [months, setMonths] = useState<number[]>([]);
   const [year, setYear] = useState("2026");
 
+  // ── Estado da tabela paginada ──────────────────────────────────
+  const [tableSales, setTableSales] = useState<SaleWithDetails[]>([]);
+  const [tableTotal, setTableTotal] = useState(0);
+  const [tablePage, setTablePage] = useState(0);
+  const [isTableLoading, setIsTableLoading] = useState(true);
+
+  // ── Filtros da tabela (lifted do SalesTable) ───────────────────
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [onlyWithRemaining, setOnlyWithRemaining] = useState(false);
+
+  // ── Estado de modais / formulários ────────────────────────────
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState<SaleWithDetails | null>(null);
+  const [viewingSale, setViewingSale] = useState<SaleWithDetails | null>(null);
+
+  // Debounce de 400ms no campo de busca
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm), 400);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  // ── Query de estatísticas (sem paginação) ──────────────────────
   const fetchSales = async () => {
     setIsLoading(true);
     const supabase = createClient();
     let query = supabase
       .from("sales_with_details")
-      .select(
-        `
-        id,
-        company_id,
-        user_id,
-        entry_value,
-        payment_status,
-        product_name,
-        customer_name,
-        sale_date,
-        quantity,
-        unit_price,
-        total_price,
-        status,
-        order_number,
-        notes,
-        created_at,
-        salespersons,
-        costs,
-        total_costs
-        `,
-      )
-      .eq("company_id", companyId)
-      // .order("sale_date", { ascending: false });
+      .select(STATS_SELECT)
+      .eq("company_id", companyId);
 
     if (months.length > 0) {
       const ranges = months.map((m) => {
@@ -76,18 +86,99 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         const end = new Date(Number(year), m + 1, 1);
         return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
       });
-
       query = query.or(ranges.join(","));
     }
 
-    const { data, error } = await query.order("order_number", {
-      ascending: false,
-    });
-
+    const { data, error } = await query;
     if (!error && data) setSales(data as SaleWithDetails[]);
     setIsLoading(false);
   };
 
+  // ── Query da tabela (com paginação + filtros server-side) ──────
+  const fetchTableData = async () => {
+    setIsTableLoading(true);
+    const supabase = createClient();
+
+    let query = supabase
+      .from("sales_with_details")
+      .select(TABLE_SELECT, { count: "exact" })
+      .eq("company_id", companyId);
+
+    // Filtro de meses do dashboard (mesmo que os cards)
+    if (months.length > 0) {
+      const ranges = months.map((m) => {
+        const start = new Date(Number(year), m, 1);
+        const end = new Date(Number(year), m + 1, 1);
+        return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
+      });
+      query = query.or(ranges.join(","));
+    }
+
+    // Filtro de busca (produto, cliente, nº pedido)
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.trim();
+      query = query.or(
+        `customer_name.ilike.%${q}%,order_number.ilike.%${q}%,product_name.ilike.%${q}%`,
+      );
+    }
+
+    // Filtro de mês específico da tabela
+    if (dateFilter) {
+      const [filterYear, filterMonth] = dateFilter.split("-").map(Number);
+      const startStr = `${dateFilter}-01`;
+      // filterMonth é 1-based; new Date(y, m, 1) usa 0-based → filterMonth já aponta pro mês seguinte
+      const endStr = new Date(filterYear, filterMonth, 1)
+        .toISOString()
+        .split("T")[0];
+      query = query.gte("sale_date", startStr).lt("sale_date", endStr);
+    }
+
+    // Filtro de pagamento pendente
+    if (onlyWithRemaining) {
+      query = query.eq("payment_status", "pendente");
+    }
+
+    // Paginação
+    const from = tablePage * TABLE_PAGE_SIZE;
+    const to = from + TABLE_PAGE_SIZE - 1;
+
+    const { data, count, error } = await query
+      .order("order_number", { ascending: false })
+      .range(from, to);
+
+    if (!error && data) {
+      setTableSales(data as SaleWithDetails[]);
+      setTableTotal(count ?? 0);
+    }
+    setIsTableLoading(false);
+  };
+
+  // Stats: dispara quando mudam mês/ano
+  useEffect(() => {
+    void fetchSales();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, months, year]);
+
+  // Tabela: dispara quando mudam filtros ou página
+  useEffect(() => {
+    void fetchTableData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    companyId,
+    months,
+    year,
+    debouncedSearch,
+    dateFilter,
+    onlyWithRemaining,
+    tablePage,
+  ]);
+
+  const refreshAll = () => {
+    void fetchSales();
+    void fetchTableData();
+  };
+
+  // ── Handlers de ações ─────────────────────────────────────────
   const handleAdd = () => {
     setEditingSale(null);
     setIsFormOpen(true);
@@ -102,14 +193,14 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const handleDelete = async (id: string) => {
     const supabase = createClient();
     const { error } = await supabase.from("sales").delete().eq("id", id);
-    if (!error) fetchSales();
+    if (!error) refreshAll();
   };
 
   const handleFormSuccess = () => {
     setIsFormOpen(false);
     setEditingSale(null);
-    toast.success("Venda cadastrada com sucesso", {position: "top-center"})
-    fetchSales();
+    toast.success("Venda cadastrada com sucesso", { position: "top-center" });
+    refreshAll();
   };
 
   const handleViewDetails = (sale: SaleWithDetails) => {
@@ -117,9 +208,44 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   };
 
   const handleStatusChange = () => {
-    fetchSales();
+    refreshAll();
   };
 
+  // ── Handlers de filtros da tabela (sempre resetam pra página 0) ─
+  const handleSearchChange = (v: string) => {
+    setSearchTerm(v);
+    setTablePage(0);
+  };
+
+  const handleDateFilterChange = (v: string) => {
+    setDateFilter(v);
+    setTablePage(0);
+  };
+
+  const handleOnlyWithRemainingChange = (v: boolean) => {
+    setOnlyWithRemaining(v);
+    setTablePage(0);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setDebouncedSearch(""); // bypass debounce para resposta imediata
+    setDateFilter("");
+    setOnlyWithRemaining(false);
+    setTablePage(0);
+  };
+
+  const handleMonthsChange = (m: number[]) => {
+    setMonths(m);
+    setTablePage(0);
+  };
+
+  const handleYearChange = (y: string) => {
+    setYear(y);
+    setTablePage(0);
+  };
+
+  // ── Cálculos dos cards de estatísticas ────────────────────────
   const completedSales = sales.filter((s) => s.status === "concluída");
   const pendingSales = sales.filter((s) => s.status === "pendente");
 
@@ -144,34 +270,20 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const completedNetProfit = completedRevenue - completedCosts;
   const pendingNetProfit = pendingRevenue - pendingCosts;
 
-  // =========================
-  // Pagamentos (NOVO)
-  // =========================
   const paymentsCompleted = sales.filter((s) => s.payment_status === "pago");
   const paymentsPending = sales.filter((s) => s.payment_status !== "pago");
 
-  const totalEntryValue = sales.reduce(
-    (sum, s) => sum + Number(s.entry_value ?? 0),
-    0,
-  );
-
-  // "faltante" = total_price - entry_value (nunca negativo), apenas para pagamentos pendentes
   const totalMissingPayments = paymentsPending.reduce((sum, s) => {
     const total = Number(s.total_price ?? 0);
     const entry = Number(s.entry_value ?? 0);
     return sum + Math.max(total - entry, 0);
   }, 0);
 
-  useEffect(() => {
-    fetchSales();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, months, year]);
+  const totalPages = Math.ceil(tableTotal / TABLE_PAGE_SIZE);
 
   return (
     <div className="space-y-4">
-      {/* =========================
-          Vendas Concluídas
-         ========================= */}
+      {/* ── Vendas Concluídas ─────────────────────────────────── */}
       <div>
         <div className="flex gap-6 items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-green-600">
@@ -180,9 +292,9 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
           <DashboardFilters
             value={months}
             yearValue={year}
-            onChange={setMonths}
-            onYearChange={setYear}
-          ></DashboardFilters>
+            onChange={handleMonthsChange}
+            onYearChange={handleYearChange}
+          />
         </div>
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-green-200">
@@ -276,14 +388,11 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         </div>
       </div>
 
-      {/* =========================
-          Vendas Pendentes
-         ========================= */}
+      {/* ── Vendas Pendentes ──────────────────────────────────── */}
       <div>
         <h3 className="text-lg font-semibold mb-2 text-yellow-600">
           Vendas Pendentes
         </h3>
-
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -376,12 +485,11 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         </div>
       </div>
 
-      {/* =========================
-          Pagamentos (NOVO)
-         ========================= */}
+      {/* ── Pagamentos ───────────────────────────────────────── */}
       <div>
-        <h3 className="text-lg font-semibold mb-2 text-blue-600">Pagamentos</h3>
-
+        <h3 className="text-lg font-semibold mb-2 text-blue-600">
+          Pagamentos
+        </h3>
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -442,31 +550,10 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
               </CardContent>
             </Spinner>
           </Card>
-
-          {/* <Card className="border-blue-200"> */}
-          {/*   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"> */}
-          {/*     <CardTitle className="text-sm font-medium"> */}
-          {/*       Valor Total de Entrada */}
-          {/*     </CardTitle> */}
-          {/*     <Receipt className="h-4 w-4 text-blue-600" /> */}
-          {/*   </CardHeader> */}
-          {/*   <Spinner loading={isLoading} size={"3"}> */}
-          {/*     <CardContent> */}
-          {/*       <div className="text-2xl font-bold text-blue-600"> */}
-          {/*         R${" "} */}
-          {/*         {totalEntryValue.toLocaleString("pt-BR", { */}
-          {/*           minimumFractionDigits: 2, */}
-          {/*         })} */}
-          {/*       </div> */}
-          {/*       <p className="text-xs text-muted-foreground"> */}
-          {/*         Somatório de entradas */}
-          {/*       </p> */}
-          {/*     </CardContent> */}
-          {/*   </Spinner> */}
-          {/* </Card> */}
         </div>
       </div>
 
+      {/* ── Tabela de vendas ──────────────────────────────────── */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -484,21 +571,37 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         </CardHeader>
         <CardContent>
           <SalesTable
-            sales={sales}
+            sales={tableSales}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onViewDetails={handleViewDetails}
             onStatusChange={handleStatusChange}
-            isLoading={isLoading}
+            isLoading={isTableLoading}
             onPaymentConfirmed={(saleId) => {
-              setSales((prev) =>
+              // Atualiza otimisticamente nos dois estados
+              const patch = (prev: SaleWithDetails[]) =>
                 prev.map((s) =>
                   s.id === saleId
                     ? ({ ...(s as any), payment_status: "pago" } as any)
                     : s,
-                ),
-              );
+                );
+              setTableSales(patch);
+              setSales(patch);
             }}
+            // Filtros controlados pelo pai
+            searchTerm={searchTerm}
+            onSearchChange={handleSearchChange}
+            dateFilter={dateFilter}
+            onDateFilterChange={handleDateFilterChange}
+            onlyWithRemaining={onlyWithRemaining}
+            onOnlyWithRemainingChange={handleOnlyWithRemainingChange}
+            onClearFilters={handleClearFilters}
+            // Paginação
+            page={tablePage}
+            totalPages={totalPages}
+            totalCount={tableTotal}
+            pageSize={TABLE_PAGE_SIZE}
+            onPageChange={setTablePage}
           />
         </CardContent>
       </Card>
@@ -518,7 +621,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
           sale={viewingSale}
           isOpen={!!viewingSale}
           onClose={() => setViewingSale(null)}
-          onChanged={fetchSales}
+          onChanged={refreshAll}
         />
       )}
     </div>

@@ -88,7 +88,7 @@ export interface Contract {
   name: string;
   monthly_value: number;
   start_date: string;
-  discount: number;
+  end_date: string | null;
   description: string | null;
   created_at: string;
   updated_at: string;

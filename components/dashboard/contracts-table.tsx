@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Trash2, Search, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +32,8 @@ export function ContractsTable({
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+
+  const today = new Date().toISOString().split("T")[0];
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este contrato?")) return;
@@ -72,11 +75,9 @@ export function ContractsTable({
     (sum, contract) => sum + contract.monthly_value,
     0,
   );
-  const totalDiscount = filteredContracts.reduce(
-    (sum, contract) => sum + (contract.discount || 0),
-    0,
-  );
-  const netTotal = totalValue - totalDiscount;
+
+  const isActive = (contract: Contract) =>
+    !contract.end_date || contract.end_date >= today;
 
   if (loading) {
     return <div className="text-center py-8">Carregando contratos...</div>;
@@ -115,9 +116,9 @@ export function ContractsTable({
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Valor Mensal</TableHead>
-              <TableHead>Desconto</TableHead>
-              <TableHead>Valor Final</TableHead>
               <TableHead>Data Início</TableHead>
+              <TableHead>Data Fim</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -134,25 +135,24 @@ export function ContractsTable({
               </TableRow>
             ) : (
               filteredContracts.map((contract) => {
-                const finalValue =
-                  contract.monthly_value - (contract.discount || 0);
+                const active = isActive(contract);
                 return (
                   <TableRow key={contract.id}>
                     <TableCell className="font-medium">
                       {contract.name}
                     </TableCell>
                     <TableCell>
-                      R$ {contract.monthly_value.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-green-600">
-                      {contract.discount > 0
-                        ? `R$ ${contract.discount.toFixed(2)}`
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      R$ {finalValue.toFixed(2)}
+                      R$ {contract.monthly_value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>{formatBR(contract.start_date)}</TableCell>
+                    <TableCell>
+                      {contract.end_date ? formatBR(contract.end_date) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={active ? "default" : "secondary"}>
+                        {active ? "Ativo" : "Encerrado"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="max-w-xs truncate">
                       {contract.description || "-"}
                     </TableCell>
@@ -177,20 +177,10 @@ export function ContractsTable({
       {filteredContracts.length > 0 && (
         <div className="flex justify-end gap-4 text-sm border-t pt-4">
           <div>
-            <span className="text-muted-foreground">Total Bruto:</span>
+            <span className="text-muted-foreground">Total Mensal (filtrado):</span>
             <span className="ml-2 font-semibold">
-              R$ {totalValue.toFixed(2)}
+              R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Descontos:</span>
-            <span className="ml-2 font-semibold text-green-600">
-              R$ {totalDiscount.toFixed(2)}
-            </span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Total Líquido:</span>
-            <span className="ml-2 font-semibold">R$ {netTotal.toFixed(2)}</span>
           </div>
         </div>
       )}
