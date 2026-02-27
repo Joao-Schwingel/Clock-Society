@@ -53,6 +53,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
 
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalSaleCosts, setTotalSaleCosts] = useState(0);
+  const [netRevenue, setNetRevenue] = useState(0);
   const [totalFixedCosts, setTotalFixedCosts] = useState(0);
   const [totalCommissions, setTotalCommissions] = useState(0);
   const [netProfit, setNetProfit] = useState(0);
@@ -205,9 +206,10 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
 
       setTotalRevenue(revenue);
       setTotalSaleCosts(saleCostsTotal);
+      setNetRevenue(revenue - saleCostsTotal);
       setTotalFixedCosts(fixedCostsTotal);
       setTotalCommissions(totalComm);
-      setNetProfit(revenue - saleCostsTotal - fixedCostsTotal);
+      setNetProfit(revenue - saleCostsTotal - fixedCostsTotal - totalComm);
       setCommissionSummaries(summaries);
     } catch (err) {
       console.error("Erro ao carregar dashboard:", err);
@@ -238,7 +240,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
       </div>
 
       {/* ── Cards principais (ordem: Receita → Comissões → Custos de Vendas → Despesas Gerais → Lucro) ── */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Skeleton className="rounded-xl" loading={isLoading}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -248,6 +250,19 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
             <CardContent>
               <div className="text-2xl font-bold">R$ {fmt(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">Vendas concluídas</p>
+            </CardContent>
+          </Card>
+        </Skeleton>
+
+        <Skeleton loading={isLoading}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Receita Líquida</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">R$ {fmt(netRevenue)}</div>
+              <p className="text-xs text-muted-foreground">Receita − custos de vendas</p>
             </CardContent>
           </Card>
         </Skeleton>
@@ -322,7 +337,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
                 R$ {fmt(netProfit)}
               </div>
               <p className="text-xs text-muted-foreground">
-                Receita − vendas − fixos
+                Receita − custos − fixos − comissões
               </p>
             </CardContent>
           </Card>
