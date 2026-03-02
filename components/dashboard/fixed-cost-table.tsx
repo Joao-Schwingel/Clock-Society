@@ -89,10 +89,7 @@ export function FixedCostTable({
         const [year, month] = dateFilter.split("-").map(Number);
         
         const filterMonth = new Date(year, month - 1, 1);
-        if(cost.name == "Correspondência SASPY"){
-  console.log(cost)
-  console.log({startMonth, endMonth, start})
-        }
+ 
         return filterMonth >= startMonth && filterMonth < endMonth;
       })();
 
