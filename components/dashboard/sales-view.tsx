@@ -25,6 +25,7 @@ import { SaleDetailsModal } from "./sale-details-modal";
 import { Spinner } from "@radix-ui/themes";
 import { DashboardFilters } from "./dashboards-filters";
 import { toast } from "sonner";
+import { formatBR } from "@/lib/utils";
 
 interface SalesViewProps {
   companyId: string;
@@ -59,6 +60,16 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const [appliedSearch, setAppliedSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [onlyWithRemaining, setOnlyWithRemaining] = useState(false);
+  const [salespersonFilter, setSalespersonFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  // ── Lista de vendedores para o filtro ──────────────────────────
+  const [salespersonsList, setSalespersonsList] = useState<
+    { id: string; name: string }[]
+  >([]);
+
+  // ── Estado de exportação ─────────────────────────────────────
+  const [isExporting, setIsExporting] = useState(false);
 
   // ── Estado de modais / formulários ────────────────────────────
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -86,6 +97,30 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     const { data, error } = await query;
     if (!error && data) setSales(data as SaleWithDetails[]);
     setIsLoading(false);
+  };
+
+  // ── Carregar vendedores para o filtro ──────────────────────────
+  const fetchSalespersons = async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("salespersons")
+      .select("id, name")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .order("name");
+    if (data) setSalespersonsList(data);
+  };
+
+  // ── Buscar sale_ids de um vendedor específico ──────────────────
+  const getSaleIdsBySalesperson = async (
+    salespersonId: string,
+  ): Promise<string[]> => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("sale_salespersons")
+      .select("sale_id")
+      .eq("salesperson_id", salespersonId);
+    return data?.map((r: any) => r.sale_id) ?? [];
   };
 
   // ── Query da tabela (com paginação + filtros server-side) ──────
@@ -132,6 +167,23 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       query = query.eq("payment_status", "pendente");
     }
 
+    // Filtro de status da venda
+    if (statusFilter) {
+      query = query.eq("status", statusFilter);
+    }
+
+    // Filtro de vendedor
+    if (salespersonFilter) {
+      const saleIds = await getSaleIdsBySalesperson(salespersonFilter);
+      if (saleIds.length === 0) {
+        setTableSales([]);
+        setTableTotal(0);
+        setIsTableLoading(false);
+        return;
+      }
+      query = query.in("id", saleIds);
+    }
+
     // Paginação
     const from = tablePage * TABLE_PAGE_SIZE;
     const to = from + TABLE_PAGE_SIZE - 1;
@@ -153,6 +205,12 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, months, year]);
 
+  // Vendedores: carrega uma vez
+  useEffect(() => {
+    void fetchSalespersons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
+
   // Tabela: dispara quando mudam filtros ou página
   useEffect(() => {
     void fetchTableData();
@@ -164,6 +222,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     appliedSearch,
     dateFilter,
     onlyWithRemaining,
+    salespersonFilter,
+    statusFilter,
     tablePage,
   ]);
 
@@ -179,7 +239,6 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   };
 
   const handleEdit = (sale: SaleWithDetails) => {
-    console.log(sale);
     setEditingSale(sale);
     setIsFormOpen(true);
   };
@@ -229,11 +288,23 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     setTablePage(0);
   };
 
+  const handleSalespersonFilterChange = (v: string) => {
+    setSalespersonFilter(v);
+    setTablePage(0);
+  };
+
+  const handleStatusFilterChange = (v: string) => {
+    setStatusFilter(v);
+    setTablePage(0);
+  };
+
   const handleClearFilters = () => {
     setSearchTerm("");
     setAppliedSearch("");
     setDateFilter("");
     setOnlyWithRemaining(false);
+    setSalespersonFilter("");
+    setStatusFilter("");
     setTablePage(0);
   };
 
@@ -246,6 +317,178 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     setYear(y);
     setTablePage(0);
   };
+
+  // ── Exportação CSV (mesmos filtros, sem paginação) ────────────
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const supabase = createClient();
+
+      let query = supabase
+        .from("sales_with_details")
+        .select(TABLE_SELECT)
+        .eq("company_id", companyId);
+
+      if (months.length > 0) {
+        const ranges = months.map((m) => {
+          const start = new Date(Number(year), m, 1);
+          const end = new Date(Number(year), m + 1, 1);
+          return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
+        });
+        query = query.or(ranges.join(","));
+      }
+
+      if (appliedSearch.trim()) {
+        const q = appliedSearch.trim();
+        query = query.or(
+          `customer_name.ilike.%${q}%,order_number.ilike.%${q}%,product_name.ilike.%${q}%`,
+        );
+      }
+
+      if (dateFilter) {
+        const [filterYear, filterMonth] = dateFilter.split("-").map(Number);
+        const startStr = `${dateFilter}-01`;
+        const endStr = new Date(filterYear, filterMonth, 1)
+          .toISOString()
+          .split("T")[0];
+        query = query.gte("sale_date", startStr).lt("sale_date", endStr);
+      }
+
+      if (onlyWithRemaining) {
+        query = query.eq("payment_status", "pendente");
+      }
+
+      if (statusFilter) {
+        query = query.eq("status", statusFilter);
+      }
+
+      if (salespersonFilter) {
+        const saleIds = await getSaleIdsBySalesperson(salespersonFilter);
+        if (saleIds.length === 0) {
+          toast.error("Nenhum dado para exportar", { position: "top-center" });
+          return;
+        }
+        query = query.in("id", saleIds);
+      }
+
+      const { data, error } = await query.order("order_number", {
+        ascending: false,
+      });
+
+      if (error || !data || data.length === 0) {
+        toast.error("Nenhum dado para exportar", { position: "top-center" });
+        return;
+      }
+
+      // Buscar nomes dos produtos via sale_items
+      const saleIds = data.map((s: any) => s.id);
+      const { data: itemsData } = await supabase
+        .from("sale_items")
+        .select("sale_id,product_name,quantity")
+        .in("sale_id", saleIds);
+
+      const productMap: Record<string, string> = {};
+      const qtyMap: Record<string, number> = {};
+      if (itemsData) {
+        for (const row of itemsData as Array<{
+          sale_id: string;
+          product_name: string;
+          quantity: number;
+        }>) {
+          qtyMap[row.sale_id] =
+            (qtyMap[row.sale_id] ?? 0) + Number(row.quantity || 0);
+          const name = (row.product_name ?? "").trim();
+          if (!name) continue;
+          if (!productMap[row.sale_id]) {
+            productMap[row.sale_id] = name;
+          } else if (!productMap[row.sale_id].includes(name)) {
+            productMap[row.sale_id] += `, ${name}`;
+          }
+        }
+      }
+
+      const formatMoney = (v: number) =>
+        v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+      const headers = [
+        "Data",
+        "Nº Pedido",
+        "Produtos",
+        "Cliente",
+        "Vendedor",
+        "Status",
+        "Quantidade",
+        "Custo Total",
+        "Total",
+        "Entrada",
+        "Faltante",
+        "Status Pagamento",
+      ];
+
+      const escapeCSV = (val: string) => {
+        if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+          return `"${val.replace(/"/g, '""')}"`;
+        }
+        return val;
+      };
+
+      const rows = data.map((sale: any) => {
+        const costs = (sale.costs ?? []).reduce(
+          (sum: number, c: any) => sum + Number(c.amount || 0),
+          0,
+        );
+        const total = Number(sale.total_price);
+        const entry = Number(sale.entry_value ?? 0);
+        const paymentStatus = sale.payment_status ?? "pendente";
+        const remaining =
+          paymentStatus === "pago" ? 0 : Math.max(0, total - entry);
+        const qty = qtyMap[sale.id] ?? sale.quantity ?? 0;
+        const products = productMap[sale.id] || sale.product_name || "-";
+        const salespersons = (sale.salespersons ?? [])
+          .map((p: any) => p.name)
+          .join(", ");
+
+        return [
+          formatBR(sale.sale_date),
+          sale.order_number || "-",
+          products,
+          sale.customer_name || "-",
+          salespersons || "-",
+          sale.status === "concluída" ? "Concluída" : "Pendente",
+          String(qty),
+          formatMoney(costs),
+          formatMoney(total - costs),
+          entry > 0 ? formatMoney(entry) : "-",
+          formatMoney(remaining),
+          paymentStatus === "pago" ? "Pago" : "Pendente",
+        ].map(escapeCSV);
+      });
+
+      const csvContent =
+        "\uFEFF" + [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join(
+          "\n",
+        );
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `vendas-${new Date().toISOString().split("T")[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast.success(`${data.length} vendas exportadas`, {
+        position: "top-center",
+      });
+    } catch {
+      toast.error("Erro ao exportar vendas", { position: "top-center" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const hasActiveFilters =
+    !!searchTerm || !!appliedSearch || !!dateFilter || onlyWithRemaining || !!salespersonFilter || !!statusFilter;
 
   // ── Cálculos dos cards de estatísticas ────────────────────────
   const completedSales = sales.filter((s) => s.status === "concluída");
@@ -565,10 +808,19 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
                 Gerencie as vendas desta empresa
               </CardDescription>
             </div>
-            <Button onClick={handleAdd}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Venda
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleClearFilters}
+                disabled={!hasActiveFilters}
+              >
+                Limpar filtros
+              </Button>
+              <Button onClick={handleAdd}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Venda
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -598,7 +850,13 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             onDateFilterChange={handleDateFilterChange}
             onlyWithRemaining={onlyWithRemaining}
             onOnlyWithRemainingChange={handleOnlyWithRemainingChange}
-            onClearFilters={handleClearFilters}
+            salespersonFilter={salespersonFilter}
+            onSalespersonFilterChange={handleSalespersonFilterChange}
+            salespersonsList={salespersonsList}
+            statusFilter={statusFilter}
+            onStatusFilterChange={handleStatusFilterChange}
+            onExport={handleExport}
+            isExporting={isExporting}
             // Paginação
             page={tablePage}
             totalPages={totalPages}

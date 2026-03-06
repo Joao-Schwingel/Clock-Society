@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -33,7 +40,9 @@ import {
   DollarSign,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
 import type { Sale, SaleWithDetails } from "@/lib/types";
 import { formatBR } from "@/lib/utils";
@@ -54,7 +63,13 @@ interface SalesTableProps {
   onDateFilterChange: (v: string) => void;
   onlyWithRemaining: boolean;
   onOnlyWithRemainingChange: (v: boolean) => void;
-  onClearFilters: () => void;
+  salespersonFilter: string;
+  onSalespersonFilterChange: (v: string) => void;
+  salespersonsList: { id: string; name: string }[];
+  statusFilter: string;
+  onStatusFilterChange: (v: string) => void;
+  onExport: () => void;
+  isExporting: boolean;
   // Paginação
   page: number;
   totalPages: number;
@@ -80,7 +95,13 @@ export function SalesTable({
   onDateFilterChange,
   onlyWithRemaining,
   onOnlyWithRemainingChange,
-  onClearFilters,
+  salespersonFilter,
+  onSalespersonFilterChange,
+  salespersonsList,
+  statusFilter,
+  onStatusFilterChange,
+  onExport,
+  isExporting,
   page,
   totalPages,
   totalCount,
@@ -218,18 +239,13 @@ export function SalesTable({
     }
   };
 
-  const hasFilters = searchTerm || dateFilter || onlyWithRemaining;
+  const hasFilters =
+    searchTerm || dateFilter || onlyWithRemaining || salespersonFilter || statusFilter;
 
   const rangeStart = totalCount === 0 ? 0 : page * pageSize + 1;
   const rangeEnd = Math.min((page + 1) * pageSize, totalCount);
 
-  if (isLoading) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        Carregando...
-      </div>
-    );
-  }
+  const skeletonRows = 5;
 
   return (
     <div className="space-y-4">
@@ -239,7 +255,7 @@ export function SalesTable({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nº do pedido, produto ou cliente..."
+              placeholder="Buscar por nº do pedido, produto ou cliente\u2026"
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={(e) => {
@@ -260,6 +276,37 @@ export function SalesTable({
           className="w-40"
         />
 
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => onStatusFilterChange(v === "all" ? "" : v)}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="concluída">Concluída</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={salespersonFilter}
+          onValueChange={(v) => onSalespersonFilterChange(v === "all" ? "" : v)}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Vendedor" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os vendedores</SelectItem>
+            {salespersonsList.map((sp) => (
+              <SelectItem key={sp.id} value={sp.id}>
+                {sp.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <label className="flex items-center gap-2 select-none text-sm">
           <input
             type="checkbox"
@@ -270,15 +317,14 @@ export function SalesTable({
           Somente com valor faltante
         </label>
 
-        {hasFilters && (
-          <Button variant="outline" onClick={onClearFilters}>
-            Limpar
-          </Button>
-        )}
+        <Button variant="outline" onClick={onExport} disabled={isExporting}>
+          <Download className="h-4 w-4 mr-2" />
+          {isExporting ? "Exportando\u2026" : "Exportar"}
+        </Button>
       </div>
 
       {/* ── Tabela ───────────────────────────────────────────── */}
-      {sales.length === 0 ? (
+      {!isLoading && sales.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           {totalCount === 0 && !hasFilters
             ? "Nenhuma venda registrada ainda."
@@ -307,7 +353,30 @@ export function SalesTable({
             </TableHeader>
 
             <TableBody>
-              {sales.map((sale) => {
+              {isLoading
+                ? Array.from({ length: skeletonRows }).map((_, i) => (
+                    <TableRow key={`skeleton-${i}`}>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell className="text-right sticky right-0 bg-background">
+                        <div className="flex justify-end gap-2">
+                          <Skeleton className="h-8 w-8 rounded-md" />
+                          <Skeleton className="h-8 w-8 rounded-md" />
+                          <Skeleton className="h-8 w-8 rounded-md" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : sales.map((sale) => {
                 const cost = totalSaleCost(sale);
                 const total = Number(sale.total_price);
 
