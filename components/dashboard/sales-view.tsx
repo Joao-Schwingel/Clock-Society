@@ -380,29 +380,34 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         return;
       }
 
-      // Buscar nomes dos produtos via sale_items
-      const saleIds = data.map((s: any) => s.id);
-      const { data: itemsData } = await supabase
-        .from("sale_items")
-        .select("sale_id,product_name,quantity")
-        .in("sale_id", saleIds);
-
+      // Buscar nomes dos produtos via sale_items (em lotes para evitar URL longa)
+      const allSaleIds = data.map((s: any) => s.id) as string[];
       const productMap: Record<string, string> = {};
       const qtyMap: Record<string, number> = {};
-      if (itemsData) {
-        for (const row of itemsData as Array<{
-          sale_id: string;
-          product_name: string;
-          quantity: number;
-        }>) {
-          qtyMap[row.sale_id] =
-            (qtyMap[row.sale_id] ?? 0) + Number(row.quantity || 0);
-          const name = (row.product_name ?? "").trim();
-          if (!name) continue;
-          if (!productMap[row.sale_id]) {
-            productMap[row.sale_id] = name;
-          } else if (!productMap[row.sale_id].includes(name)) {
-            productMap[row.sale_id] += `, ${name}`;
+
+      const BATCH_SIZE = 200;
+      for (let i = 0; i < allSaleIds.length; i += BATCH_SIZE) {
+        const batch = allSaleIds.slice(i, i + BATCH_SIZE);
+        const { data: itemsData } = await supabase
+          .from("sale_items")
+          .select("sale_id,product_name,quantity")
+          .in("sale_id", batch);
+
+        if (itemsData) {
+          for (const row of itemsData as Array<{
+            sale_id: string;
+            product_name: string;
+            quantity: number;
+          }>) {
+            qtyMap[row.sale_id] =
+              (qtyMap[row.sale_id] ?? 0) + Number(row.quantity || 0);
+            const name = (row.product_name ?? "").trim();
+            if (!name) continue;
+            if (!productMap[row.sale_id]) {
+              productMap[row.sale_id] = name;
+            } else if (!productMap[row.sale_id].includes(name)) {
+              productMap[row.sale_id] += `, ${name}`;
+            }
           }
         }
       }
@@ -418,26 +423,26 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         "Vendedor",
         "Status",
         "Quantidade",
+        "Valor do Produto",
         "Custo Total",
-        "Total",
+        "Valor Líquido",
+        "Valor Líquido após Comissão",
         "Entrada",
         "Faltante",
         "Status Pagamento",
       ];
 
-      const escapeCSV = (val: string) => {
-        if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-          return `"${val.replace(/"/g, '""')}"`;
+      const escapeCSV = (val: unknown): string => {
+        const str = String(val ?? "");
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
         }
-        return val;
+        return str;
       };
 
       const rows = data.map((sale: any) => {
-        const costs = (sale.costs ?? []).reduce(
-          (sum: number, c: any) => sum + Number(c.amount || 0),
-          0,
-        );
-        const total = Number(sale.total_price);
+        const costs = Number(sale.total_costs ?? 0);
+        const total = Number(sale.total_price ?? 0);
         const entry = Number(sale.entry_value ?? 0);
         const paymentStatus = sale.payment_status ?? "pendente";
         const remaining =
@@ -448,16 +453,26 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
           .map((p: any) => p.name)
           .join(", ");
 
+        const netValue = total - costs;
+        const totalCommission = (sale.salespersons ?? []).reduce(
+          (sum: number, p: any) =>
+            sum + (netValue * Number(p.commission_percent || 0)) / 100,
+          0,
+        );
+        const netAfterCommission = netValue - totalCommission;
+
         return [
-          formatBR(sale.sale_date),
+          sale.sale_date ? formatBR(sale.sale_date) : "-",
           sale.order_number || "-",
           products,
           sale.customer_name || "-",
           salespersons || "-",
           sale.status === "concluída" ? "Concluída" : "Pendente",
           String(qty),
+          formatMoney(total),
           formatMoney(costs),
-          formatMoney(total - costs),
+          formatMoney(netValue),
+          formatMoney(netAfterCommission),
           entry > 0 ? formatMoney(entry) : "-",
           formatMoney(remaining),
           paymentStatus === "pago" ? "Pago" : "Pendente",
@@ -480,7 +495,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       toast.success(`${data.length} vendas exportadas`, {
         position: "top-center",
       });
-    } catch {
+    } catch(error) {
+      console.log(error)
       toast.error("Erro ao exportar vendas", { position: "top-center" });
     } finally {
       setIsExporting(false);
