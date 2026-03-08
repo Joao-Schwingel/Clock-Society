@@ -146,8 +146,10 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     // Filtro de busca (produto, cliente, nº pedido)
     if (appliedSearch.trim()) {
       const q = appliedSearch.trim();
+      const orderNum = Number(q);
+      const textFilter = `customer_name.ilike.%${q}%,product_name.ilike.%${q}%`;
       query = query.or(
-        `customer_name.ilike.%${q}%,order_number.ilike.%${q}%,product_name.ilike.%${q}%`,
+        !isNaN(orderNum) ? `${textFilter},order_number.eq.${orderNum}` : textFilter,
       );
     }
 
@@ -340,8 +342,10 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
       if (appliedSearch.trim()) {
         const q = appliedSearch.trim();
+        const orderNum = Number(q);
+        const textFilter = `customer_name.ilike.%${q}%,product_name.ilike.%${q}%`;
         query = query.or(
-          `customer_name.ilike.%${q}%,order_number.ilike.%${q}%,product_name.ilike.%${q}%`,
+          !isNaN(orderNum) ? `${textFilter},order_number.eq.${orderNum}` : textFilter,
         );
       }
 
