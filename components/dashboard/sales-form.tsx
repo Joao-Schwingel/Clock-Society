@@ -82,8 +82,7 @@ export function SalesForm({
   onSuccess,
   onCancel,
 }: SalesFormProps) {
-  console.log(sale?.salespersons);
-  const [orderNumber, setOrderNumber] = useState(sale?.order_number || "");
+  const [orderNumber, setOrderNumber] = useState(String(sale?.order_number ?? ""));
 
   const [items, setItems] = useState<LineItem[]>(() => [newLineItem()]);
   const [totalPrice, setTotalPrice] = useState<number | "">(

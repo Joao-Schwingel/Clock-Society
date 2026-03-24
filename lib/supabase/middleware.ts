@@ -10,12 +10,6 @@ const PUBLIC_ROUTES = new Set([
 ])
 
 export async function updateSession(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  if (PUBLIC_ROUTES.has(pathname)) {
-    return NextResponse.next()
-  }
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -37,10 +31,16 @@ export async function updateSession(request: NextRequest) {
   })
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  const { pathname } = request.nextUrl
+
+  if (PUBLIC_ROUTES.has(pathname)) {
+    return response
+  }
+
+  if (!user) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 
