@@ -339,7 +339,7 @@ export function SalesTable({
                 <TableHead>Nº Pedido</TableHead>
                 <TableHead>Produtos</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Vendedor</TableHead>
+                <TableHead>Vendedor / Comissão</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Quantidade</TableHead>
                 <TableHead>Custo Total</TableHead>
@@ -411,7 +411,16 @@ export function SalesTable({
                     </TableCell>
                     <TableCell>{sale.customer_name || "-"}</TableCell>
                     <TableCell>
-                      {sale.salespersons.map((person) => person.name).join(",")}
+                      <div className="flex flex-col gap-0.5">
+                        {sale.salespersons.map((person) => (
+                          <span key={person.id} className="text-sm whitespace-nowrap">
+                            {person.name}{" "}
+                            <span className="text-muted-foreground">
+                              ({person.commission_percent}%)
+                            </span>
+                          </span>
+                        ))}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge
