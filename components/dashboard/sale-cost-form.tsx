@@ -17,7 +17,7 @@ interface SaleCostFormProps {
   onCancel: () => void
 }
 
-const COST_TYPES = ["Compra","Transporte", "Tarifas", "Comissão Extra", "Embalagem", "Estoque", "Impostos", "Frete", "Seguro", "Outros"]
+const COST_TYPES = ["Compra","Transporte", "Tarifas", "Comissão Extra", "Embalagem", "Estoque", "Impostos", "Frete", "Seguro", "Simulação", "Repasse ao Consignante", "Outros"]
 
 export function SaleCostForm({ saleId, onSuccess, onCancel }: SaleCostFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
