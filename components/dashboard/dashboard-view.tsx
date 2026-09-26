@@ -18,7 +18,11 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@radix-ui/themes";
 import { DashboardFilters } from "./dashboards-filters";
-import { sumFixedCostsForPeriod } from "@/lib/calc/dashboard";
+import {
+  sumFixedCostsForPeriod,
+  summarizeCommissionsBySalesperson,
+  type CommissionSummary,
+} from "@/lib/calc/dashboard";
 
 interface DashboardViewProps {
   companyId: string;
@@ -35,16 +39,6 @@ type SaleRow = {
   id: string;
   total_price: number;
   salespersons: SalespersonEntry[];
-};
-
-type CommissionSummary = {
-  id: string;
-  name: string;
-  salesCount: number;
-  totalSales: number;
-  totalCosts: number;
-  netProfit: number;
-  totalCommission: number;
 };
 
 export function DashboardView({ companyId, userId }: DashboardViewProps) {
@@ -150,34 +144,8 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
       );
 
       // ── Comissões por vendedor ────────────────────────────────
-      const commMap: Record<string, CommissionSummary> = {};
-
-      for (const sale of sales) {
-        const saleCost = costsBySaleId[sale.id] ?? 0;
-        const saleNet = sale.total_price - saleCost;
-
-        for (const sp of sale.salespersons) {
-          if (!commMap[sp.id]) {
-            commMap[sp.id] = {
-              id: sp.id,
-              name: sp.name,
-              salesCount: 0,
-              totalSales: 0,
-              totalCosts: 0,
-              netProfit: 0,
-              totalCommission: 0,
-            };
-          }
-          commMap[sp.id].salesCount += 1;
-          commMap[sp.id].totalSales += sale.total_price;
-          commMap[sp.id].totalCosts += saleCost;
-          commMap[sp.id].netProfit += saleNet;
-          commMap[sp.id].totalCommission += (saleNet * Number(sp.commission_percent)) / 100;
-        }
-      }
-
-      const summaries = Object.values(commMap);
-      const totalComm = summaries.reduce((sum, s) => sum + s.totalCommission, 0);
+      const { summaries, totalCommission: totalComm } =
+        summarizeCommissionsBySalesperson(sales, costsBySaleId);
 
       setTotalRevenue(revenue);
       setTotalSaleCosts(saleCostsTotal);
