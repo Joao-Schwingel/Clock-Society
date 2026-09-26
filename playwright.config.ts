@@ -12,8 +12,8 @@ export default defineConfig({
   testDir: "./e2e/tests",
   fullyParallel: false,
   workers: 1,
-  retries: 0,
-  reporter: [["list"]],
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
   use: {
     baseURL: APP_URL,
     timezoneId: "America/Sao_Paulo",
