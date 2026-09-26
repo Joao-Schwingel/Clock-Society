@@ -24,10 +24,26 @@ export async function freezeClock(page: import("@playwright/test").Page) {
   await page.clock.install({ time: FIXED_NOW });
 }
 
+// Mesma formatação usada pelo app (v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })),
+// chamada aqui de novo (não importada do app) só para não transcrever strings à mão.
+export function formatBRL(v: number): string {
+  return v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+}
+
+export function cardByTitle(page: import("@playwright/test").Page, title: string) {
+  return page.locator('[data-slot="card"]').filter({
+    has: page.locator('[data-slot="card-title"]', { hasText: new RegExp(`^${title}$`) }),
+  });
+}
+
 export async function login(page: import("@playwright/test").Page) {
   await page.goto("/auth/login");
   await page.getByLabel("Email").fill(ADMIN_EMAIL);
   await page.getByLabel("Senha").fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Entrar" }).click();
-  await page.waitForURL("**/dashboard");
+  // Espera o "?company=" aparecer, não só a chegada em /dashboard: na
+  // montagem inicial, os dois hooks useTabWithQuery (empresa e subaba) correm
+  // uma corrida por causa da mesma searchParams "stale" (achado desta fase,
+  // não corrigido — ver e2e/tests/nav.spec.ts), e só o de "company" sobrevive.
+  await page.waitForURL(/\/dashboard\?company=/);
 }
