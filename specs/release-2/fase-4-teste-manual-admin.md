@@ -17,7 +17,8 @@
 ## 2. Etapa A — Homologação
 
 - [ ] Aplicar o runbook na ordem, inclusive a habilitação do hook e o fechamento do auto-cadastro
-- [ ] Rodar as suítes DB e E2E contra a homologação com o fixture: os números esperados da Fase 1 valem lá também
+- [ ] Executar o checklist **MANUAL** de banco (Fase 1 §7 "Banco"; Fase 2 §5 `A-DB-xx`/`A-TEN-01`) contra a homologação, com resultado registrado
+- [ ] Rodar a suíte E2E (mockada) normalmente contra a homologação, como checagem extra de regressão visual — ela não depende do banco de homologação, já que não toca banco nenhum; os números esperados da Fase 1 continuam sendo o oráculo
 - [ ] Executar o roteiro manual (§4)
 - [ ] **Ensaiar o rollback completo**, confirmar que o sistema volta ao estado da Fase 1 e reaplicar
 

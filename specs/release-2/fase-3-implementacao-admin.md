@@ -4,16 +4,21 @@
 **Depende de:** Fase 2 aprovada. **Libera:** Fase 4.
 **Itens do planejamento:** 1.2, 1.3, 1.4 (só o ramo do admin), 1.6, 2.1, 2.2, 2.4 e os índices de 1.4.
 
+> **Restrição de segurança:** nenhum teste automatizado, nem este agente, toca em banco de dados
+> (Fase 1 §1). Os `A-DB-xx` desta fase (a reescrita das ~40 políticas, o item de maior risco do
+> projeto) **não têm rede de proteção automatizada** — são um checklist MANUAL (Fase 2 §5), executado
+> à mão por um humano contra o Supabase local ou de homologação, antes do merge/deploy de cada fatia.
+
 ---
 
 ## 1. Regras de execução
 
-1. **Um caso do catálogo por vez:** transformar o `it.todo` em teste, vê-lo falhar, implementar o mínimo, vê-lo passar.
-2. **Refatoração só com tudo verde.**
+1. **Um caso do catálogo por vez:** para UNIT/E2E, transformar o `it.todo` em teste, vê-lo falhar, implementar o mínimo, vê-lo passar. Para os `A-DB-xx` (MANUAL), executar o checklist à mão e anexar o resultado ao PR antes do merge — não há ciclo RED→GREEN automatizado para eles.
+2. **Refatoração só com tudo verde** (CI verde + checklist MANUAL da fatia registrado como OK).
 3. **Nenhum teste da Fase 1 é alterado**, salvo os quatro da [§6 da Fase 2](fase-2-casos-de-teste-admin.md#6-testes-da-fase-1-que-mudam). Se outro quebrar, é regressão: corrigir o código, não o teste.
-4. **Toda migration tem o par de rollback** (§9 do planejamento) e passa pelo A-DB-17 (aplica → reverte → reaplica).
-5. **PRs pequenos,** na ordem da §2, com CI verde para o merge.
-6. **Toda política nova recebe `comment on policy`** explicando a intenção (A-DB-15).
+4. **Toda migration tem o par de rollback** (§9 do planejamento) e passa pelo A-DB-17 (aplica → reverte → reaplica, à mão, num banco local descartável).
+5. **PRs pequenos,** na ordem da §2, com CI verde e checklist MANUAL registrado para o merge.
+6. **Toda política nova recebe `comment on policy`** explicando a intenção (A-DB-15, verificado à mão).
 
 ---
 
@@ -39,7 +44,12 @@
       3.6 ────┘
 ```
 
-- **3.1 é independente** e fecha brechas existentes sem mudar nada para o admin (desde que o A-DB-04 esteja verde). Recomendação: implantar assim que estiver pronto, com um mini-roteiro da Fase 4 (só §3.3 e a verificação de segurança), sem esperar o restante.
+Os casos `A-DB-xx`/`A-TEN-01` de cada fatia são o checklist **MANUAL** da Fase 2 §5: quem entrega a
+fatia executa esses itens à mão contra o Supabase local ou de homologação e anexa o resultado ao PR.
+Eles não aparecem no CI. Os demais casos da coluna (`A-MW-*`, `A-PERM-*`, `A-BOOT-*`) são UNIT/E2E
+automatizados normalmente.
+
+- **3.1 é independente** e fecha brechas existentes sem mudar nada para o admin (desde que o A-DB-04 esteja OK no checklist). Recomendação: implantar assim que estiver pronto, com um mini-roteiro da Fase 4 (só §3.3 e a verificação de segurança), sem esperar o restante.
 - **3.3 é o ponto de não retorno:** a partir dele o banco depende de `profiles`. `015` e `018` vão para produção na mesma janela (§5 do planejamento).
 - **3.4 e 3.5 dependem das claims** (3.2) e vão para produção junto com 3.3, com o hook já habilitado.
 
@@ -65,13 +75,14 @@
 - [ ] **Runbook** com a ordem exata: backup → 012 → 013 → 014 → habilitar o hook no painel → 015 + 017 + 018 na mesma transação ou em sequência imediata → verificação → deploy do app (3.4–3.6) → desabilitar auto-cadastro, se ainda não tiver sido feito (ação imediata do README)
 - [ ] Scripts de rollback de cada migration, testados localmente (A-DB-17), mais a linha de base de políticas salva na Fase 1
 - [ ] Rollback do app: identificar o deploy anterior na Vercel para *redeploy* imediato
-- [ ] `explain analyze` das três consultas mais pesadas do admin — vendas paginadas, estatísticas de vendas e dashboard — antes e depois das novas políticas, no banco local com volume parecido com o de produção (antecipa parte de 5.2)
+- [ ] `explain analyze` das três consultas mais pesadas do admin — vendas paginadas, estatísticas de vendas e dashboard — antes e depois das novas políticas, executado à mão (fora da suíte automatizada) num banco local com volume parecido com o de produção (antecipa parte de 5.2)
 
 ---
 
 ## 5. Critérios de saída
 
-- [ ] Todos os A-xx verdes no CI; nenhum `it.todo` restante do catálogo
+- [ ] Todos os A-xx das camadas UNIT/E2E verdes no CI; nenhum `it.todo` restante do catálogo
+- [ ] Todos os A-DB-xx (MANUAL) executados e registrados para cada fatia, antes do respectivo merge/deploy
 - [ ] Suíte da Fase 1 verde, com exceção apenas dos casos substituídos
 - [ ] `select * from pg_policies` cobre as 10 tabelas, todas comentadas (critério de aceite da Etapa 1)
 - [ ] Nenhuma lista fixa de abas restou nos componentes (critério de aceite da Etapa 2)

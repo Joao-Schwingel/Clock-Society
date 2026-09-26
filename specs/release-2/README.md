@@ -42,6 +42,8 @@ Três características do sistema atual definem a ordem:
 
 Por isso a primeira fase não entrega funcionalidade nenhuma. Ela fixa em testes o comportamento atual. Depois, cada papel entra em dois tempos: primeiro os casos de teste são definidos e aprovados, depois são implementados, um de cada vez.
 
+> **Restrição de segurança (adicionada após a primeira revisão):** nenhum teste automatizado, nem comando executado por um agente de IA, toca em banco de dados — nem local, nem de homologação, nem de produção. Comandos de `DROP`/`DELETE`/`TRUNCATE`/reset de banco estão bloqueados nas permissões do Claude Code deste repositório (`.claude/settings.json`). Consequência direta no ponto 2 acima: "só um teste que compara contagens esperadas percebe" deixa de ser um teste automatizado — a verificação de RLS, grants e views vira um checklist **MANUAL**, executado por um humano contra o Supabase local ou de homologação. Ver [Fase 1 §1 e §2](fase-1-rede-de-testes.md#1-ponto-de-partida) para o detalhe e o trade-off aceito.
+
 ---
 
 ## 2. Visão geral das fases
@@ -80,7 +82,7 @@ Por isso a primeira fase não entrega funcionalidade nenhuma. Ela fixa em testes
 ## 3. Como as fases usam a skill `tdd`
 
 - **A Fase 1 não é TDD.** O código já existe, então os testes são de *caracterização*: descrevem o que o sistema faz hoje, certo ou errado. Como passam de primeira, cada teste precisa ser visto falhando pelo menos uma vez (sabotar o código localmente e confirmar que o teste acusa).
-- **As Fases 2 e 5 são a etapa de _Planning_ da skill:** confirmar as mudanças de interface, priorizar comportamentos, desenhar interfaces testáveis, listar os comportamentos e obter aprovação. O resultado chega ao código apenas como `it.todo("A-DB-05 …")`, sem asserções.
+- **As Fases 2 e 5 são a etapa de _Planning_ da skill:** confirmar as mudanças de interface, priorizar comportamentos, desenhar interfaces testáveis, listar os comportamentos e obter aprovação. Os casos automatizáveis (UNIT/E2E) chegam ao código apenas como `it.todo("A-MW-01 …")`, sem asserções; os casos MANUAL (`A-DB-xx`/`V-DB-xx`) entram como linhas de um checklist, sem execução ainda.
 - **As Fases 3 e 6 são os ciclos RED→GREEN**, um comportamento do catálogo por vez: escrever o teste, vê-lo falhar, implementar o mínimo, vê-lo passar, seguir para o próximo. Refatoração só com tudo verde.
 
 > Escrever todas as asserções nas Fases 2 e 5 e só implementar nas Fases 3 e 6 seria o anti-padrão
@@ -98,8 +100,8 @@ A suíte da Fase 1 é o contrato do comportamento atual. Nas Fases 3 e 6, **qual
 |---|---|---|
 | C-AUTH-05 — `/auth/sign-up` é rota pública | Fase 3 | Auto-cadastro fechado (achado 6) |
 | C-NAV-04 — primeiro acesso cria as 3 empresas | Fase 3 | Auto-criação removida (achado 5, item 2.4) |
-| C-DB-04 — acesso da chave anônima (partes em `test.fails`) | Fase 3 | Grants revisados (item 1.2) — o teste passa a valer por inteiro |
-| C-DB-05 — isolamento nas views e em `sale_items` (`test.fails`) | Fase 3 | Brechas fechadas (achados 1–3) — o teste passa a valer normalmente |
+| C-DB-04 — acesso da chave anônima (item **MANUAL**, hoje registrado como falha conhecida) | Fase 3 | Grants revisados (item 1.2) — o item MANUAL passa a registrar OK |
+| C-DB-05 — isolamento nas views e em `sale_items` (item **MANUAL**, hoje registrado como falha conhecida) | Fase 3 | Brechas fechadas (achados 1–3) — o item MANUAL passa a registrar OK |
 | C-DASH-02 — cálculo de comissão no navegador (unit) | Fase 6 | O código é removido (4.5); o equivalente passa a ser V-DB-12. **Os testes E2E dos números (C-DASH-03/04) continuam idênticos** |
 | C-DASH-03/04 — números de comissão | Fase 6, **somente se** Q2, N12 ou N13 mudarem a regra | Mudança de regra decidida pelo cliente, não efeito colateral |
 
@@ -127,18 +129,21 @@ O planejamento continua valendo integralmente para decisões, DDL e armadilhas. 
 
 | Fase | Itens do planejamento | Horas do planejamento | Esforço novo (estimativa) | Total |
 |---|---|---|---|---|
-| 1 | 1.1 | 1 h | 19–25 h — infra de testes, fixture, caracterização, CI | 20–26 h |
+| 1 | 1.1 | 1 h | 18–25 h — infra de testes, fixture, caracterização, CI (sem infraestrutura de banco de teste, ver Fase 1 §10) | 19–26 h |
 | 2 | — | — | 4–6 h | 4–6 h |
 | 3 | 1.2, 1.3, 1.4 (admin), 1.6, 2.1, 2.2, 2.4 | 11,5 h | 4–6 h — testes escritos junto da implementação | 15,5–17,5 h |
 | 4 | parte de 5.1 | — | 2–4 h | 2–4 h |
 | 5 | — | — | 4–6 h | 4–6 h |
 | 6 | 1.4 (vendedor), 1.5, 2.3, Etapa 3, Etapa 4, 5.1–5.3 | 30,5 h | 6–8 h | 36,5–38,5 h |
-| **Total** | | **43 h** | **39–55 h** | **82–98 h** |
+| **Total** | | **43 h** | **38–54 h** | **81–97 h** |
 
 > O item 1.4 (4 h) foi dividido em 2,5 h para o admin e 1,5 h para o vendedor.
 > **As horas novas não constam do `ORCAMENTO-ROLES.md`.** A rede de testes custa quase o mesmo que a
-> feature. Se o orçamento não comportar, a Fase 1 tem um corte mínimo (~12–14 h) descrito na
+> feature. Se o orçamento não comportar, a Fase 1 tem um corte mínimo (~11–13 h) descrito na
 > [§10 do documento dela](fase-1-rede-de-testes.md#10-estimativa-e-corte-mínimo).
+> As horas das Fases 3 e 6 também mudam de composição depois da restrição de banco: parte do tempo que
+> seria escrever testes DB automatizados vira execução e registro de checklist MANUAL — o total por fase
+> não muda de forma relevante, mas o `it.todo` some das tabelas `A-DB-xx`/`V-DB-xx` (ver Fases 2, 3, 5 e 6).
 
 ---
 
@@ -179,8 +184,8 @@ Os dois reduzem a exposição dos achados 1–3 enquanto a Fase 3 não chega.
 
 | # | Decisão | Recomendação | Alternativa |
 |---|---|---|---|
-| D-1 | Ferramentas de teste | Vitest (unit/DB), Playwright (E2E), Supabase CLI local (Docker) | Jest; Cypress |
-| D-2 | Como testar RLS | Vitest + `supabase-js` contra o PostgREST local, autenticando com usuários reais do fixture: o mesmo caminho do navegador (grants + views + RLS juntos) | pgTAP (`supabase test db`) — mais rápido, mas testa o SQL e não o caminho do app |
+| D-1 | Ferramentas de teste | Vitest (unit), Playwright (E2E, com rede mockada via `page.route()`). Supabase CLI local (Docker) só é usado por quem executa o checklist MANUAL — nunca pelo CI, nunca por este agente | Jest; Cypress |
+| D-2 | Como testar RLS | **Revisado:** nenhum teste automatizado pode autenticar contra um banco real. RLS, grants e views viram um checklist **MANUAL** (Fase 1 §2/§7), executado por um humano contra o Supabase local ou de homologação | *(rejeitada pela restrição de banco)* Vitest + `supabase-js` contra o PostgREST local — era a recomendação original: o mesmo caminho do navegador, pegando grant faltando, view ignorando RLS e política errada de uma vez. pgTAP (`supabase test db`) tem a mesma limitação: ainda é um teste tocando banco |
 | D-3 | Onde vivem as migrations | Adotar `supabase/migrations/` como fonte única a partir da Fase 1 (baseline = dump de produção); `scripts/` fica congelado como histórico | Manter `scripts/` e montar o banco de teste a partir dele — duas fontes de verdade |
 | D-4 | Refatoração na Fase 1 | Só extrações mecânicas de funções puras, uma por commit, sem mudar lógica (lista na Fase 1 §5) | Nenhuma extração; testar tudo via E2E (mais lento e frágil) |
 | D-5 | Bugs achados na Fase 1 | Fixar o comportamento atual no teste e registrar o bug; corrigir fora desta release, salvo segurança | Corrigir na hora (mistura mudança de comportamento com a rede de proteção) |
@@ -204,5 +209,5 @@ Os dois reduzem a exposição dos achados 1–3 enquanto a Fase 3 não chega.
 | Q6 | Algum vendedor atual fica sem login? (planejamento) | Fase 5 | `Site` fica; confirmar os demais |
 | Q7 | Haverá mais de um admin? | Fase 2 (A-DB-11, A-TEN-01) | Testar mesmo assim: é o único detector de N3 |
 | Q8 | Quem tem acesso à string de conexão de produção para o dump da Fase 1? | Fase 1 | — |
-| Q9 | Docker disponível nas máquinas do time e no CI (GitHub Actions)? | Fase 1 | GitHub Actions `ubuntu-latest` já tem Docker |
+| Q9 | Docker disponível nas máquinas de quem for executar o checklist MANUAL? Não é mais necessário no CI (nenhuma etapa do pipeline sobe banco de dados) | Fase 1 | Levantar por pessoa, conforme for executar o checklist |
 | Q10 | Venda de vendedor inativo entra no total de comissões (N12)? E arredondamento: 2 casas no total ou exibir como hoje (N13)? | Fase 5 | Manter o comportamento atual e adaptar a RPC a ele |

@@ -4,6 +4,11 @@
 **Depende de:** Fase 4 concluída (Etapa B); Q2, Q4, Q6 e Q10 respondidas. **Libera:** Fase 6.
 **Referência:** planejamento §1 (decisões fechadas), §3.3–3.4, §4.4, §7.1, §8 e Anexos B e C.
 
+> **Restrição de segurança:** nenhum teste automatizado toca em banco de dados (Fase 1 §1). O catálogo
+> "Banco" abaixo (`V-DB-xx`) é inteiramente **MANUAL** — o vendedor é o segundo papel do sistema, então
+> praticamente toda a superfície de RLS nova só pode ser provada com uma sessão real de vendedor contra
+> um banco real.
+
 ---
 
 ## 1. Como esta fase aplica a skill `tdd`
@@ -58,7 +63,10 @@ A venda compartilhada do fixture da Fase 1 fica entre Ana e Bruno na empresa A.
 
 ## 5. Catálogo V-xx
 
-### Banco
+### Banco (checklist MANUAL — nunca automatizado, nunca executado por este agente)
+
+Nenhum destes casos vira `it.todo`. São executados à mão contra o Supabase local ou de homologação,
+por um humano, antes do merge/deploy da fatia correspondente (Fase 6 §2).
 
 | ID | Comportamento |
 |---|---|
@@ -88,7 +96,7 @@ A venda compartilhada do fixture da Fase 1 fica entre Ana e Bruno na empresa A.
 | V-API-03 | E-mail duplicado → 409; payload inválido → 422; mensagens em PT-BR |
 | V-API-04 | Vincular registro que já tem login → erro antes de chegar ao banco |
 | V-API-05 | Desativar e reativar; resetar a senha reativa `must_change_password` |
-| V-API-06 | A chave `service_role` não aparece em nenhum arquivo servido ao navegador (`.next/static`) |
+| V-API-06 | A chave `service_role` não aparece em nenhum arquivo servido ao navegador (`.next/static`) — UNIT/CI: grep sobre o output do `next build`, sem abrir servidor nem banco nenhum |
 
 ### Middleware e rotas
 
@@ -128,8 +136,8 @@ A venda compartilhada do fixture da Fase 1 fica entre Ana e Bruno na empresa A.
 | Seção do planejamento | Coberta por |
 |---|---|
 | §8.1 — tela × papel | V-MW-01/03, V-UI-01 a 07; lado do admin: suíte da Fase 1 |
-| §8.2 — testes negativos | V-DB-01 a 11, V-API-02 |
-| §8.3 — validação de política isolada | V-DB-* (mesmo resultado, pelo caminho do PostgREST) |
+| §8.2 — testes negativos | V-DB-01 a 11 (MANUAL), V-API-02 (automatizado) |
+| §8.3 — validação de política isolada | V-DB-* (MANUAL — mesmo resultado, pelo caminho do PostgREST, mas executado à mão) |
 | §8.4 — cenários de vínculo | Fixture da §4 + V-UI-02/03, V-API-04, V-DB-01, V-REG-03, V-MW-04 |
 | §8.5 — regressão do admin | A-REG-01, V-REG-01/02 |
 
@@ -140,7 +148,8 @@ A venda compartilhada do fixture da Fase 1 fica entre Ana e Bruno na empresa A.
 - [ ] Q2, Q4, Q6 e Q10 respondidas e registradas
 - [ ] Decisões 3.1 a 3.10 fechadas
 - [ ] Fixture da §4 no seed
-- [ ] `it.todo` de todos os V-xx nos arquivos de teste
+- [ ] `it.todo` de todos os V-xx automatizáveis (UNIT/E2E) nos arquivos de teste
+- [ ] Checklist MANUAL redigido com os V-DB-xx
 - [ ] Catálogo aprovado por pelo menos um revisor além do autor
 
 **Estimativa:** 4–6 h.

@@ -4,6 +4,11 @@
 **Depende de:** Fase 5 aprovada; implantação em produção só depois do período de observação da Fase 4.
 **Itens do planejamento:** 1.4 (ramo do vendedor), 1.5, 2.3, Etapa 3, Etapa 4, Etapa 5.
 
+> **Restrição de segurança:** nenhum teste automatizado, nem este agente, toca em banco de dados
+> (Fase 1 §1). Os `V-DB-xx` desta fase (ramo do vendedor nas políticas, `vendor_sales`,
+> `commission_summary()`) são o checklist **MANUAL** da Fase 5 §5 — executado à mão contra o Supabase
+> local ou de homologação, antes do merge/deploy das fatias 6.2 e 6.3.
+
 ---
 
 ## 1. Regras de execução
@@ -32,6 +37,11 @@ As mesmas da [Fase 3](fase-3-implementacao-admin.md#1-regras-de-execução), mai
 **Por que 6.1 vem primeiro:** é o segundo maior risco do projeto (sales-view com 910 linhas), e agora
 tem rede de proteção. Feita isoladamente, qualquer quebra aponta direto para a extração.
 
+Os `V-DB-xx` das fatias 6.2 e 6.3 são o checklist **MANUAL** da Fase 5 §5: quem entrega a fatia executa
+esses itens à mão contra o Supabase local ou de homologação e anexa o resultado ao PR. Não aparecem no
+CI. Os demais casos das outras fatias (`V-API-*` exceto V-API-06, `V-MW-*`, `V-UI-*`, `V-REG-*`) são
+UNIT/E2E automatizados normalmente.
+
 **Dependências:** 6.2 → 6.3 → 6.4; 6.2 → 6.5 → 6.6 → 6.7; 6.1 + 6.3 → 6.8. A 6.4 pode ir para
 produção antes do resto, desde que V-REG-01 esteja verde: nesse ponto só o admin a usa.
 
@@ -56,7 +66,8 @@ produção antes do resto, desde que V-REG-01 esteja verde: nesse ponto só o ad
 
 Espelha a Fase 4 para o vendedor:
 
-- [ ] Todos os V-xx verdes; suítes das Fases 1 e 3 verdes
+- [ ] Todos os V-xx das camadas UNIT/E2E verdes; suítes das Fases 1 e 3 (UNIT/E2E) verdes
+- [ ] Todos os V-DB-xx (MANUAL) executados e registrados contra a homologação
 - [ ] Runbook de implantação: `019` → `016` → variáveis na Vercel (`SUPABASE_SERVICE_ROLE_KEY`) → deploy do app
 - [ ] Em homologação: matriz §8.1 e cenários §8.4 do planejamento executados à mão, com vendedores do fixture; os itens de §8.2 conferidos uma vez com token real via chamada direta à API
 - [ ] Ensaiar o rollback (políticas de volta à 015, `drop` de 016, *redeploy* do app)
@@ -68,7 +79,8 @@ Espelha a Fase 4 para o vendedor:
 
 ## 5. Critérios de saída (fim da release)
 
-- [ ] V-xx verdes, sem nenhum `it.todo` restante
+- [ ] V-xx das camadas UNIT/E2E verdes, sem nenhum `it.todo` restante
+- [ ] Checklist MANUAL (V-DB-xx) executado e registrado
 - [ ] Homologação final registrada, sem pendências (critério de aceite da Etapa 5)
 - [ ] Critérios de aceite das Etapas 3 e 4 do planejamento (§10) atendidos
 - [ ] Backlog futuro (§12 do planejamento) atualizado com o que ficou de fora

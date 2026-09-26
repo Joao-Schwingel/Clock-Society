@@ -1,7 +1,11 @@
 # Fase 2 — Casos de teste: papel admin
 
 **Objetivo:** definir e aprovar, antes de qualquer implementação, os comportamentos que provam que o sistema passou a ter papéis — com o admin como único papel funcional — e que o admin continua vendo exatamente o mesmo de antes.
-**Depende de:** Fase 1 (suíte verde, fixture, banco local). **Libera:** Fase 3.
+**Depende de:** Fase 1 (suíte verde, fixture, checklist MANUAL definido). **Libera:** Fase 3.
+
+> **Restrição de segurança:** nenhum teste automatizado toca em banco de dados (Fase 1 §1). Por isso o
+> catálogo abaixo tem uma camada nova, **MANUAL** — um checklist executado à mão, nunca por este agente,
+> nunca em CI — além das camadas UNIT e E2E (com rede mockada) já usadas na Fase 1.
 
 ---
 
@@ -17,8 +21,11 @@ Esta fase é a etapa de *Planning* da skill, feita com o time e não por uma pes
 | Listar comportamentos, não passos de implementação | §5 |
 | Obter aprovação | §8 |
 
-**Não se escrevem asserções nesta fase.** O catálogo entra no código como `it.todo("A-DB-05 …")`,
-agrupado por arquivo de teste. Cada `todo` vira teste de verdade dentro do ciclo RED→GREEN da Fase 3.
+**Não se escrevem asserções nesta fase.** Os casos das camadas UNIT e E2E entram no código como
+`it.todo("A-MW-01 …")`, agrupados por arquivo de teste; cada `todo` vira teste de verdade dentro do
+ciclo RED→GREEN da Fase 3. Os casos **MANUAL** (catálogo "Banco", §5) não viram `it.todo` — entram como
+linhas de um checklist (markdown ou planilha), sem execução ainda, que a Fase 3 executa à mão a cada
+fatia entregue.
 
 ---
 
@@ -119,7 +126,11 @@ função que lê as claims do token da sessão.
 
 Prioridade: **P1** = bloqueia a Fase 4; **P2** = importante, mas a Fase 4 pode compensar com verificação manual.
 
-### Banco
+### Banco (checklist MANUAL — nunca automatizado, nunca executado por este agente)
+
+Nenhum destes casos vira `it.todo`. São um checklist executado à mão contra o Supabase local ou de
+homologação, por um humano, antes do merge/deploy da fatia correspondente (§2 da Fase 3) — não bloqueiam
+o CI, mas bloqueiam a saída da fatia.
 
 | ID | Pri. | Comportamento |
 |---|---|---|
@@ -139,24 +150,33 @@ Prioridade: **P1** = bloqueia a Fase 4; **P2** = importante, mas a Fase 4 pode c
 | A-DB-14 | P2 | `profile_salespersons`: o mesmo registro de vendedor não pode ser vinculado a dois perfis |
 | A-DB-15 | P2 | Toda política do schema `public` tem `comment on policy` (critério de aceite da Etapa 1) |
 | A-DB-16 | P2 | Criar empresa continua criando o vendedor "Site" sob as novas políticas (C-SET-02 repetido) |
-| A-DB-17 | P1 | Cada migration da fase aplica, reverte (§9 do planejamento) e reaplica no banco local sem erro |
+| A-DB-17 | P1 | Cada migration da fase aplica, reverte (§9 do planejamento) e reaplica num banco local descartável sem erro |
+
+**Dois casos saem daqui porque não precisam de banco de verdade para serem provados:**
+
+- **A-PERM-01** (abaixo, "Permissões e navegação") deixa de ser "teste de deriva contra o banco local":
+  vira **UNIT**, comparando o catálogo do front contra o SQL de seed de `role_permissions` como arquivo
+  de texto (parse estático), sem abrir conexão nenhuma.
+- **A-BOOT-02** (abaixo, "Inicialização e inquilino") vira **E2E** com rede mockada: em vez de confirmar
+  que o RLS filtra de verdade, o teste intercepta a requisição de `companies` e afirma que ela **não**
+  envia mais `eq.user_id=<uid>` — verifica o que a tela manda, não o que o banco responde.
 
 ### Middleware e rotas
 
 | ID | Pri. | Comportamento |
 |---|---|---|
 | A-MW-01 | P1 | Sem sessão → `/auth/login` (C-AUTH-01 repetido) |
-| A-MW-02 | P1 | Admin com token válido acessa `/dashboard`; a decisão vem das claims do token (§3.3) |
+| A-MW-02 | P1 | Admin com token válido acessa `/dashboard`; a decisão vem das claims do token (§3.3) — E2E com um JWT fabricado (claims `app_role`/`tenant_id` de fixture), não com um login real contra o Supabase Auth |
 | A-MW-03 | P1 | `/auth/sign-up` e `/auth/sign-up-success` deixam de ser públicas. **Substitui C-AUTH-05** |
 | A-MW-04 | P1 | Usuário sem perfil e perfil sem permissão para a área → `/403`, com mensagem em PT-BR e botão "Sair" |
 | A-MW-05 | P2 | Depois do login, o admin vai para `/dashboard`; a regra de destino por papel fica num único lugar |
-| A-MW-06 | P1 | Sessão aberta antes da implantação (token sem claims) continua funcionando depois da renovação, sem ficar presa em `/403` |
+| A-MW-06 | P1 | Sessão aberta antes da implantação (token sem claims) continua funcionando depois da renovação, sem ficar presa em `/403` — E2E com um JWT de fixture sem as claims novas, simulando o token antigo |
 
 ### Permissões e navegação
 
 | ID | Pri. | Comportamento |
 |---|---|---|
-| A-PERM-01 | P1 | O catálogo do front é igual ao conteúdo de `role_permissions` (teste de deriva contra o banco local) |
+| A-PERM-01 | P1 | O catálogo do front é igual ao conteúdo de `role_permissions` — UNIT: parse do SQL de seed como arquivo de texto, sem abrir conexão com banco nenhum |
 | A-PERM-02 | P1 | O admin tem todas as permissões do catálogo |
 | A-PERM-03 | P2 | `<Can>` mostra o conteúdo com a permissão e o `fallback` sem ela |
 | A-PERM-04 | P1 | O registro de navegação gera para o admin exatamente as abas de hoje, na mesma ordem — C-NAV-01/02 continuam verdes sem alteração |
@@ -168,8 +188,8 @@ Prioridade: **P1** = bloqueia a Fase 4; **P2** = importante, mas a Fase 4 pode c
 | ID | Pri. | Comportamento |
 |---|---|---|
 | A-BOOT-01 | P1 | Entrar sem empresas mostra o estado vazio, sem quebrar (N4), e não cria nada. **Substitui C-NAV-04** |
-| A-BOOT-02 | P2 | As empresas chegam pelo RLS, sem filtro pelo id do usuário logado |
-| A-TEN-01 | P1 | Logado como o segundo admin do mesmo inquilino, todas as telas mostram os mesmos números que para o primeiro — detecta qualquer uso remanescente do id do usuário logado (N3) |
+| A-BOOT-02 | P2 | As empresas chegam sem filtro pelo id do usuário logado — E2E com rede mockada: afirma que a requisição de `companies` não envia `eq.user_id=<uid>`, não que o RLS filtra de verdade |
+| A-TEN-01 | P1 | **MANUAL.** Logado como o segundo admin do mesmo inquilino, todas as telas mostram os mesmos números que para o primeiro — detecta qualquer uso remanescente do id do usuário logado (N3). Precisa de duas sessões reais contra o mesmo banco; não dá para mockar sem esvaziar o teste |
 
 ### Regressão
 
@@ -185,8 +205,8 @@ Prioridade: **P1** = bloqueia a Fase 4; **P2** = importante, mas a Fase 4 pode c
 |---|---|
 | C-AUTH-05 | A-MW-03 |
 | C-NAV-04 | A-BOOT-01 |
-| C-DB-04 | A-DB-09 |
-| C-DB-05 | A-DB-06 |
+| C-DB-04 (MANUAL) | A-DB-09 (MANUAL) |
+| C-DB-05 (MANUAL) | A-DB-06 (MANUAL) |
 
 Qualquer outro teste da Fase 1 que quebrar durante a Fase 3 é regressão.
 
@@ -195,8 +215,9 @@ Qualquer outro teste da Fase 1 que quebrar durante a Fase 3 é regressão.
 ## 7. Entregáveis
 
 - [ ] Este catálogo revisado, com as decisões da §3 fechadas
-- [ ] Usuários e perfis da §4 no seed; helpers `loginAs` e de leitura de claims
-- [ ] Arquivos de teste com os `it.todo` de todos os A-xx, sem asserções
+- [ ] Usuários e perfis da §4 no seed; helpers `loginAs` e de leitura de claims — usados só por quem executa o checklist MANUAL, nunca pela suíte automatizada
+- [ ] Arquivos de teste com os `it.todo` de todos os A-xx das camadas UNIT/E2E, sem asserções
+- [ ] Checklist MANUAL (markdown ou planilha) com os A-DB-xx e A-TEN-01, sem execução ainda
 - [ ] Lista de migrations da Fase 3 com o nome e o par de rollback de cada uma
 
 ---
@@ -206,6 +227,7 @@ Qualquer outro teste da Fase 1 que quebrar durante a Fase 3 é regressão.
 - [ ] Catálogo aprovado por pelo menos um revisor além do autor
 - [ ] Decisões 3.1 a 3.7 registradas
 - [ ] Q7 respondida (ou A-DB-11/A-TEN-01 mantidos como detectores de N3)
-- [ ] `it.todo` presentes e listados no relatório do Vitest
+- [ ] `it.todo` presentes e listados no relatório do Vitest, para os casos UNIT/E2E
+- [ ] Checklist MANUAL redigido e revisado junto com o catálogo
 
 **Estimativa:** 4–6 h.
