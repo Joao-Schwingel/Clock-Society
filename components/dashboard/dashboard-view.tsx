@@ -23,6 +23,7 @@ import {
   summarizeCommissionsBySalesperson,
   type CommissionSummary,
 } from "@/lib/calc/dashboard";
+import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
 
 interface DashboardViewProps {
   companyId: string;
@@ -71,15 +72,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
 
     try {
       // ── Monta filtro de data ──────────────────────────────────
-      let dateOr: string | null = null;
-      if (months.length > 0) {
-        const ranges = months.map((m) => {
-          const start = new Date(Number(year), m, 1);
-          const end = new Date(Number(year), m + 1, 1);
-          return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
-        });
-        dateOr = ranges.join(",");
-      }
+      const dateOr = buildSaleDateRangeFilter(months, year);
 
       // ── Queries paralelas ─────────────────────────────────────
       let salesQ = supabase

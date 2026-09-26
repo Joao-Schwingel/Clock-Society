@@ -26,6 +26,7 @@ import { Spinner } from "@radix-ui/themes";
 import { DashboardFilters } from "./dashboards-filters";
 import { toast } from "sonner";
 import { formatBR } from "@/lib/utils";
+import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
 
 interface SalesViewProps {
   companyId: string;
@@ -85,14 +86,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       .select(STATS_SELECT)
       .eq("company_id", companyId);
 
-    if (months.length > 0) {
-      const ranges = months.map((m) => {
-        const start = new Date(Number(year), m, 1);
-        const end = new Date(Number(year), m + 1, 1);
-        return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
-      });
-      query = query.or(ranges.join(","));
-    }
+    const dateOr = buildSaleDateRangeFilter(months, year);
+    if (dateOr) query = query.or(dateOr);
 
     const { data, error } = await query;
     if (!error && data) setSales(data as SaleWithDetails[]);
@@ -134,14 +129,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       .eq("company_id", companyId);
 
     // Filtro de meses do dashboard (mesmo que os cards)
-    if (months.length > 0) {
-      const ranges = months.map((m) => {
-        const start = new Date(Number(year), m, 1);
-        const end = new Date(Number(year), m + 1, 1);
-        return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
-      });
-      query = query.or(ranges.join(","));
-    }
+    const dateOr = buildSaleDateRangeFilter(months, year);
+    if (dateOr) query = query.or(dateOr);
 
     // Filtro de busca (produto, cliente, nº pedido)
     if (appliedSearch.trim()) {
