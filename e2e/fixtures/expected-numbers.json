@@ -7,7 +7,7 @@
       "dashboard": {
         "2026-inteiro": {
           "months": [], "year": "2026",
-          "receita": 1190, "receitaLiquida": 1170, "comissoes": 141.333,
+          "receita": 1190, "receitaLiquida": 1170, "comissoes": 141.133,
           "custosVendas": 20, "custosGerais": 13200, "lucro": -12171.133,
           "porVendedor": {
             "Ana": { "vendas": 3, "totalVendas": 510, "custos": 0, "lucroLiquido": 510, "comissao": 51 },
