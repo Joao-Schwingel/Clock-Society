@@ -32,6 +32,19 @@ describe("getContractActiveMonthsInYear", () => {
     const contract = { start_date: "2024-01-01", end_date: "2024-12-31" };
     expect(getContractActiveMonthsInYear(contract, 2026)).toBe(0);
   });
+
+  it("contrato encerrado no meio do ano conta só até o mês do fim", () => {
+    const contract = { start_date: "2026-01-01", end_date: "2026-06-30" };
+    expect(getContractActiveMonthsInYear(contract, 2026)).toBe(6); // jan..jun
+  });
+
+  // A contagem é por índice ano*12+mês, então o dia do end_date é irrelevante:
+  // qualquer fim dentro de junho conta junho inteiro.
+  it("mês parcial conta como mês inteiro", () => {
+    const start_date = "2026-01-01";
+    expect(getContractActiveMonthsInYear({ start_date, end_date: "2026-06-01" }, 2026)).toBe(6);
+    expect(getContractActiveMonthsInYear({ start_date, end_date: "2026-06-30" }, 2026)).toBe(6);
+  });
 });
 
 describe("summarizeContracts", () => {
@@ -44,5 +57,19 @@ describe("summarizeContracts", () => {
     expect(summary.activeCount).toBe(1);
     expect(summary.totalMonthly).toBe(1000);
     expect(summary.totalAnnual).toBe(12000); // só o contrato ativo conta em 2026
+  });
+
+  // Assimetria proposital de contracts-view.tsx: totalMonthly soma só os
+  // ativos, mas totalAnnual soma TODOS os contratos pelos meses em que
+  // estiveram ativos no ano — um contrato encerrado em jun/2026 não entra no
+  // mensal, mas seus 6 meses entram no anual.
+  it("totalAnnual conta os meses de um contrato já encerrado no ano corrente", () => {
+    const contracts = [
+      { start_date: "2026-01-01", end_date: "2026-06-30", monthly_value: 1000 },
+    ];
+    const summary = summarizeContracts(contracts, "2026-09-15", 2026);
+    expect(summary.activeCount).toBe(0);
+    expect(summary.totalMonthly).toBe(0);
+    expect(summary.totalAnnual).toBe(6000);
   });
 });
