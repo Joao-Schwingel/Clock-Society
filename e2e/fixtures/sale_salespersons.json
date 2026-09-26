@@ -1,0 +1,21 @@
+[
+  { "id": "ss-a-01", "sale_id": "sale-a-01", "salesperson_id": "sp-ana-a", "commission_percent": 10 },
+  { "id": "ss-a-02", "sale_id": "sale-a-02", "salesperson_id": "sp-bruno-a", "commission_percent": 8 },
+  { "id": "ss-a-03-1", "sale_id": "sale-a-03", "salesperson_id": "sp-ana-a", "commission_percent": 10 },
+  { "id": "ss-a-03-2", "sale_id": "sale-a-03", "salesperson_id": "sp-bruno-a", "commission_percent": 5 },
+  { "id": "ss-a-04", "sale_id": "sale-a-04", "salesperson_id": "sp-elis-a", "commission_percent": 20 },
+  { "id": "ss-a-05", "sale_id": "sale-a-05", "salesperson_id": "sp-carla-a", "commission_percent": 33.333 },
+  { "id": "ss-a-06", "sale_id": "sale-a-06", "salesperson_id": "sp-ana-a", "commission_percent": 10 },
+  { "id": "ss-a-07", "sale_id": "sale-a-07", "salesperson_id": "sp-bruno-a", "commission_percent": 8 },
+  { "id": "ss-a-08", "sale_id": "sale-a-08", "salesperson_id": "sp-ana-a", "commission_percent": 10 },
+  { "id": "ss-a-09", "sale_id": "sale-a-09", "salesperson_id": "sp-bruno-a", "commission_percent": 8 },
+  { "id": "ss-a-10", "sale_id": "sale-a-10", "salesperson_id": "sp-ana-a", "commission_percent": 10 },
+  { "id": "ss-a-11", "sale_id": "sale-a-11", "salesperson_id": "sp-bruno-a", "commission_percent": 8 },
+
+  { "id": "ss-b-01", "sale_id": "sale-b-01", "salesperson_id": "sp-carla-b", "commission_percent": 15 },
+  { "id": "ss-b-02", "sale_id": "sale-b-02", "salesperson_id": "sp-site-b", "commission_percent": 0 },
+
+  { "id": "ss-c-01", "sale_id": "sale-c-01", "salesperson_id": "sp-site-c", "commission_percent": 0 },
+
+  { "id": "ss-x-01", "sale_id": "sale-x-01", "salesperson_id": "sp-site-x", "commission_percent": 0 }
+]

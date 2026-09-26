@@ -1,0 +1,8 @@
+[
+  { "id": "cost-a-02-1", "sale_id": "sale-a-02", "cost_type": "Transporte", "description": null, "amount": 20, "user_id": "u-admin", "created_at": "2026-09-30T12:00:00.000Z", "updated_at": "2026-09-30T12:00:00.000Z" },
+
+  { "id": "cost-a-03-1", "sale_id": "sale-a-03", "cost_type": "Tarifas", "description": "Taxa do marketplace", "amount": 15, "user_id": "u-admin", "created_at": "2026-09-15T12:00:01.000Z", "updated_at": "2026-09-15T12:00:01.000Z" },
+  { "id": "cost-a-03-2", "sale_id": "sale-a-03", "cost_type": "Transporte", "description": null, "amount": 25, "user_id": "u-admin", "created_at": "2026-09-15T12:00:02.000Z", "updated_at": "2026-09-15T12:00:02.000Z" },
+
+  { "id": "cost-b-02-1", "sale_id": "sale-b-02", "cost_type": "Embalagem", "description": null, "amount": 10, "user_id": "u-admin", "created_at": "2026-09-18T12:00:00.000Z", "updated_at": "2026-09-18T12:00:00.000Z" }
+]

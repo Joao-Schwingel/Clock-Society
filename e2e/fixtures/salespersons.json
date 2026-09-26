@@ -1,0 +1,15 @@
+[
+  { "id": "sp-site-a", "user_id": "u-admin", "company_id": "comp-a", "name": "Site", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-01T10:00:00.000Z", "updated_at": "2026-01-01T10:00:00.000Z" },
+  { "id": "sp-ana-a", "user_id": "u-admin", "company_id": "comp-a", "name": "Ana", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-02T10:00:00.000Z", "updated_at": "2026-01-02T10:00:00.000Z" },
+  { "id": "sp-bruno-a", "user_id": "u-admin", "company_id": "comp-a", "name": "Bruno", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-03T10:00:00.000Z", "updated_at": "2026-01-03T10:00:00.000Z" },
+  { "id": "sp-carla-a", "user_id": "u-admin", "company_id": "comp-a", "name": "Carla", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-04T10:00:00.000Z", "updated_at": "2026-01-04T10:00:00.000Z" },
+  { "id": "sp-diego-a", "user_id": "u-admin", "company_id": "comp-a", "name": "Diego", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-05T10:00:00.000Z", "updated_at": "2026-01-05T10:00:00.000Z", "note": "Ativo, sem nenhuma venda." },
+  { "id": "sp-elis-a", "user_id": "u-admin", "company_id": "comp-a", "name": "Elis", "commission_percentage": 0, "is_active": false, "created_at": "2026-01-06T10:00:00.000Z", "updated_at": "2026-09-01T10:00:00.000Z", "note": "Inativa, mas com venda concluída no período (N12)." },
+
+  { "id": "sp-site-b", "user_id": "u-admin", "company_id": "comp-b", "name": "Site", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-01T10:00:01.000Z", "updated_at": "2026-01-01T10:00:01.000Z" },
+  { "id": "sp-carla-b", "user_id": "u-admin", "company_id": "comp-b", "name": "Carla", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-07T10:00:00.000Z", "updated_at": "2026-01-07T10:00:00.000Z", "note": "Mesma pessoa de sp-carla-a, registro próprio na empresa B." },
+
+  { "id": "sp-site-c", "user_id": "u-admin", "company_id": "comp-c", "name": "Site", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-01T10:00:02.000Z", "updated_at": "2026-01-01T10:00:02.000Z" },
+
+  { "id": "sp-site-x", "user_id": "u-outro", "company_id": "comp-x", "name": "Site", "commission_percentage": 0, "is_active": true, "created_at": "2026-01-01T10:00:03.000Z", "updated_at": "2026-01-01T10:00:03.000Z" }
+]
