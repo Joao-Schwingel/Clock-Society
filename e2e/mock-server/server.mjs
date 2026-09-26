@@ -50,6 +50,18 @@ function wantsCount(req) {
   return (req.headers["prefer"] ?? "").includes("count=exact");
 }
 
+// .single()/.maybeSingle() do postgrest-js pedem um objeto (não array) via
+// este Accept header — sem isso, `.insert(...).select("id").single()`
+// (usado em sales-form.tsx) recebe um array e "inserted.id" vem undefined.
+function wantsSingleObject(req) {
+  return (req.headers["accept"] ?? "").includes("vnd.pgrst.object");
+}
+
+function unwrapIfSingle(req, rows) {
+  if (!wantsSingleObject(req)) return rows;
+  return rows[0] ?? null;
+}
+
 function rowsForTable(name) {
   if (VIEW_BUILDERS[name]) return VIEW_BUILDERS[name](tables);
   return tables[name];
@@ -75,7 +87,8 @@ async function handleRest(req, res, url, table, method) {
     const { page, total, offset } = paginate(ordered, url.searchParams);
     const projected = selectColumns(page, url.searchParams);
     const headers = wantsCount(req) ? contentRangeHeader(offset, page.length, total) : {};
-    sendJson(res, 200, method === "HEAD" ? undefined : projected, headers);
+    const body = method === "HEAD" ? undefined : unwrapIfSingle(req, projected);
+    sendJson(res, 200, body, headers);
     return;
   }
 
@@ -92,7 +105,9 @@ async function handleRest(req, res, url, table, method) {
       ...row,
     }));
     tables[table].push(...rowsToInsert);
-    const body2 = wantsRepresentation(req) ? selectColumns(rowsToInsert, url.searchParams) : undefined;
+    const body2 = wantsRepresentation(req)
+      ? unwrapIfSingle(req, selectColumns(rowsToInsert, url.searchParams))
+      : undefined;
     sendJson(res, 201, body2);
     return;
   }
@@ -108,7 +123,9 @@ async function handleRest(req, res, url, table, method) {
       updated.push(next);
       return next;
     });
-    const body2 = wantsRepresentation(req) ? selectColumns(updated, url.searchParams) : undefined;
+    const body2 = wantsRepresentation(req)
+      ? unwrapIfSingle(req, selectColumns(updated, url.searchParams))
+      : undefined;
     sendJson(res, wantsRepresentation(req) ? 200 : 204, body2);
     return;
   }
@@ -117,7 +134,9 @@ async function handleRest(req, res, url, table, method) {
     const matches = filterRows(tables[table], url.searchParams);
     const matchIds = new Set(matches.map((r) => r.id));
     tables[table] = tables[table].filter((row) => !matchIds.has(row.id));
-    const body2 = wantsRepresentation(req) ? selectColumns(matches, url.searchParams) : undefined;
+    const body2 = wantsRepresentation(req)
+      ? unwrapIfSingle(req, selectColumns(matches, url.searchParams))
+      : undefined;
     sendJson(res, wantsRepresentation(req) ? 200 : 204, body2);
     return;
   }

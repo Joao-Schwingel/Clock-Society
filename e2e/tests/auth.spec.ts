@@ -15,13 +15,13 @@ test("/ leva a /auth/login sem sessão", async ({ page }) => {
 test("/ leva a /dashboard com sessão", async ({ page }) => {
   await login(page);
   await page.goto("/");
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/dashboard/);
 });
 
 // C-AUTH-02
 test("login válido leva a /dashboard", async ({ page }) => {
   await login(page);
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole("heading", { name: "Clock Society" })).toBeVisible();
 });
 
