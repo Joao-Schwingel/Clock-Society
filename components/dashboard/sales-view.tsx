@@ -27,6 +27,7 @@ import { DashboardFilters } from "./dashboards-filters";
 import { toast } from "sonner";
 import { formatBR } from "@/lib/utils";
 import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
+import { summarizeSalesStats } from "@/lib/calc/sales-stats";
 
 interface SalesViewProps {
   companyId: string;
@@ -500,38 +501,21 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     !!searchTerm || !!appliedSearch || !!dateFilter || onlyWithRemaining || !!salespersonFilter || !!statusFilter;
 
   // ── Cálculos dos cards de estatísticas ────────────────────────
-  const completedSales = sales.filter((s) => s.status === "concluída");
-  const pendingSales = sales.filter((s) => s.status === "pendente");
-
-  const completedRevenue = completedSales.reduce(
-    (sum, s) => sum + Number(s.total_price),
-    0,
-  );
-  const pendingRevenue = pendingSales.reduce(
-    (sum, s) => sum + Number(s.total_price),
-    0,
-  );
-
-  const completedCosts = completedSales.reduce(
-    (sum, s) => sum + Number(s.total_costs ?? 0),
-    0,
-  );
-  const pendingCosts = pendingSales.reduce(
-    (sum, s) => sum + Number(s.total_costs ?? 0),
-    0,
-  );
-
-  const completedNetProfit = completedRevenue - completedCosts;
-  const pendingNetProfit = pendingRevenue - pendingCosts;
-
-  const paymentsCompleted = sales.filter((s) => s.payment_status === "pago");
-  const paymentsPending = sales.filter((s) => s.payment_status !== "pago");
-
-  const totalMissingPayments = paymentsPending.reduce((sum, s) => {
-    const total = Number(s.total_price ?? 0);
-    const entry = Number(s.entry_value ?? 0);
-    return sum + Math.max(total - entry, 0);
-  }, 0);
+  const {
+    completedCount,
+    pendingCount,
+    completedRevenue,
+    pendingRevenue,
+    completedCosts,
+    pendingCosts,
+    completedNetProfit,
+    pendingNetProfit,
+    completedItemsCount,
+    pendingItemsCount,
+    paymentsCompletedCount,
+    paymentsPendingCount,
+    totalMissingPayments,
+  } = summarizeSalesStats(sales);
 
   const totalPages = Math.ceil(tableTotal / TABLE_PAGE_SIZE);
 
@@ -567,7 +551,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
                   })}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {completedSales.length} vendas aprovadas
+                  {completedCount} vendas aprovadas
                 </p>
               </CardContent>
             </Spinner>
@@ -631,7 +615,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             <Spinner loading={isLoading} size={"3"}>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {completedSales.reduce((sum, sale) => sum + sale.quantity, 0)}
+                  {completedItemsCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Quantidade total
@@ -664,7 +648,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
                   })}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {pendingSales.length} vendas aguardando
+                  {pendingCount} vendas aguardando
                 </p>
               </CardContent>
             </Spinner>
@@ -728,7 +712,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             <Spinner loading={isLoading} size={"3"}>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {pendingSales.reduce((sum, sale) => sum + sale.quantity, 0)}
+                  {pendingItemsCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Quantidade aguardando
@@ -755,7 +739,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             <Spinner loading={isLoading} size={"3"}>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {paymentsCompleted.length}
+                  {paymentsCompletedCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Vendas com pagamento confirmado
@@ -774,7 +758,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             <Spinner loading={isLoading} size={"3"}>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {paymentsPending.length}
+                  {paymentsPendingCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Vendas aguardando pagamento
