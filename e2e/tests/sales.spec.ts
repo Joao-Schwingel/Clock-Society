@@ -197,6 +197,55 @@ test("nova venda: entrada vazia é à vista (pago) e mostra toast de sucesso", a
   await expect(page.getByRole("row").filter({ hasText: "9001" })).toBeVisible();
 });
 
+// C-SALES-08
+test("editar venda carrega itens e vendedores; salva o valor líquido total digitado", async ({
+  page,
+}) => {
+  await goToVendas(page);
+  await row(page, "1003").locator("button:has(svg.lucide-pencil)").click();
+
+  await expect(page.getByRole("dialog")).toContainText("Editar Venda");
+  await expect(page.getByLabel("Número do Pedido *")).toHaveValue("1003");
+  // 2 itens (Caneca Azul + Camiseta Preta) e 2 vendedores (Ana + Bruno)
+  await expect(page.getByText("Item 1")).toBeVisible();
+  await expect(page.getByText("Item 2")).toBeVisible();
+  await expect(page.locator("#totalPrice")).toHaveValue("400");
+
+  await page.locator("#totalPrice").fill("500");
+  await page.getByRole("button", { name: "Atualizar", exact: true }).click();
+
+  // N1: o valor digitado é o que fica salvo (o gatilho recalc_sale_total,
+  // se existir no banco real, não é exercitado pelo mock — checklist MANUAL).
+  await expect(row(page, "1003")).toContainText(formatBRL(500 - 40)); // Total = 500 - custos(40)
+});
+
+// C-SALES-09
+test("detalhes: dados, produtos, custos e resumo; adicionar custo atualiza tudo", async ({
+  page,
+}) => {
+  await goToVendas(page);
+  await row(page, "1002").locator("button:has(svg.lucide-eye)").click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Detalhes da Venda");
+  await expect(dialog).toContainText("Camiseta Preta"); // Produtos
+  await expect(dialog).toContainText("Transporte"); // Custos
+  await expect(dialog.getByText(`R$ ${formatBRL(130)}`)).toBeVisible(); // Lucro Líquido = 150-20
+
+  await dialog.getByRole("button", { name: "Adicionar Custo" }).click();
+  await page.locator('[role="combobox"]').filter({ hasText: "Selecione o tipo" }).click();
+  await page.getByRole("option", { name: "Impostos" }).click();
+  await page.getByLabel("Valor (R$) *").fill("10");
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+
+  // Resumo do modal atualiza: custos 20+10=30, lucro 150-30=120
+  await expect(dialog.getByText(`R$ ${formatBRL(120)}`)).toBeVisible();
+  await page.getByRole("button", { name: "Concluir" }).click();
+
+  // Tabela e cartões (fora do modal) também refletem o novo custo total
+  await expect(row(page, "1002")).toContainText(`R$ ${formatBRL(30)}`); // Custo Total
+});
+
 // C-SALES-11
 test("exportar respeita os filtros ativos e ignora a paginação", async ({ page }) => {
   await goToVendas(page);
