@@ -21,17 +21,27 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // `reuseExistingServer` fica SEMPRE false, inclusive fora do CI. O teste de
+  // reuso do Playwright só verifica que a porta responde — ele não olha com que
+  // NEXT_PUBLIC_SUPABASE_URL o processo subiu. Com reuso ligado, um `next dev
+  // -p 3100` já rodando com o .env.local real seria adotado pela suíte, o bloco
+  // `env` abaixo seria ignorado, e os testes que escrevem (inserem o pedido
+  // 9001, apagam a venda 1011, apagam o contrato "Contador", desativam o
+  // Diego) iriam para o Supabase de verdade — o `POST /__test__/reset` do mock
+  // não desfaz nada disso. Ver a regra absoluta no CLAUDE.md: nenhum teste
+  // automatizado conecta em banco real. Com false, uma porta ocupada vira erro
+  // alto e claro em vez de silenciosamente rodar contra o servidor errado.
   webServer: [
     {
       command: "node e2e/mock-server/server.mjs",
       url: MOCK_URL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       env: { MOCK_PORT: String(MOCK_PORT) },
     },
     {
       command: `pnpm exec next dev -p ${APP_PORT}`,
       url: APP_URL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 60_000,
       env: {
         NEXT_PUBLIC_SUPABASE_URL: MOCK_URL,
