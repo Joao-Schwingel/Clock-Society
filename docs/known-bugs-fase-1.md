@@ -52,24 +52,33 @@ chamada, ou montar `newCompanies` a partir do retorno de
 `.insert(...).select()` em vez de uma consulta separada) fora desta fase,
 antes do próximo usuário novo se cadastrar.
 
-## 3. `…` literal em atributos JSX (placeholder e texto de botão)
+## 3. `\u2026` literal no atributo JSX do placeholder de busca
 
-**Onde:** `components/dashboard/sales-table.tsx` (placeholder de busca;
-texto do botão "Exportando…")
+**Onde:** `components/dashboard/sales-table.tsx` (placeholder do campo de
+busca)
 **Caracterizado em:** `e2e/tests/sales.spec.ts` (constante
 `SEARCH_PLACEHOLDER`)
 
-Dentro de uma string de atributo JSX (`placeholder="...…"`), `…`
+```tsx
+placeholder="Buscar por nº do pedido, produto ou cliente\u2026"
+```
+
+Dentro de uma string de **atributo JSX** (não envolvida em `{}`), `\u2026`
 não é interpretado como escape Unicode — isso só acontece em string
-literals do JavaScript. O texto que chega na tela é literalmente
-`...cliente…` (com a barra e "u2026" como caracteres), não
-`...cliente…` com um "…" de verdade.
+literals de JavaScript de verdade (uma string dentro de `{}`, ou em
+`.ts`/`.js` fora de JSX). O texto que chega na tela é literalmente
+`...cliente\u2026` (com a barra invertida e "u2026" como caracteres
+visíveis), não `...cliente…` com um "…" de verdade.
 
-**Impacto:** cosmético (o placeholder e o texto do botão de exportar
-mostram um `…` visível em vez de "…"). Correção trivial (usar o
-caractere "…" direto ou `{"…"}` como expressão JS), mas fora do escopo
-desta fase.
+**Impacto:** cosmético — o placeholder de busca da aba Vendas mostra
+`\u2026` em vez de "…". Correção trivial (usar o caractere "…"
+direto ou `{"\u2026"}` como expressão JS), mas fora do escopo desta
+fase.
 
+*Nota: o texto do botão "Exportando…" (`{isExporting ? "Exportando\u2026" : "Exportar"}`)
+**não** tem esse problema — está dentro de `{}` (uma expressão JS de
+verdade), então `\u2026` ali é interpretado corretamente como escape
+Unicode. Só o atributo `placeholder` (fora de `{}`) é afetado.
 ## 4. `<Toaster/>` do shadcn/ui nunca é montado
 
 **Onde:** `hooks/use-toast.ts` + `components/ui/toaster.tsx` vs.
