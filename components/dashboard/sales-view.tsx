@@ -25,9 +25,9 @@ import { SaleDetailsModal } from "./sale-details-modal";
 import { Spinner } from "@radix-ui/themes";
 import { DashboardFilters } from "./dashboards-filters";
 import { toast } from "sonner";
-import { formatBR } from "@/lib/utils";
 import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
 import { summarizeSalesStats } from "@/lib/calc/sales-stats";
+import { buildSalesCsvContent } from "@/lib/calc/sales-csv";
 
 interface SalesViewProps {
   companyId: string;
@@ -406,77 +406,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         }
       }
 
-      const formatMoney = (v: number) =>
-        v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
-
-      const headers = [
-        "Data",
-        "Nº Pedido",
-        "Produtos",
-        "Cliente",
-        "Vendedor",
-        "Status",
-        "Quantidade",
-        "Valor do Produto",
-        "Custo Total",
-        "Valor Líquido",
-        "Valor Líquido após Comissão",
-        "Entrada",
-        "Faltante",
-        "Status Pagamento",
-      ];
-
-      const escapeCSV = (val: unknown): string => {
-        const str = String(val ?? "");
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      const rows = data.map((sale: any) => {
-        const costs = Number(sale.total_costs ?? 0);
-        const total = Number(sale.total_price ?? 0);
-        const entry = Number(sale.entry_value ?? 0);
-        const paymentStatus = sale.payment_status ?? "pendente";
-        const remaining =
-          paymentStatus === "pago" ? 0 : Math.max(0, total - entry);
-        const qty = qtyMap[sale.id] ?? sale.quantity ?? 0;
-        const products = productMap[sale.id] || sale.product_name || "-";
-        const salespersons = (sale.salespersons ?? [])
-          .map((p: any) => p.name)
-          .join(", ");
-
-        const netValue = total - costs;
-        const totalCommission = (sale.salespersons ?? []).reduce(
-          (sum: number, p: any) =>
-            sum + (netValue * Number(p.commission_percent || 0)) / 100,
-          0,
-        );
-        const netAfterCommission = netValue - totalCommission;
-
-        return [
-          sale.sale_date ? formatBR(sale.sale_date) : "-",
-          sale.order_number || "-",
-          products,
-          sale.customer_name || "-",
-          salespersons || "-",
-          sale.status === "concluída" ? "Concluída" : "Pendente",
-          String(qty),
-          formatMoney(total),
-          formatMoney(costs),
-          formatMoney(netValue),
-          formatMoney(netAfterCommission),
-          entry > 0 ? formatMoney(entry) : "-",
-          formatMoney(remaining),
-          paymentStatus === "pago" ? "Pago" : "Pendente",
-        ].map(escapeCSV);
-      });
-
-      const csvContent =
-        "\uFEFF" + [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join(
-          "\n",
-        );
+      const csvContent = buildSalesCsvContent(data as any, qtyMap, productMap);
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
