@@ -3,7 +3,17 @@ import nextConfig from "eslint-config-next/core-web-vitals";
 const config = [
   ...nextConfig,
   {
-    ignores: ["e2e/mock-server/fixtures/**", "playwright-report/**", "test-results/**"],
+    ignores: ["e2e/fixtures/**", "playwright-report/**", "test-results/**"],
+  },
+  {
+    // e2e/** é infra de teste Node/Playwright, não código React — o parâmetro
+    // "use" do fixture do Playwright (`async ({page}, use) => ...`) é lido
+    // pelo eslint-plugin-react-hooks como o hook use() do React fora de um
+    // componente, gerando falso positivo.
+    files: ["e2e/**/*.ts"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+    },
   },
   {
     // Fase 1 (rede de testes): nenhuma mudança de comportamento é permitida no código de
