@@ -166,6 +166,12 @@ export function createMockServer() {
     }
 
     try {
+      // Health check do Playwright (config.webServer) antes de subir next dev.
+      if ((url.pathname === "/" || url.pathname === "/index.html") && method === "GET") {
+        sendJson(res, 200, { ok: true, service: "clock-society-mock" });
+        return;
+      }
+
       if (url.pathname === "/__test__/reset" && method === "POST") {
         users = loadUsers();
         tables = freshTables();
