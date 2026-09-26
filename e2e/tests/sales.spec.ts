@@ -1,13 +1,12 @@
 import { test, expect, login, formatBRL, MOCK_URL } from "../test-helpers";
 
-// ACHADO: o placeholder de busca é escrito em sales-table.tsx como um
-// atributo JSX puro (`placeholder="...cliente\u2026"`, fora de `{}`).
-// Dentro de um atributo JSX assim, "\u2026" NÃO é interpretado como
-// escape Unicode (isso só acontece em string literals de JS de verdade —
-// uma string dentro de `{}`), então o texto que chega na tela é
-// literalmente "...cliente\u2026" (com a barra invertida e "u2026"
-// como caracteres visíveis), não "...cliente…" com um "…" de verdade.
-const SEARCH_PLACEHOLDER = "Buscar por nº do pedido, produto ou cliente\\u2026";
+// Era um ACHADO desta fase, agora corrigido: o placeholder estava escrito como
+// `placeholder="...cliente\u2026"` — um atributo JSX puro, fora de `{}`. Ali
+// "\u2026" não é escape Unicode (isso só vale em string literal de JS de
+// verdade, dentro de `{}`), então a tela mostrava a barra invertida e "u2026"
+// como caracteres visíveis. Agora usa "...", igual aos outros placeholders do
+// projeto (inventory-table, contracts-table, fixed-cost-table etc.).
+const SEARCH_PLACEHOLDER = "Buscar por nº do pedido, produto ou cliente...";
 
 async function goToVendas(page: import("@playwright/test").Page) {
   await login(page);

@@ -255,7 +255,7 @@ export function SalesTable({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nº do pedido, produto ou cliente\u2026"
+              placeholder="Buscar por nº do pedido, produto ou cliente..."
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={(e) => {

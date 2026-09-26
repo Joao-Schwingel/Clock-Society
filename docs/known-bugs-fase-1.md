@@ -1,10 +1,14 @@
 # Bugs conhecidos — Fase 1 (D-5)
 
 > Achados durante a construção da rede de testes. Por regra da fase (§1:
-> "nenhuma mudança de comportamento"), nenhum deles foi corrigido — cada um
-> foi **fixado em teste** (a suíte trava o comportamento atual, certo ou
-> errado) e registrado aqui. Corrigir é trabalho de uma release futura,
-> salvo se algum vier a ser reclassificado como falha de segurança.
+> "nenhuma mudança de comportamento"), cada um foi **fixado em teste** (a
+> suíte trava o comportamento atual, certo ou errado) e registrado aqui.
+> Corrigir é trabalho de uma release futura, salvo se algum vier a ser
+> reclassificado como falha de segurança.
+>
+> **Exceção:** o nº 3 (`\u2026` no placeholder) foi corrigido ainda nesta
+> fase, a pedido — era cosmético, de uma linha, e sem efeito em nenhum
+> número do oráculo. Está mantido aqui como registro.
 
 ## 1. Corrida entre os dois `useTabWithQuery` na montagem inicial
 
@@ -52,12 +56,14 @@ chamada, ou montar `newCompanies` a partir do retorno de
 `.insert(...).select()` em vez de uma consulta separada) fora desta fase,
 antes do próximo usuário novo se cadastrar.
 
-## 3. `\u2026` literal no atributo JSX do placeholder de busca
+## 3. `\u2026` literal no atributo JSX do placeholder de busca — ✅ CORRIGIDO
 
 **Onde:** `components/dashboard/sales-table.tsx` (placeholder do campo de
 busca)
 **Caracterizado em:** `e2e/tests/sales.spec.ts` (constante
 `SEARCH_PLACEHOLDER`)
+
+Era:
 
 ```tsx
 placeholder="Buscar por nº do pedido, produto ou cliente\u2026"
@@ -66,19 +72,26 @@ placeholder="Buscar por nº do pedido, produto ou cliente\u2026"
 Dentro de uma string de **atributo JSX** (não envolvida em `{}`), `\u2026`
 não é interpretado como escape Unicode — isso só acontece em string
 literals de JavaScript de verdade (uma string dentro de `{}`, ou em
-`.ts`/`.js` fora de JSX). O texto que chega na tela é literalmente
+`.ts`/`.js` fora de JSX). O texto que chegava na tela era literalmente
 `...cliente\u2026` (com a barra invertida e "u2026" como caracteres
 visíveis), não `...cliente…` com um "…" de verdade.
 
-**Impacto:** cosmético — o placeholder de busca da aba Vendas mostra
-`\u2026` em vez de "…". Correção trivial (usar o caractere "…"
-direto ou `{"\u2026"}` como expressão JS), mas fora do escopo desta
-fase.
+**Impacto:** cosmético — o placeholder de busca da aba Vendas mostrava
+`\u2026` em vez de "…".
+
+**Correção:** passou a usar `"..."` (três pontos), que é a convenção de
+todos os outros placeholders do projeto (`inventory-table.tsx`,
+`contracts-table.tsx`, `fixed-cost-table.tsx`, `costs-table.tsx`,
+`contracts-form.tsx`) — nenhum deles usa "…". `SEARCH_PLACEHOLDER` em
+`e2e/tests/sales.spec.ts` foi atualizado junto, então a suíte agora trava o
+texto correto.
 
 *Nota: o texto do botão "Exportando…" (`{isExporting ? "Exportando\u2026" : "Exportar"}`)
-**não** tem esse problema — está dentro de `{}` (uma expressão JS de
+**não** tinha esse problema — está dentro de `{}` (uma expressão JS de
 verdade), então `\u2026` ali é interpretado corretamente como escape
-Unicode. Só o atributo `placeholder` (fora de `{}`) é afetado.
+Unicode. Só o atributo `placeholder` (fora de `{}`) era afetado, e por isso
+só ele mudou.*
+
 ## 4. `<Toaster/>` do shadcn/ui nunca é montado
 
 **Onde:** `hooks/use-toast.ts` + `components/ui/toaster.tsx` vs.
