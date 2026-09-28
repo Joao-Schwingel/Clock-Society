@@ -1,11 +1,35 @@
-import { describe, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { SessionProvider } from "@/lib/auth/session-provider";
+import type { AppSession } from "@/lib/auth/session";
+import { permissionsForRole } from "@/lib/auth/permissions";
+import { Can } from "./can";
 
-// Fase 2 (specs/release-2/fase-2-casos-de-teste-admin.md §5, "Permissões e navegação").
-// Só `it.todo`: vira teste na Fase 3 (fatia 3.4), quando `components/can.tsx` existir.
-// Arquivo `.ts` (e não `.tsx`) porque o vitest.config.ts só inclui `**/*.test.ts`; na Fase 3,
-// renderizar com `react-dom/server` (sem DOM) ou ampliar o include para `.tsx`.
+// Fase 2 §5 / Fase 3 fatia 3.4. Renderiza com react-dom/server (sem DOM), por isso o arquivo é
+// `.ts` e usa createElement em vez de JSX.
+
+function session(permissions: AppSession["permissions"]): AppSession {
+  return { userId: "u", tenantId: "t", role: "admin", salespersonIds: [], permissions };
+}
+
+function render(s: AppSession, fallback?: string) {
+  return renderToStaticMarkup(
+    createElement(
+      SessionProvider,
+      { session: s },
+      createElement(Can, { permission: "sales.write", fallback }, "conteúdo"),
+    ),
+  );
+}
 
 describe("<Can>", () => {
-  it.todo("A-PERM-03 — mostra o conteúdo quando a sessão tem a permissão");
-  it.todo("A-PERM-03 — mostra o fallback (ou nada) quando a sessão não tem a permissão");
+  it("A-PERM-03 — mostra o conteúdo quando a sessão tem a permissão", () => {
+    expect(render(session(permissionsForRole("admin")))).toBe("conteúdo");
+  });
+
+  it("A-PERM-03 — mostra o fallback (ou nada) quando a sessão não tem a permissão", () => {
+    expect(render(session(["sales.view"]), "sem acesso")).toBe("sem acesso");
+    expect(render(session(["sales.view"]))).toBe("");
+  });
 });

@@ -14,10 +14,9 @@ import {
 
 interface FixedCostsViewProps {
   companyId: string;
-  userId: string;
 }
 
-export function FixedCostsView({ companyId, userId }: FixedCostsViewProps) {
+export function FixedCostsView({ companyId }: FixedCostsViewProps) {
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createBrowserClient();
@@ -28,7 +27,6 @@ export function FixedCostsView({ companyId, userId }: FixedCostsViewProps) {
       .from("fixed_costs")
       .select("*")
       .eq("company_id", companyId)
-      .eq("user_id", userId)
       .order("start_date", { ascending: true });
 
     if (!error && data) {
@@ -39,7 +37,7 @@ export function FixedCostsView({ companyId, userId }: FixedCostsViewProps) {
 
   useEffect(() => {
     fetchFixedCosts();
-  }, [companyId, userId]);
+  }, [companyId]);
 
   const handleFixedCostAdded = () => {
     fetchFixedCosts();
@@ -120,7 +118,6 @@ export function FixedCostsView({ companyId, userId }: FixedCostsViewProps) {
 
       <FixedCostForm
         companyId={companyId}
-        userId={userId}
         onFixedCostAdded={handleFixedCostAdded}
       />
 

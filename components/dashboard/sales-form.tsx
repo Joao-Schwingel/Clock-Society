@@ -29,7 +29,6 @@ import { computeAutoPaymentStatus, computeSalePayment } from "@/lib/calc/sale-pa
 
 interface SalesFormProps {
   companyId: string;
-  userId: string;
   sale: SaleWithDetails | null;
   onSuccess: () => void;
   onCancel: () => void;
@@ -78,7 +77,6 @@ type SaleItemRow = {
 
 export function SalesForm({
   companyId,
-  userId,
   sale,
   onSuccess,
   onCancel,
@@ -139,7 +137,7 @@ export function SalesForm({
   useEffect(() => {
     void loadSalespersons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, userId]);
+  }, [companyId]);
 
   useEffect(() => {
     void loadSaleItems();
@@ -152,7 +150,6 @@ export function SalesForm({
       .from("salespersons")
       .select("*")
       .eq("company_id", companyId)
-      .eq("user_id", userId)
       .eq("is_active", true)
       .order("name");
 
@@ -289,7 +286,6 @@ export function SalesForm({
 
       const saleHeader = {
         company_id: companyId,
-        user_id: userId,
         order_number: normalizeOrderNumber(orderNumber),
 
         product_name: first?.product_name ?? "",

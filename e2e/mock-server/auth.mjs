@@ -1,6 +1,11 @@
 // Emula só o suficiente do GoTrue (Supabase Auth) para signInWithPassword,
-// getUser e signOut — o bastante para @supabase/auth-js e @supabase/ssr
-// funcionarem sem saber que não há um Supabase real do outro lado.
+// refresh de sessão, getUser e signOut — o bastante para @supabase/auth-js e
+// @supabase/ssr funcionarem sem saber que não há um Supabase real do outro lado.
+//
+// Fase 3: emula também o custom access token hook (scripts/014_auth_helpers.sql):
+// o access token leva app_metadata.app_role/tenant_id do perfil (e2e/fixtures/profiles.json);
+// usuário sem perfil, ou inativo, recebe token sem essas claims. Como no Supabase real, o
+// objeto devolvido por getUser() NÃO traz essas claims (N10) — só o JWT.
 
 function base64url(obj) {
   return Buffer.from(JSON.stringify(obj))
@@ -17,7 +22,7 @@ function makeFakeAccessToken(payload) {
   return `${base64url(header)}.${base64url(payload)}.mock-signature`;
 }
 
-function decodeFakeToken(token) {
+export function decodeFakeToken(token) {
   try {
     const [, payloadB64] = token.split(".");
     const json = Buffer.from(payloadB64.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
@@ -45,7 +50,38 @@ function toGoTrueUser(fixtureUser) {
   };
 }
 
-export function signInWithPassword(users, email, password) {
+// Claims que o hook injetaria para este usuário, ou null se ele não tem perfil ativo.
+export function hookClaimsFor(profiles, userId) {
+  const profile = profiles.find((p) => p.id === userId);
+  if (!profile || !profile.is_active) return null;
+  return { app_role: profile.role, tenant_id: profile.tenant_id };
+}
+
+// `withClaims: false` simula um token emitido antes de o hook existir (A-MW-06).
+function issueSession(user, profiles, { withClaims }) {
+  const expiresIn = 3600;
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;
+  const hookClaims = withClaims ? hookClaimsFor(profiles, user.id) : null;
+  const accessToken = makeFakeAccessToken({
+    sub: user.id,
+    email: user.email,
+    role: "authenticated",
+    aud: "authenticated",
+    exp: expiresAt,
+    app_metadata: { provider: "email", providers: ["email"], ...(hookClaims ?? {}) },
+  });
+
+  return {
+    access_token: accessToken,
+    token_type: "bearer",
+    expires_in: expiresIn,
+    expires_at: expiresAt,
+    refresh_token: `refresh-${user.id}-${Date.now()}`,
+    user: toGoTrueUser(user),
+  };
+}
+
+export function signInWithPassword(users, profiles, email, password, { legacyTokens = false } = {}) {
   const user = users.find((u) => u.email === email && u.password === password);
   if (!user) {
     return {
@@ -58,28 +94,20 @@ export function signInWithPassword(users, email, password) {
       },
     };
   }
+  return { status: 200, body: issueSession(user, profiles, { withClaims: !legacyTokens }) };
+}
 
-  const expiresIn = 3600;
-  const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;
-  const accessToken = makeFakeAccessToken({
-    sub: user.id,
-    email: user.email,
-    role: "authenticated",
-    aud: "authenticated",
-    exp: expiresAt,
-  });
-
-  return {
-    status: 200,
-    body: {
-      access_token: accessToken,
-      token_type: "bearer",
-      expires_in: expiresIn,
-      expires_at: expiresAt,
-      refresh_token: `refresh-${user.id}-${Date.now()}`,
-      user: toGoTrueUser(user),
-    },
-  };
+// Renovação sempre passa pelo hook — é assim que uma sessão antiga ganha as claims (A-MW-06).
+export function refreshSession(users, profiles, refreshToken) {
+  const match = /^refresh-(.+)-\d+$/.exec(refreshToken ?? "");
+  const user = match && users.find((u) => u.id === match[1]);
+  if (!user) {
+    return {
+      status: 400,
+      body: { error: "invalid_grant", error_code: "refresh_token_not_found", msg: "Invalid Refresh Token" },
+    };
+  }
+  return { status: 200, body: issueSession(user, profiles, { withClaims: true }) };
 }
 
 export function getUserFromToken(users, authorizationHeader) {

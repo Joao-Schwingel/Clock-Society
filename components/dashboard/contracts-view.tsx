@@ -10,10 +10,9 @@ import { FileText, DollarSign, CalendarOff } from "lucide-react"
 import { summarizeContracts } from "@/lib/calc/contracts"
 
 interface ContractsViewProps {
-  userId: string
 }
 
-export function ContractsView({ userId }: ContractsViewProps) {
+export function ContractsView() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -22,7 +21,6 @@ export function ContractsView({ userId }: ContractsViewProps) {
     const { data, error } = await supabase
       .from("contracts")
       .select("*")
-      .eq("user_id", userId)
       .order("start_date", { ascending: false })
 
     if (!error && data) {
@@ -33,7 +31,7 @@ export function ContractsView({ userId }: ContractsViewProps) {
 
   useEffect(() => {
     fetchContracts()
-  }, [userId])
+  }, [])
 
   const today = new Date().toISOString().split("T")[0]
   const currentYear = new Date().getFullYear()
@@ -104,7 +102,7 @@ export function ContractsView({ userId }: ContractsViewProps) {
           <CardDescription>Cadastre um novo custo fixo mensal</CardDescription>
         </CardHeader>
         <CardContent>
-          <ContractsForm userId={userId} onSuccess={fetchContracts} />
+          <ContractsForm onSuccess={fetchContracts} />
         </CardContent>
       </Card>
 

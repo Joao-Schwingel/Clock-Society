@@ -1,6 +1,7 @@
 drop view if exists sales_with_details;
 
-create view sales_with_details as
+-- security_invoker (Fase 3.1, 012): a view respeita o RLS de quem consulta.
+create view sales_with_details with (security_invoker = on) as
 select
   s.id,
   s.company_id,

@@ -1,13 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-
-const PUBLIC_ROUTES = new Set([
-  "/",
-  "/auth/login",
-  "/auth/sign-up",
-  "/auth/sign-up-success",
-  "/auth/error",
-])
+import { decideRoute, type SessionClaims } from "@/lib/auth/route-guard"
+import { claimsFromJwt } from "@/lib/auth/session"
 
 export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -30,18 +24,29 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
-
-  if (PUBLIC_ROUTES.has(pathname)) {
-    return response
+  // Papel e inquilino vêm das claims do access token (spec Fase 2 §3.3): getUser() devolve o
+  // registro do usuário, que não traz as claims injetadas pelo hook (N10). getClaims() valida o
+  // token (JWKS, ou getUser() quando o token é HS256) e devolve o payload.
+  const readClaims = async (jwt?: string): Promise<SessionClaims | null> => {
+    const { data } = await supabase.auth.getClaims(jwt)
+    return data?.claims ? claimsFromJwt(data.claims) : null
   }
 
-  if (!user) {
-    return NextResponse.redirect(new URL("/auth/login", request.url))
+  const { pathname } = request.nextUrl
+  let decision = decideRoute({ pathname, session: await readClaims(), refreshed: false })
+
+  // Token emitido antes do hook (sem claims): renova uma vez e decide de novo (A-MW-06).
+  if (decision.action === "refresh") {
+    const { data } = await supabase.auth.refreshSession()
+    const session = data.session ? await readClaims(data.session.access_token) : null
+    decision = decideRoute({ pathname, session, refreshed: true })
+  }
+
+  if (decision.action === "redirect") {
+    const redirect = NextResponse.redirect(new URL(decision.to, request.url))
+    // Leva junto os cookies da sessão renovada, se houver.
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+    return redirect
   }
 
   return response

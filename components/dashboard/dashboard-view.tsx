@@ -27,7 +27,6 @@ import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
 
 interface DashboardViewProps {
   companyId: string;
-  userId: string;
 }
 
 type SalespersonEntry = {
@@ -42,7 +41,7 @@ type SaleRow = {
   salespersons: SalespersonEntry[];
 };
 
-export function DashboardView({ companyId, userId }: DashboardViewProps) {
+export function DashboardView({ companyId }: DashboardViewProps) {
   const [months, setMonths] = useState<number[]>([]);
   const [year, setYear] = useState("2026");
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +63,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
   useEffect(() => {
     void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, userId, months, year]);
+  }, [companyId, months, year]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -98,8 +97,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
         supabase
           .from("fixed_costs")
           .select("monthly_value, start_date, qtdmonths")
-          .eq("company_id", companyId)
-          .eq("user_id", userId),
+          .eq("company_id", companyId),
       ]);
 
       if (salesError) throw salesError;

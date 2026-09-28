@@ -29,6 +29,11 @@ export function loadUsers() {
   return loadJson("users.json");
 }
 
+// Perfis (Fase 3): fonte das claims do "hook" e da queda para profiles no RLS emulado.
+export function loadProfiles() {
+  return loadJson("profiles.json");
+}
+
 // Retorna um novo estado de tabelas, sempre lido do disco (nunca reaproveitado
 // entre chamadas), para que cada reset comece de um estado conhecido.
 export function freshTables() {

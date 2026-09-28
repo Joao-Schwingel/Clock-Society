@@ -18,10 +18,9 @@ import { Spinner } from "@radix-ui/themes";
 
 interface InventoryViewProps {
   companyId: string;
-  userId: string;
 }
 
-export function InventoryView({ companyId, userId }: InventoryViewProps) {
+export function InventoryView({ companyId }: InventoryViewProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -158,7 +157,6 @@ export function InventoryView({ companyId, userId }: InventoryViewProps) {
       {isFormOpen && (
         <InventoryForm
           companyId={companyId}
-          userId={userId}
           item={editingItem}
           onSuccess={handleFormSuccess}
           onCancel={() => setIsFormOpen(false)}
