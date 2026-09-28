@@ -1,11 +1,32 @@
--- sales_with_salespersons — usada pelo Dashboard (dashboard-view.tsx), criada à mão no painel e
--- nunca versionada (achado 4 / Fase 1 §1). A definição real precisa vir do dump da baseline
--- (Fase 1 §3, tarefa manual):
---
---   select pg_get_viewdef('public.sales_with_salespersons'::regclass, true);
---
--- Até lá, este arquivo versiona só o que a Fase 3 muda nela. O formato das colunas que o app lê
--- (id, company_id, status, sale_date, total_price, salespersons[jsonb: id, name,
--- commission_percent]) está espelhado em e2e/mock-server/views.mjs.
+-- sales_with_salespersons — usada pelo Dashboard (dashboard-view.tsx). Criada à mão no painel e
+-- nunca versionada (achado 4). Definição tirada de produção em 28/09/2026 com
+-- pg_get_viewdef (docs/baseline/), acrescida só de security_invoker (Fase 3.1, 012).
 
-alter view public.sales_with_salespersons set (security_invoker = on);
+drop view if exists public.sales_with_salespersons;
+
+create view public.sales_with_salespersons with (security_invoker = on) as
+select
+  s.id,
+  s.company_id,
+  s.product_name,
+  s.quantity,
+  s.unit_price,
+  s.total_price,
+  s.sale_date,
+  s.customer_name,
+  s.notes,
+  s.user_id,
+  s.created_at,
+  s.salesperson,
+  s.status,
+  s.salesperson_id,
+  s.order_number,
+  s.entry_value,
+  s.payment_status,
+  jsonb_agg(
+    jsonb_build_object('id', sp.id, 'name', sp.name, 'commission_percent', ssp.commission_percent)
+  ) filter (where sp.id is not null) as salespersons
+from sales s
+  left join sale_salespersons ssp on ssp.sale_id = s.id
+  left join salespersons sp on sp.id = ssp.salesperson_id
+group by s.id;

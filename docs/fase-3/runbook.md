@@ -9,8 +9,11 @@
 - [ ] Checklist MANUAL da Fase 2 ([`fase-2-checklist-banco-admin.md`](../manual-checklists/fase-2-checklist-banco-admin.md))
       executado **em homologação** para as fatias 3.1–3.4, com resultados anexados ao PR
 - [ ] A-DB-17 OK: toda migration aplica → reverte → reaplica num banco local descartável
-- [ ] Baseline da Fase 1 em mãos: `pg_policies` salvo (fonte do rollback da 015) e a definição de
-      `sales_with_salespersons` (`pg_get_viewdef`), que ainda não está versionada
+- [x] `pg_policies` de produção salvo em `docs/baseline/pg_policies-producao-2026-09-28.json`
+      (32 políticas, iguais às dos scripts 001–008; o rollback da 015 as recria exatamente)
+- [x] RLS por tabela e grants de `anon`/`authenticated` salvos em `docs/baseline/`
+- [x] Definições de produção das 3 views versionadas em `scripts/views/` (`sales_with_details`,
+      `sales_with_salespersons`, `salesperson_summary`)
 - [ ] Retrato dos números de produção **antes** (Fase 1 §6), guardado fora do repositório
 - [ ] Deploy anterior identificado na Vercel, para *redeploy* imediato em caso de retorno
 - [ ] `explain analyze` das 3 consultas pesadas do admin (vendas paginadas, estatísticas, dashboard),
@@ -49,7 +52,7 @@
 Ordem inversa, cada uma com o seu `scripts/rollback/*.down.sql`:
 
 1. *Redeploy* do app anterior na Vercel.
-2. `018` → `017` → `015` (confira com o `pg_policies` da baseline antes de aplicar).
+2. `018` → `017` → `015` (o `.down` da 015 recria as 32 políticas da baseline).
 3. Desabilitar o hook no painel **antes** de reverter a `014`.
 4. `014` → `013`.
 5. A `012` **não** é revertida em produção (fecha brechas).

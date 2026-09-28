@@ -1,0 +1,42 @@
+[
+  {
+    "relname": "companies",
+    "relrowsecurity": true
+  },
+  {
+    "relname": "contracts",
+    "relrowsecurity": true
+  },
+  {
+    "relname": "costs",
+    "relrowsecurity": true
+  },
+  {
+    "relname": "fixed_costs",
+    "relrowsecurity": true
+  },
+  {
+    "relname": "inventory",
+    "relrowsecurity": true
+  },
+  {
+    "relname": "sale_costs",
+    "relrowsecurity": true
+  },
+  {
+    "relname": "sale_items",
+    "relrowsecurity": false
+  },
+  {
+    "relname": "sale_salespersons",
+    "relrowsecurity": false
+  },
+  {
+    "relname": "sales",
+    "relrowsecurity": true
+  },
+  {
+    "relname": "salespersons",
+    "relrowsecurity": true
+  }
+]

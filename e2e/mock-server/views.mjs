@@ -1,6 +1,6 @@
 // Reconstrói as views sales_with_details / sales_with_salespersons a partir das
-// tabelas base, espelhando scripts/views/sales_with_details.sql — em vez de
-// duplicar os mesmos dados em duas formas no fixture (fonte única de verdade).
+// tabelas base, espelhando scripts/views/*.sql (= definição de produção,
+// docs/baseline/) — em vez de duplicar os mesmos dados em duas formas no fixture.
 
 function salespersonsForSale(tables, saleId) {
   return tables.sale_salespersons
@@ -15,20 +15,10 @@ function costsForSale(tables, saleId) {
   return tables.sale_costs.filter((c) => c.sale_id === saleId);
 }
 
-function itemNamesForSale(tables, sale) {
-  const items = tables.sale_items
-    .filter((i) => i.sale_id === sale.id)
-    .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
-  if (items.length === 0) return sale.product_name ?? "";
-  return items.map((i) => i.product_name).join(", ");
-}
-
 export function salesWithDetails(tables) {
   return tables.sales.map((s) => {
     const costs = costsForSale(tables, s.id);
     const total_costs = costs.reduce((sum, c) => sum + Number(c.amount), 0);
-    const remaining_amount =
-      s.payment_status === "pago" ? 0 : Math.max(0, s.total_price - (s.entry_value ?? 0));
 
     return {
       id: s.id,
@@ -49,8 +39,6 @@ export function salesWithDetails(tables) {
       salespersons: salespersonsForSale(tables, s.id),
       costs,
       total_costs,
-      remaining_amount,
-      sale_item_names: itemNamesForSale(tables, s),
     };
   });
 }
@@ -62,7 +50,8 @@ export function salesWithSalespersons(tables) {
     status: s.status,
     sale_date: s.sale_date,
     total_price: s.total_price,
-    salespersons: salespersonsForSale(tables, s.id),
+    // Em produção é jsonb_agg(...) FILTER (...): null, e não [], para venda sem vendedor.
+    salespersons: salespersonsForSale(tables, s.id).length > 0 ? salespersonsForSale(tables, s.id) : null,
   }));
 }
 

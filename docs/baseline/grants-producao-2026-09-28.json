@@ -1,0 +1,132 @@
+[
+  {
+    "grantee": "anon",
+    "table_name": "companies",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "contracts",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "costs",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "fixed_costs",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "inventory",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "sale_costs",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "sale_items",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "sale_salespersons",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "sales",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "sales_with_details",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "sales_with_salespersons",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "salesperson_summary",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "anon",
+    "table_name": "salespersons",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "companies",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "contracts",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "costs",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "fixed_costs",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "inventory",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "sale_costs",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "sale_items",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "sale_salespersons",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "sales",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "sales_with_details",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "sales_with_salespersons",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "salesperson_summary",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  },
+  {
+    "grantee": "authenticated",
+    "table_name": "salespersons",
+    "privs": "DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE"
+  }
+]

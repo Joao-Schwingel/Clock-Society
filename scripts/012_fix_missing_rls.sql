@@ -20,8 +20,9 @@ create policy "sale_items_owner_all" on public.sale_items
 comment on policy "sale_items_owner_all" on public.sale_items is
   'Fase 3.1: itens herdam o acesso da venda-mãe (dono = auth.uid()). Substituída na 015.';
 
--- 2. sale_salespersons: criada à mão no painel (achado 3), RLS desconhecido. Remove qualquer
---    política pré-existente e aplica a mesma regra derivada de sales.
+-- 2. sale_salespersons: criada à mão no painel (achado 3). Baseline de produção: RLS desligado e
+--    nenhuma política. O bloco abaixo remove qualquer política por garantia e aplica a mesma regra
+--    derivada de sales.
 do $$
 declare pol record;
 begin
@@ -40,8 +41,20 @@ comment on policy "sale_salespersons_owner_all" on public.sale_salespersons is
   'Fase 3.1: vínculo venda↔vendedor herda o acesso da venda-mãe (dono = auth.uid()). Substituída na 015.';
 
 -- 3. Views passam a respeitar o RLS de quem consulta (§7.4 — rodar A-DB-04 logo depois).
+--    Sem isso elas rodam com o dono (postgres) e ignoram o RLS: hoje qualquer um com a chave anon
+--    lê todas as vendas por elas (baseline de 28/09/2026, docs/baseline/).
 alter view public.sales_with_details set (security_invoker = on);
 alter view public.sales_with_salespersons set (security_invoker = on);
+
+-- salesperson_summary existe em produção, não é usada pelo app e hoje agrega comissões de todos
+-- os inquilinos (scripts/views/salesperson_summary.sql). Passa a respeitar o RLS.
+do $$
+begin
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+             where n.nspname = 'public' and c.relname = 'salesperson_summary' and c.relkind = 'v') then
+    execute 'alter view public.salesperson_summary set (security_invoker = on)';
+  end if;
+end $$;
 
 -- 4. A chave anônima não lê nada do schema public (A-DB-09). O app só fala com o PostgREST
 --    depois do login; o login em si vai para o Auth, não para o PostgREST.
