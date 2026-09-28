@@ -210,4 +210,4 @@ Os dois reduzem a exposição dos achados 1–3 enquanto a Fase 3 não chega.
 | Q7 | Haverá mais de um admin? | Fase 2 (A-DB-11, A-TEN-01) | Testar mesmo assim: é o único detector de N3 |
 | Q8 | Quem tem acesso à string de conexão de produção para o dump da Fase 1? | Fase 1 | — |
 | Q9 | Docker disponível nas máquinas de quem for executar o checklist MANUAL? Não é mais necessário no CI (nenhuma etapa do pipeline sobe banco de dados) | Fase 1 | Levantar por pessoa, conforme for executar o checklist |
-| Q10 | Venda de vendedor inativo entra no total de comissões (N12)? E arredondamento: 2 casas no total ou exibir como hoje (N13)? | Fase 5 | Manter o comportamento atual e adaptar a RPC a ele |
+| Q10 | Venda de vendedor inativo entra no total de comissões (N12)? E arredondamento: 2 casas no total ou exibir como hoje (N13)? **E a comissão conta toda venda concluída (como o Dashboard) ou só as pagas (como a view e a função antigas do banco)?** Diferença hoje: 9 vendas, cerca de 1,9% do valor | Fase 5 | Manter o comportamento atual do Dashboard (toda concluída) e adaptar a RPC a ele |

@@ -29,4 +29,20 @@ alter default privileges in schema public grant all on tables to anon;
 alter default privileges in schema public grant all on sequences to anon;
 alter default privileges in schema public grant execute on functions to anon;
 
+grant truncate, trigger, references on all tables in schema public to authenticated;
+alter default privileges in schema public grant truncate, trigger, references on tables to authenticated;
+
+do $$
+begin
+  if to_regprocedure('public.create_sale(jsonb, jsonb, jsonb)') is not null then
+    grant execute on function public.create_sale(jsonb, jsonb, jsonb) to public, anon, authenticated;
+  end if;
+  if to_regprocedure('public.salesperson_summary_by_months(integer, integer[])') is not null then
+    grant execute on function public.salesperson_summary_by_months(integer, integer[]) to public, anon, authenticated;
+  end if;
+  if to_regclass('public.salesperson_summary') is not null then
+    grant all on public.salesperson_summary to anon, authenticated;
+  end if;
+end $$;
+
 commit;

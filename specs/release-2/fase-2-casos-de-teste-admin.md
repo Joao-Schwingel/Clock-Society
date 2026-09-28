@@ -153,6 +153,8 @@ o CI, mas bloqueiam a saída da fatia.
 | A-DB-15 | P2 | Toda política do schema `public` tem `comment on policy` (critério de aceite da Etapa 1) |
 | A-DB-16 | P2 | Criar empresa continua criando o vendedor "Site" sob as novas políticas (C-SET-02 repetido) |
 | A-DB-17 | P1 | Cada migration da fase aplica, reverte (§9 do planejamento) e reaplica num banco local descartável sem erro |
+| A-DB-18 | P1 | Apagar o usuário dono dos dados (o inquilino) é **recusado** pelo banco, em vez de apagar tudo em cascata (019; revisão de 28/09/2026, item 4) |
+| A-DB-19 | P2 | `authenticated` não executa `create_sale()` nem `salesperson_summary_by_months()`, não lê `salesperson_summary` e não tem `TRUNCATE`/`TRIGGER`/`REFERENCES` em nenhuma tabela (012; revisão, itens 3 e 9) |
 
 **Dois casos saem daqui porque não precisam de banco de verdade para serem provados:**
 

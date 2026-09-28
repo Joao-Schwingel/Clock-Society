@@ -26,7 +26,7 @@
 
 | PR | Conteúdo | Planejamento | Migrations | Casos |
 |---|---|---|---|---|
-| **3.1** | Fechar brechas: RLS em `sale_items` e `sale_salespersons`; views com `security_invoker`; revogar `anon` | 1.2 | `012_fix_missing_rls.sql`, `views/*` | A-DB-04, A-DB-06 (views e `sale_items`), A-DB-09 |
+| **3.1** | Fechar brechas: RLS em `sale_items` e `sale_salespersons`; views com `security_invoker`; revogar `anon`; tirar do `authenticated` os objetos mortos e os privilégios extras; apagar o usuário dono passa a ser recusado (revisão de 28/09/2026) | 1.1, 1.2 | `011_reconcile_schema.sql` (no-op em produção), `012_fix_missing_rls.sql`, `019_tenant_fk_restrict.sql`, `views/*` | A-DB-04, A-DB-06 (views e `sale_items`), A-DB-09, A-DB-18, A-DB-19 |
 | **3.2** | Identidade: `profiles`, `profile_salespersons`, `role_permissions` (só as linhas do admin), gatilho de criação de perfil, funções auxiliares, hook de token, RLS de `profiles` | 1.3 | `013_create_profiles.sql`, `014_auth_helpers.sql` | A-DB-02, A-DB-03, A-DB-12, A-DB-13, A-DB-14 |
 | **3.3** | Políticas das 10 tabelas no padrão "admin do inquilino"; `default current_tenant_id()` em `user_id`; índices; backfill do admin | 1.4 (admin), 1.6 | `015_rewrite_policies.sql`, `017_indexes.sql`, `018_backfill_admin.sql` | A-DB-01, A-DB-05 a A-DB-11, A-DB-15, A-DB-16 |
 | **3.4** | `SessionProvider`, `usePermissions`, `<Can>`, `nav-registry`; abas de `dashboard-layout.tsx` e `company-dashboard.tsx` montadas pelo registro; fim do uso do id do usuário logado em filtros e inserções (N3) | 2.1 | — | A-PERM-01 a 06, A-TEN-01, A-BOOT-02 |

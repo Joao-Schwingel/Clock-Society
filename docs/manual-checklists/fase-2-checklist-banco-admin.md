@@ -47,7 +47,7 @@ Tabelas: `companies`, `salespersons`, `sales`, `sale_items`, `sale_salespersons`
 
 ---
 
-## Fatia 3.1 — brechas (`012_fix_missing_rls.sql`, `views/*`)
+## Fatia 3.1 — brechas e proteção (`012_fix_missing_rls.sql`, `019_tenant_fk_restrict.sql`)
 
 ### A-DB-04 (P1) — Regressão: contagens do admin nas 10 tabelas e nas 2 views
 
@@ -102,6 +102,33 @@ where grantee = 'anon' and table_schema = 'public' order by 1, 2;
 ```
 
 ---
+
+### A-DB-18 (P1) — Apagar o usuário dono é recusado (019)
+
+Dentro de `begin … rollback`, como `postgres`:
+
+```sql
+begin;
+delete from auth.users where id = '<ADMIN_ID>';   -- esperado: ERRO 23503 (violates foreign key constraint)
+rollback;
+```
+
+- [ ] Deu erro `23503`, e nenhuma linha sumiu (`select count(*) from companies` igual ao de antes)
+
+### A-DB-19 (P2) — Objetos mortos e privilégios extras fora do alcance do `authenticated` (012)
+
+Como `admin@t1` (claims simuladas):
+
+- [ ] `select * from public.salesperson_summary_by_months(2026, array[9]);` → `permission denied`
+- [ ] `select public.create_sale('{}', '[]', '[]');` → `permission denied`
+- [ ] `select * from public.salesperson_summary;` → `permission denied`
+
+```sql
+-- nenhuma linha esperada
+select table_name, privilege_type from information_schema.role_table_grants
+where table_schema = 'public' and grantee = 'authenticated'
+  and privilege_type in ('TRUNCATE', 'TRIGGER', 'REFERENCES');
+```
 
 ## Fatia 3.2 — identidade (`013_create_profiles.sql`, `014_auth_helpers.sql`)
 
@@ -218,7 +245,9 @@ Num banco **local descartável**, para cada migration da lista em
 
 | Migration | Aplica | Reverte | Reaplica | A-DB-04 depois de reaplicar |
 |---|---|---|---|---|
+| `011_reconcile_schema.sql` (no-op em produção) | | | | |
 | `012_fix_missing_rls.sql` | | | | |
+| `019_tenant_fk_restrict.sql` | | | | |
 | `views/sales_with_details.sql` | | | | |
 | `views/sales_with_salespersons.sql` | | | | |
 | `013_create_profiles.sql` | | | | |

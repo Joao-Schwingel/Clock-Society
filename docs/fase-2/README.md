@@ -88,7 +88,9 @@ por esta automação.** Ordem e verificações: [`docs/fase-3/runbook.md`](../fa
 
 | Fatia | Migration | Conteúdo | Rollback |
 |---|---|---|---|
-| 3.1 | `012_fix_missing_rls.sql` | RLS em `sale_items` e `sale_salespersons` (herdado de `sales`, ainda com dono = `auth.uid()`); `security_invoker` nas 2 views; `revoke` de tudo do `anon` | Só para o A-DB-17; **não reverter em produção** (fecha brecha) |
+| — | `011_reconcile_schema.sql` | Idempotente: o que produção tem e os scripts não criavam (colunas de `sales`, `qtdmonths`, `sale_items` sem gatilho, `sale_salespersons`). Em produção não muda nada | nada a reverter |
+| 3.1 | `012_fix_missing_rls.sql` | RLS em `sale_items` e `sale_salespersons` (herdado de `sales`, ainda com dono = `auth.uid()`); `security_invoker` nas 3 views; `revoke` de tudo do `anon`; o `authenticated` perde `TRUNCATE`/`TRIGGER`/`REFERENCES` e o acesso às 2 funções e à view que o app não usa | Só para o A-DB-17; **não reverter em produção** (fecha brecha) |
+| 3.1 | `019_tenant_fk_restrict.sql` | As 6 FKs `user_id → auth.users` passam de `CASCADE` para `RESTRICT`: apagar o usuário dono é recusado | volta a `CASCADE` |
 | 3.1 | `views/sales_with_details.sql` | Recriada `with (security_invoker = on)` | coberto pelo `.down` da 012 |
 | 3.1 | `views/sales_with_salespersons.sql`, `views/salesperson_summary.sql` | Definições de produção (baseline de 28/09/2026) + `security_invoker`. A 012 só faz o `alter view`; os arquivos documentam a definição | coberto pelo `.down` da 012 |
 | 3.2 | `013_create_profiles.sql` | `profiles`, `profile_salespersons` (`unique (salesperson_id)`), `role_permissions` + seed do admin; gatilho `on_auth_user_created` (só cria perfil quando `app_metadata` traz papel e inquilino); RLS de `profiles` só com `auth.uid()` e claims (§7.2); nenhuma escrita pelo cliente | `drop` do gatilho, da função e das 3 tabelas |
@@ -97,7 +99,7 @@ por esta automação.** Ordem e verificações: [`docs/fase-3/runbook.md`](../fa
 | 3.3 | `017_indexes.sql` | `profiles(tenant_id, role)`, `profile_salespersons(profile_id)`, `sale_salespersons(salesperson_id, sale_id)` | `drop index if exists` |
 | 3.3 | `018_backfill_admin.sql` | Todo dono de empresas vira admin do próprio inquilino (`tenant_id = id`) | Remove só os perfis do backfill |
 
-`016_vendor_views.sql` é da Fase 6. `011_reconcile_schema.sql` depende da baseline manual da Fase 1.
+`016_vendor_views.sql` é da Fase 6. A `019` usa o próximo número livre, mas vai na fatia 3.1; as políticas do vendedor (Fase 6) passam a ser a `020`.
 
 ---
 

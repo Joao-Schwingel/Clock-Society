@@ -65,4 +65,26 @@ alter default privileges in schema public revoke all on tables from anon;
 alter default privileges in schema public revoke all on sequences from anon;
 alter default privileges in schema public revoke execute on functions from anon;
 
+-- 5. O authenticated não precisa de TRUNCATE, TRIGGER nem REFERENCES. TRUNCATE ignora o RLS; a API
+--    não o expõe, mas não há por que manter (item 9 da revisão de 28/09/2026).
+revoke truncate, trigger, references on all tables in schema public from authenticated;
+alter default privileges in schema public revoke truncate, trigger, references on tables from authenticated;
+
+-- 6. Objetos de produção que o app não usa (item 3 da revisão): ficam no banco, mas ninguém além
+--    do dono os executa. Rodando com as permissões de quem chama, dariam números errados sem erro
+--    (planejamento §7.1): um vendedor veria a própria comissão sem custos, ou seja, inflada.
+--    create_sale também está quebrada (usa bigint onde os ids são uuid).
+do $$
+begin
+  if to_regprocedure('public.create_sale(jsonb, jsonb, jsonb)') is not null then
+    revoke execute on function public.create_sale(jsonb, jsonb, jsonb) from public, anon, authenticated;
+  end if;
+  if to_regprocedure('public.salesperson_summary_by_months(integer, integer[])') is not null then
+    revoke execute on function public.salesperson_summary_by_months(integer, integer[]) from public, anon, authenticated;
+  end if;
+  if to_regclass('public.salesperson_summary') is not null then
+    revoke all on public.salesperson_summary from anon, authenticated;
+  end if;
+end $$;
+
 commit;

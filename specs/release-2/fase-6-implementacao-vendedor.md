@@ -25,7 +25,7 @@ As mesmas da [Fase 3](fase-3-implementacao-admin.md#1-regras-de-execução), mai
 | PR | Conteúdo | Planejamento | Migrations | Casos |
 |---|---|---|---|---|
 | **6.1** | Extração do motor de vendas (`hooks/use-sales-query.ts`), com a origem parametrizada; troca do filtro de vendedor em duas consultas por filtro na view (§7.5). **Refatoração pura, sem comportamento novo** | 4.1 | — | V-REG-02 (a rede é a suíte C-SALES) |
-| **6.2** | Ramo do vendedor nas políticas de `companies`, `sales`, `sale_items`, `sale_salespersons`, `salespersons` e `inventory`; linhas do vendedor em `role_permissions`; desativação nas funções auxiliares; `must_change_password` nas claims | 1.4 (vendedor) | nova, ex.: `019_vendor_policies.sql` (rollback = voltar às políticas da 015) | V-DB-01 a 08, 13 a 16 |
+| **6.2** | Ramo do vendedor nas políticas de `companies`, `sales`, `sale_items`, `sale_salespersons`, `salespersons` e `inventory`; **`my_salesperson_ids()`**, considerando só perfis ativos (não entrou na Fase 3, D-6); leitura de `sale_salespersons` **restrita às linhas do próprio vendedor**, e não derivada da venda-mãe (senão, em venda compartilhada, ele lê o `commission_percent` do colega); linhas do vendedor em `role_permissions`; desativação nas funções auxiliares; `must_change_password` nas claims | 1.4 (vendedor) | nova: `020_vendor_policies.sql` (a `019` já foi usada na Fase 3; rollback = voltar às políticas da 015) | V-DB-01 a 08, 13 a 17 |
 | **6.3** | `vendor_sales` e `commission_summary()` com a guarda de acesso, as regras de Q2/Q10 e os grants | 1.5 | `016_vendor_views.sql` | V-DB-09 a 12 |
 | **6.4** | Componente compartilhado `commissions-by-salesperson.tsx` sobre a RPC; dashboard do admin passa a usá-la; remoção do cálculo no navegador e da busca de `sale_costs` em lote | 4.5 | — | V-UI-06, V-REG-01 |
 | **6.5** | Primeira camada de servidor: `lib/supabase/admin.ts` e `/api/users` | 3.1 | — | V-API-01 a 06 |
@@ -68,7 +68,7 @@ Espelha a Fase 4 para o vendedor:
 
 - [ ] Todos os V-xx das camadas UNIT/E2E verdes; suítes das Fases 1 e 3 (UNIT/E2E) verdes
 - [ ] Todos os V-DB-xx (MANUAL) executados e registrados contra a homologação
-- [ ] Runbook de implantação: `019` → `016` → variáveis na Vercel (`SUPABASE_SERVICE_ROLE_KEY`) → deploy do app
+- [ ] Runbook de implantação: `020` → `016` → variáveis na Vercel (`SUPABASE_SERVICE_ROLE_KEY`) → deploy do app
 - [ ] Em homologação: matriz §8.1 e cenários §8.4 do planejamento executados à mão, com vendedores do fixture; os itens de §8.2 conferidos uma vez com token real via chamada direta à API
 - [ ] Ensaiar o rollback (políticas de volta à 015, `drop` de 016, *redeploy* do app)
 - [ ] Em produção: retrato antes e depois — os números do admin continuam iguais, respeitadas as decisões de Q2/Q10

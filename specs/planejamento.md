@@ -290,6 +290,11 @@ create policy "sale_items_select" on public.sale_items for select using (
 -- o RLS de sales já filtra o exists acima
 ```
 
+**Exceção em `sale_salespersons` (revisão de 28/09/2026):** a leitura do vendedor **não** deriva da
+venda-mãe. Numa venda compartilhada, isso exporia o `commission_percent` do colega. O vendedor lê
+só as próprias linhas (`salesperson_id in (select public.my_salesperson_ids())`); o admin lê todas
+do inquilino.
+
 `sale_costs` é a exceção: **vendedor nunca lê**, mesmo das próprias vendas.
 
 ```sql

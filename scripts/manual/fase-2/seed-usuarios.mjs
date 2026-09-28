@@ -7,6 +7,10 @@
 //   SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=... \
 //     node scripts/manual/fase-2/seed-usuarios.mjs
 //
+// Ensaio com o backup real restaurado (docs/fase-3/ensaio-local.md): defina T1_TENANT_ID com o id
+// do admin real (o dono das empresas). Os perfis do inquilino T1 do fixture (admin@t1, admin2@t1,
+// vendedor-sem-vinculo@t1) passam a pertencer a esse inquilino, com os dados reais.
+//
 // Os dados de negócio de T1/T2 (empresas, vendas, …) continuam sendo montados à mão, como na
 // Fase 1 (docs/manual-checklists/fase-1-checklist-banco.md, "Antes de começar").
 
@@ -54,10 +58,16 @@ for (const u of users) {
   console.log(`+ ${u.email} criado (${data.user.id})`);
 }
 
+const T1_FIXTURE_TENANT = "u-admin";
+const tenantFor = (fixtureTenant) =>
+  fixtureTenant === T1_FIXTURE_TENANT && process.env.T1_TENANT_ID
+    ? process.env.T1_TENANT_ID
+    : realIds.get(fixtureTenant);
+
 for (const p of profiles) {
   const row = {
     id: realIds.get(p.id),
-    tenant_id: realIds.get(p.tenant_id),
+    tenant_id: tenantFor(p.tenant_id),
     role: p.role,
     full_name: p.full_name,
     is_active: p.is_active,
@@ -65,7 +75,7 @@ for (const p of profiles) {
   };
   const { error } = await admin.from("profiles").upsert(row);
   if (error) throw error;
-  console.log(`~ perfil ${p.role} de ${p.id} (tenant ${p.tenant_id})`);
+  console.log(`~ perfil ${p.role} de ${p.id} (tenant ${row.tenant_id})`);
 }
 
 // Usuários do fixture que NÃO devem ter perfil (semperfil@t1). O gatilho on_auth_user_created

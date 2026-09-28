@@ -71,7 +71,7 @@ por um humano, antes do merge/deploy da fatia correspondente (Fase 6 §2).
 | ID | Comportamento |
 |---|---|
 | V-DB-01 | `sales`: o vendedor lê só as vendas em que consta em `sale_salespersons` (contagem do fixture); a venda compartilhada aparece para os dois |
-| V-DB-02 | `sale_items` e `sale_salespersons`: só das próprias vendas |
+| V-DB-02 | `sale_items`: só das próprias vendas. `sale_salespersons`: só as **próprias linhas** (ver V-DB-17) |
 | V-DB-03 | `sale_costs`: 0 linhas, inclusive das próprias vendas |
 | V-DB-04 | `companies`: só as empresas em que atua; `salespersons`: só os próprios registros |
 | V-DB-05 | `inventory`: todas as colunas, **inclusive** `unit_cost` e `total_value`, das empresas em que atua; 0 linhas nas demais |
@@ -86,6 +86,19 @@ por um humano, antes do merge/deploy da fatia correspondente (Fase 6 §2).
 | V-DB-14 | Perfil desativado: 0 linhas em tudo e RPC negada |
 | V-DB-15 | O vendedor não altera o próprio perfil nem `profile_salespersons` ou `role_permissions` (A-DB-12 continua valendo) |
 | V-DB-16 | Perfil `vendedor` sem vínculo continua sem acesso a nada (A-DB-08 continua valendo) |
+| V-DB-17 | Em venda compartilhada, o vendedor **não** lê a linha do colega em `sale_salespersons` (nem o `commission_percent` dele), nem pela API nem pelas views. Produção tem 37 vendas compartilhadas (revisão de 28/09/2026, item 6) |
+
+> **Notas da revisão de 28/09/2026 (dados de produção):**
+> - **"Pago" × "concluída" (item 7):** a view `salesperson_summary` e a função
+>   `salesperson_summary_by_months` (mortas, sem acesso desde a 012) só contam vendas pagas; o
+>   Dashboard (C-DASH-02) conta toda venda concluída. São 9 vendas concluídas e não pagas, cerca de
+>   1,9% do valor concluído. A regra da `commission_summary()` precisa ser fechada em Q2/Q10 **antes**
+>   de escrever o V-DB-12.
+> - **Coluna legada `sales.salesperson_id` (item 8):** o escopo do vendedor usa só
+>   `sale_salespersons`; a coluna legada é ignorada. Em 2 vendas ela aponta para um vendedor que não
+>   está vinculado em `sale_salespersons` (bug conhecido nº 6, `docs/known-bugs-fase-1.md`).
+> - N12 (vendedor inativo com venda) não ocorre hoje em produção: os 18 vendedores estão ativos. O
+>   fixture continua cobrindo o caso.
 
 ### API de usuários
 
