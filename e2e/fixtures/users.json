@@ -3,12 +3,30 @@
     "id": "u-admin",
     "email": "admin@t1.test",
     "password": "senha123",
-    "note": "Dono de tudo no inquilino T1 (Clock Society / The Secret / Morfeus)."
+    "note": "Dono de tudo no inquilino T1 (Clock Society / The Secret / Morfeus). Fase 2: perfil admin, tenant_id = o próprio id (backfill, A-DB-01)."
   },
   {
     "id": "u-outro",
     "email": "outro@t2.test",
     "password": "senha123",
-    "note": "Usuário de outro inquilino (T2), com dados próprios — cenário de referência para o checklist MANUAL de isolamento (§7 'Banco'), não exercitado por E2E automatizado."
+    "note": "Usuário de outro inquilino (T2), com dados próprios — cenário de referência para o checklist MANUAL de isolamento (§7 'Banco'), não exercitado por E2E automatizado. Fase 2: perfil admin de T2."
+  },
+  {
+    "id": "u-admin2",
+    "email": "admin2@t1.test",
+    "password": "senha123",
+    "note": "Fase 2 §4: segundo admin do inquilino T1 — A-DB-11 e A-TEN-01 (detector de N3, Q7)."
+  },
+  {
+    "id": "u-semperfil",
+    "email": "semperfil@t1.test",
+    "password": "senha123",
+    "note": "Fase 2 §4: usuário autenticado SEM linha em profiles — nega por padrão (A-DB-07, A-MW-04)."
+  },
+  {
+    "id": "u-vendedor-sem-vinculo",
+    "email": "vendedor-sem-vinculo@t1.test",
+    "password": "senha123",
+    "note": "Fase 2 §4: perfil vendedor de T1 sem nenhuma linha em profile_salespersons — nega por padrão (A-DB-08, A-MW-04); continua valendo depois da Fase 6."
   }
 ]

@@ -60,7 +60,8 @@ test('"Configurações" abre o modal de vendedores', async ({ page }) => {
   await expect(page.getByRole("tab", { name: "Lista de Vendedores" })).toBeVisible();
 });
 
-// C-NAV-04
+// C-NAV-04 — substituído por A-BOOT-01 na Fase 3 (Fase 2 §6; ver
+// e2e/tests/admin-bootstrap.spec.ts). Sai quando o A-BOOT-01 ficar verde.
 //
 // ACHADO (não corrigido nesta fase, D-5): o fluxo de auto-criação
 // (app/dashboard/page.tsx) insere as 3 empresas e, na mesma função, refaz a
