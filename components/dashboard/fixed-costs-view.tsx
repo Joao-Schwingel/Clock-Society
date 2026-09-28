@@ -7,6 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FixedCostForm } from "./fixed-cost-form";
 import { FixedCostTable } from "./fixed-cost-table";
 import { DollarSign, Calendar, TrendingUp } from "lucide-react";
+import {
+  sumActiveFixedCostsInMonth,
+  sumFixedCostsAnnualTotal,
+} from "@/lib/calc/fixed-costs";
 
 interface FixedCostsViewProps {
   companyId: string;
@@ -49,41 +53,11 @@ export function FixedCostsView({ companyId, userId }: FixedCostsViewProps) {
     }
   };
 
-  // Retorna true se o custo está ativo no ano*12+mês informado
-  function isActiveInYM(cost: FixedCost, ym: number): boolean {
-    const [cy, cm] = cost.start_date.split("-").map(Number);
-    const startYM = cy * 12 + (cm - 1);
-    const endYM = startYM + cost.qtdmonths - 1;
-    return ym >= startYM && ym <= endYM;
-  }
-
   const now = new Date();
   const currentYM = now.getFullYear() * 12 + now.getMonth();
 
-  // Soma de custos ativos no mês atual
-  const totalMonthly = fixedCosts
-    .filter((cost) => isActiveInYM(cost, currentYM))
-    .reduce((sum, cost) => sum + Number(cost.monthly_value), 0);
-
-  // Quantos meses do ano atual o custo está ativo
-  function getMonthsInCurrentYear(cost: FixedCost): number {
-    const [cy, cm] = cost.start_date.split("-").map(Number);
-    const costStartYM = cy * 12 + (cm - 1);
-    const costEndYM = costStartYM + cost.qtdmonths - 1;
-
-    const yearStartYM = now.getFullYear() * 12;
-    const yearEndYM = yearStartYM + 11;
-
-    const effStart = Math.max(costStartYM, yearStartYM);
-    const effEnd = Math.min(costEndYM, yearEndYM);
-
-    return effStart > effEnd ? 0 : effEnd - effStart + 1;
-  }
-
-  const totalAnnual = fixedCosts.reduce(
-    (total, cost) => total + Number(cost.monthly_value) * getMonthsInCurrentYear(cost),
-    0,
-  );
+  const totalMonthly = sumActiveFixedCostsInMonth(fixedCosts, currentYM);
+  const totalAnnual = sumFixedCostsAnnualTotal(fixedCosts, now.getFullYear());
   const costCount = fixedCosts.length;
 
   return (

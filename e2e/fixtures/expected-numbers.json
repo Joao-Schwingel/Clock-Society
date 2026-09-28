@@ -1,0 +1,206 @@
+{
+  "_readme": "Oráculo da Fase 1 (spec §4). Calculado a partir das regras documentadas na spec e nos achados N1-N13, aplicadas manualmente aos dados de e2e/fixtures/*.json — não derivado da execução do código de lib/calc ou dos componentes. Relógio fixo: 15/09/2026 12:00 -03:00. Revisão por uma segunda pessoa ainda pendente (critério de saída §9).",
+  "clock": "2026-09-15T12:00:00-03:00",
+  "companies": {
+    "A": {
+      "name": "Clock Society",
+      "dashboard": {
+        "2026-inteiro": {
+          "months": [], "year": "2026",
+          "receita": 1190, "receitaLiquida": 1170, "comissoes": 141.133,
+          "custosVendas": 20, "custosGerais": 13200, "lucro": -12171.133,
+          "porVendedor": {
+            "Ana": { "vendas": 3, "totalVendas": 510, "custos": 0, "lucroLiquido": 510, "comissao": 51 },
+            "Bruno": { "vendas": 3, "totalVendas": 480, "custos": 20, "lucroLiquido": 460, "comissao": 36.8 },
+            "Carla": { "vendas": 1, "totalVendas": 100, "custos": 0, "lucroLiquido": 100, "comissao": 33.333 },
+            "Diego": { "vendas": 0, "comissao": 0 },
+            "Site": { "vendas": 0, "comissao": 0 }
+          }
+        },
+        "2026-09": {
+          "months": [8], "year": "2026",
+          "receita": 950, "receitaLiquida": 930, "comissoes": 119.333,
+          "custosVendas": 20, "custosGerais": 1100, "lucro": -289.333,
+          "porVendedor": {
+            "Ana": { "vendas": 2, "totalVendas": 380, "custos": 0, "lucroLiquido": 380, "comissao": 38 },
+            "Bruno": { "vendas": 2, "totalVendas": 370, "custos": 20, "lucroLiquido": 350, "comissao": 28 },
+            "Carla": { "vendas": 1, "totalVendas": 100, "custos": 0, "lucroLiquido": 100, "comissao": 33.333 },
+            "Diego": { "vendas": 0, "comissao": 0 },
+            "Site": { "vendas": 0, "comissao": 0 }
+          },
+          "_nota_N12": "Elis (inativa) tem 1 venda concluída (sale-a-04) em set/2026: comissão 20 entra em 'comissoes' e 'lucro' acima, mas ela não aparece em porVendedor (só vendedores ativos aparecem nos cards)."
+        },
+        "2026-01+03": {
+          "months": [0, 2], "year": "2026",
+          "receita": 240, "receitaLiquida": 240, "comissoes": 21.8,
+          "custosVendas": 0, "custosGerais": 2200, "lucro": -1981.8,
+          "porVendedor": {
+            "Ana": { "vendas": 1, "totalVendas": 130, "custos": 0, "lucroLiquido": 130, "comissao": 13 },
+            "Bruno": { "vendas": 1, "totalVendas": 110, "custos": 0, "lucroLiquido": 110, "comissao": 8.8 },
+            "Carla": { "vendas": 0, "comissao": 0 },
+            "Diego": { "vendas": 0, "comissao": 0 },
+            "Site": { "vendas": 0, "comissao": 0 }
+          }
+        },
+        "2026-07-sem-vendas": {
+          "months": [6], "year": "2026",
+          "receita": 0, "receitaLiquida": 0, "comissoes": 0,
+          "custosVendas": 0, "custosGerais": 1100, "lucro": -1100,
+          "porVendedor": {
+            "Ana": { "vendas": 0, "comissao": 0 },
+            "Bruno": { "vendas": 0, "comissao": 0 },
+            "Carla": { "vendas": 0, "comissao": 0 },
+            "Diego": { "vendas": 0, "comissao": 0 },
+            "Site": { "vendas": 0, "comissao": 0 }
+          }
+        },
+        "2025-inteiro": {
+          "months": [], "year": "2025",
+          "receita": 90, "receitaLiquida": 90, "comissoes": 9,
+          "custosVendas": 0, "custosGerais": 2250, "lucro": -2169,
+          "porVendedor": {
+            "Ana": { "vendas": 1, "totalVendas": 90, "custos": 0, "lucroLiquido": 90, "comissao": 9 },
+            "Bruno": { "vendas": 0, "comissao": 0 },
+            "Carla": { "vendas": 0, "comissao": 0 },
+            "Diego": { "vendas": 0, "comissao": 0 },
+            "Site": { "vendas": 0, "comissao": 0 }
+          }
+        }
+      },
+      "salesTab": {
+        "2026-inteiro": {
+          "completedCount": 8, "pendingCount": 2,
+          "completedRevenue": 1190, "pendingRevenue": 650,
+          "completedCosts": 20, "pendingCosts": 40,
+          "completedNetProfit": 1170, "pendingNetProfit": 610,
+          "completedItemsCount": 9, "pendingItemsCount": 3,
+          "paymentsCompletedCount": 8, "paymentsPendingCount": 2,
+          "totalMissingPayments": 550
+        },
+        "2026-09": {
+          "completedCount": 6, "pendingCount": 2,
+          "completedRevenue": 950, "pendingRevenue": 650,
+          "completedCosts": 20, "pendingCosts": 40,
+          "completedNetProfit": 930, "pendingNetProfit": 610,
+          "completedItemsCount": 7, "pendingItemsCount": 3,
+          "paymentsCompletedCount": 6, "paymentsPendingCount": 2,
+          "totalMissingPayments": 550
+        },
+        "2026-01+03": {
+          "completedCount": 2, "pendingCount": 0,
+          "completedRevenue": 240, "pendingRevenue": 0,
+          "completedCosts": 0, "pendingCosts": 0,
+          "completedNetProfit": 240, "pendingNetProfit": 0,
+          "completedItemsCount": 2, "pendingItemsCount": 0,
+          "paymentsCompletedCount": 2, "paymentsPendingCount": 0,
+          "totalMissingPayments": 0
+        },
+        "2026-07-sem-vendas": {
+          "completedCount": 0, "pendingCount": 0,
+          "completedRevenue": 0, "pendingRevenue": 0,
+          "completedCosts": 0, "pendingCosts": 0,
+          "completedNetProfit": 0, "pendingNetProfit": 0,
+          "completedItemsCount": 0, "pendingItemsCount": 0,
+          "paymentsCompletedCount": 0, "paymentsPendingCount": 0,
+          "totalMissingPayments": 0
+        },
+        "2025-inteiro": {
+          "completedCount": 1, "pendingCount": 0,
+          "completedRevenue": 90, "pendingRevenue": 0,
+          "completedCosts": 0, "pendingCosts": 0,
+          "completedNetProfit": 90, "pendingNetProfit": 0,
+          "completedItemsCount": 1, "pendingItemsCount": 0,
+          "paymentsCompletedCount": 1, "paymentsPendingCount": 0,
+          "totalMissingPayments": 0
+        }
+      },
+      "salesTableRows_2026-09_orderDesc": [
+        { "order_number": "1011", "total": 220, "custoTotal": 0, "entrada": 220, "faltante": 0 },
+        { "order_number": "1010", "total": 180, "custoTotal": 0, "entrada": 180, "faltante": 0 },
+        { "order_number": "1009", "total": 250, "custoTotal": 0, "entrada": null, "faltante": 250 },
+        { "order_number": "1005", "total": 100, "custoTotal": 0, "entrada": 100, "faltante": 0 },
+        { "order_number": "1004", "total": 100, "custoTotal": 0, "entrada": 100, "faltante": 0 },
+        { "order_number": "1003", "total": 360, "custoTotal": 40, "entrada": 100, "faltante": 300 },
+        { "order_number": "1002", "total": 130, "custoTotal": 20, "entrada": 150, "faltante": 0 },
+        { "order_number": "1001", "total": 200, "custoTotal": 0, "entrada": 200, "faltante": 0 }
+      ],
+      "fixedCosts": { "totalMonthlyAtCurrentMonth": 1100, "totalAnnualCurrentYear": 13200, "count": 4 },
+      "inventory": { "totalValue": 1450, "totalProducts": 2, "totalQuantity": 80 }
+    },
+    "B": {
+      "name": "The Secret",
+      "dashboard": {
+        "2026-inteiro": {
+          "months": [], "year": "2026",
+          "receita": 300, "receitaLiquida": 300, "comissoes": 45,
+          "custosVendas": 0, "custosGerais": 4800, "lucro": -4545,
+          "porVendedor": {
+            "Carla": { "vendas": 1, "totalVendas": 300, "custos": 0, "lucroLiquido": 300, "comissao": 45 },
+            "Site": { "vendas": 0, "comissao": 0 }
+          }
+        },
+        "2026-09": {
+          "months": [8], "year": "2026",
+          "receita": 300, "receitaLiquida": 300, "comissoes": 45,
+          "custosVendas": 0, "custosGerais": 400, "lucro": -145,
+          "porVendedor": {
+            "Carla": { "vendas": 1, "totalVendas": 300, "custos": 0, "lucroLiquido": 300, "comissao": 45 },
+            "Site": { "vendas": 0, "comissao": 0 }
+          }
+        }
+      },
+      "salesTab": {
+        "2026-09": {
+          "completedCount": 1, "pendingCount": 1,
+          "completedRevenue": 300, "pendingRevenue": 200,
+          "completedCosts": 0, "pendingCosts": 10,
+          "completedNetProfit": 300, "pendingNetProfit": 190,
+          "completedItemsCount": 1, "pendingItemsCount": 1,
+          "paymentsCompletedCount": 1, "paymentsPendingCount": 1,
+          "totalMissingPayments": 150
+        }
+      },
+      "fixedCosts": { "totalMonthlyAtCurrentMonth": 400, "totalAnnualCurrentYear": 4800, "count": 1 },
+      "inventory": { "totalValue": 500, "totalProducts": 1, "totalQuantity": 20 }
+    },
+    "C": {
+      "name": "Morfeus",
+      "dashboard": {
+        "2026-09": {
+          "months": [8], "year": "2026",
+          "receita": 500, "receitaLiquida": 500, "comissoes": 0,
+          "custosVendas": 0, "custosGerais": 0, "lucro": 500,
+          "porVendedor": {
+            "Site": { "vendas": 1, "totalVendas": 500, "custos": 0, "lucroLiquido": 500, "comissao": 0 }
+          }
+        }
+      },
+      "salesTab": {
+        "2026-09": {
+          "completedCount": 1, "pendingCount": 0,
+          "completedRevenue": 500, "pendingRevenue": 0,
+          "completedCosts": 0, "pendingCosts": 0,
+          "completedNetProfit": 500, "pendingNetProfit": 0,
+          "completedItemsCount": 1, "pendingItemsCount": 0,
+          "paymentsCompletedCount": 1, "paymentsPendingCount": 0,
+          "totalMissingPayments": 0
+        }
+      },
+      "fixedCosts": { "totalMonthlyAtCurrentMonth": 0, "totalAnnualCurrentYear": 0, "count": 0 },
+      "inventory": { "totalValue": 0, "totalProducts": 0, "totalQuantity": 0 }
+    }
+  },
+  "contracts": {
+    "hoje": "2026-09-15",
+    "currentYear": 2026,
+    "totalMonthly": 1100,
+    "activeCount": 2,
+    "endedCount": 1,
+    "totalAnnualCurrentYear": 9600,
+    "detail": {
+      "Contador": { "active": true, "monthsInCurrentYear": 12 },
+      "Consultoria Antiga": { "active": false, "monthsInCurrentYear": 0 },
+      "Marketing": { "active": true, "monthsInCurrentYear": 6 }
+    }
+  }
+}

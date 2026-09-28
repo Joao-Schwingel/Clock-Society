@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Salesperson, SaleWithDetails } from "@/lib/types";
 import { DatePickerBR } from "./date-picker-br";
 import { toast } from "sonner";
+import { computeAutoPaymentStatus, computeSalePayment } from "@/lib/calc/sale-payment";
 
 interface SalesFormProps {
   companyId: string;
@@ -206,35 +207,14 @@ export function SalesForm({
 
   // const totalPrice = useMemo(() => itemsTotal.toFixed(2), [itemsTotal]);
 
-  const parsedEntryValue = useMemo(() => {
-    const v = entryValue.trim();
-    if (v === "" || v === "0") return 0;
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  }, [entryValue]);
-
-  const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(() => {
-    const parsedTotal = totalPrice || 0;
-
-    const cash = parsedEntryValue === 0;
-    const effectiveEntry = cash ? parsedTotal : parsedEntryValue;
-
-    return {
-      isCashPayment: cash,
-      effectiveEntryValue: effectiveEntry,
-      remainingValue: Math.max(
-        0,
-        Number(parsedTotal) - Number(effectiveEntry),
-      ).toFixed(2),
-    };
-  }, [parsedEntryValue, totalPrice]);
+  const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(
+    () => computeSalePayment(totalPrice, entryValue),
+    [entryValue, totalPrice],
+  );
 
   useEffect(() => {
-    if (isCashPayment) {
-      if (paymentStatus !== "pago") setPaymentStatus("pago");
-    } else {
-      if (!sale && paymentStatus !== "pendente") setPaymentStatus("pendente");
-    }
+    const next = computeAutoPaymentStatus(isCashPayment, !!sale, paymentStatus);
+    if (next !== paymentStatus) setPaymentStatus(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCashPayment]);
 

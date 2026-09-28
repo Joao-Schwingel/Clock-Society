@@ -1,0 +1,14 @@
+[
+  {
+    "id": "u-admin",
+    "email": "admin@t1.test",
+    "password": "senha123",
+    "note": "Dono de tudo no inquilino T1 (Clock Society / The Secret / Morfeus)."
+  },
+  {
+    "id": "u-outro",
+    "email": "outro@t2.test",
+    "password": "senha123",
+    "note": "Usuário de outro inquilino (T2), com dados próprios — cenário de referência para o checklist MANUAL de isolamento (§7 'Banco'), não exercitado por E2E automatizado."
+  }
+]

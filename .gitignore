@@ -22,3 +22,10 @@ pnpm-debug.log*
 # sistema
 .DS_Store
 *.swp
+
+# testes
+coverage/
+playwright-report/
+test-results/
+.vitest-cache/
+*.tsbuildinfo

@@ -1,0 +1,5 @@
+[
+  { "id": "ct-1", "user_id": "u-admin", "name": "Contador", "monthly_value": 500, "start_date": "2024-01-01", "end_date": null, "description": "Sem data de fim", "created_at": "2024-01-01T10:00:00.000Z", "updated_at": "2024-01-01T10:00:00.000Z" },
+  { "id": "ct-2", "user_id": "u-admin", "name": "Consultoria Antiga", "monthly_value": 800, "start_date": "2024-01-01", "end_date": "2025-06-30", "description": "Encerrado", "created_at": "2024-01-01T10:00:01.000Z", "updated_at": "2025-06-30T10:00:00.000Z" },
+  { "id": "ct-3", "user_id": "u-admin", "name": "Marketing", "monthly_value": 600, "start_date": "2026-07-01", "end_date": null, "description": "Iniciando no meio do ano", "created_at": "2026-07-01T10:00:00.000Z", "updated_at": "2026-07-01T10:00:00.000Z" }
+]

@@ -25,7 +25,9 @@ import { SaleDetailsModal } from "./sale-details-modal";
 import { Spinner } from "@radix-ui/themes";
 import { DashboardFilters } from "./dashboards-filters";
 import { toast } from "sonner";
-import { formatBR } from "@/lib/utils";
+import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
+import { summarizeSalesStats } from "@/lib/calc/sales-stats";
+import { buildSalesCsvContent } from "@/lib/calc/sales-csv";
 
 interface SalesViewProps {
   companyId: string;
@@ -85,14 +87,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       .select(STATS_SELECT)
       .eq("company_id", companyId);
 
-    if (months.length > 0) {
-      const ranges = months.map((m) => {
-        const start = new Date(Number(year), m, 1);
-        const end = new Date(Number(year), m + 1, 1);
-        return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
-      });
-      query = query.or(ranges.join(","));
-    }
+    const dateOr = buildSaleDateRangeFilter(months, year);
+    if (dateOr) query = query.or(dateOr);
 
     const { data, error } = await query;
     if (!error && data) setSales(data as SaleWithDetails[]);
@@ -134,14 +130,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       .eq("company_id", companyId);
 
     // Filtro de meses do dashboard (mesmo que os cards)
-    if (months.length > 0) {
-      const ranges = months.map((m) => {
-        const start = new Date(Number(year), m, 1);
-        const end = new Date(Number(year), m + 1, 1);
-        return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
-      });
-      query = query.or(ranges.join(","));
-    }
+    const dateOr = buildSaleDateRangeFilter(months, year);
+    if (dateOr) query = query.or(dateOr);
 
     // Filtro de busca (produto, cliente, nº pedido)
     if (appliedSearch.trim()) {
@@ -416,77 +406,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
         }
       }
 
-      const formatMoney = (v: number) =>
-        v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
-
-      const headers = [
-        "Data",
-        "Nº Pedido",
-        "Produtos",
-        "Cliente",
-        "Vendedor",
-        "Status",
-        "Quantidade",
-        "Valor do Produto",
-        "Custo Total",
-        "Valor Líquido",
-        "Valor Líquido após Comissão",
-        "Entrada",
-        "Faltante",
-        "Status Pagamento",
-      ];
-
-      const escapeCSV = (val: unknown): string => {
-        const str = String(val ?? "");
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      const rows = data.map((sale: any) => {
-        const costs = Number(sale.total_costs ?? 0);
-        const total = Number(sale.total_price ?? 0);
-        const entry = Number(sale.entry_value ?? 0);
-        const paymentStatus = sale.payment_status ?? "pendente";
-        const remaining =
-          paymentStatus === "pago" ? 0 : Math.max(0, total - entry);
-        const qty = qtyMap[sale.id] ?? sale.quantity ?? 0;
-        const products = productMap[sale.id] || sale.product_name || "-";
-        const salespersons = (sale.salespersons ?? [])
-          .map((p: any) => p.name)
-          .join(", ");
-
-        const netValue = total - costs;
-        const totalCommission = (sale.salespersons ?? []).reduce(
-          (sum: number, p: any) =>
-            sum + (netValue * Number(p.commission_percent || 0)) / 100,
-          0,
-        );
-        const netAfterCommission = netValue - totalCommission;
-
-        return [
-          sale.sale_date ? formatBR(sale.sale_date) : "-",
-          sale.order_number || "-",
-          products,
-          sale.customer_name || "-",
-          salespersons || "-",
-          sale.status === "concluída" ? "Concluída" : "Pendente",
-          String(qty),
-          formatMoney(total),
-          formatMoney(costs),
-          formatMoney(netValue),
-          formatMoney(netAfterCommission),
-          entry > 0 ? formatMoney(entry) : "-",
-          formatMoney(remaining),
-          paymentStatus === "pago" ? "Pago" : "Pendente",
-        ].map(escapeCSV);
-      });
-
-      const csvContent =
-        "\uFEFF" + [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join(
-          "\n",
-        );
+      const csvContent = buildSalesCsvContent(data as any, qtyMap, productMap);
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -511,38 +431,21 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     !!searchTerm || !!appliedSearch || !!dateFilter || onlyWithRemaining || !!salespersonFilter || !!statusFilter;
 
   // ── Cálculos dos cards de estatísticas ────────────────────────
-  const completedSales = sales.filter((s) => s.status === "concluída");
-  const pendingSales = sales.filter((s) => s.status === "pendente");
-
-  const completedRevenue = completedSales.reduce(
-    (sum, s) => sum + Number(s.total_price),
-    0,
-  );
-  const pendingRevenue = pendingSales.reduce(
-    (sum, s) => sum + Number(s.total_price),
-    0,
-  );
-
-  const completedCosts = completedSales.reduce(
-    (sum, s) => sum + Number(s.total_costs ?? 0),
-    0,
-  );
-  const pendingCosts = pendingSales.reduce(
-    (sum, s) => sum + Number(s.total_costs ?? 0),
-    0,
-  );
-
-  const completedNetProfit = completedRevenue - completedCosts;
-  const pendingNetProfit = pendingRevenue - pendingCosts;
-
-  const paymentsCompleted = sales.filter((s) => s.payment_status === "pago");
-  const paymentsPending = sales.filter((s) => s.payment_status !== "pago");
-
-  const totalMissingPayments = paymentsPending.reduce((sum, s) => {
-    const total = Number(s.total_price ?? 0);
-    const entry = Number(s.entry_value ?? 0);
-    return sum + Math.max(total - entry, 0);
-  }, 0);
+  const {
+    completedCount,
+    pendingCount,
+    completedRevenue,
+    pendingRevenue,
+    completedCosts,
+    pendingCosts,
+    completedNetProfit,
+    pendingNetProfit,
+    completedItemsCount,
+    pendingItemsCount,
+    paymentsCompletedCount,
+    paymentsPendingCount,
+    totalMissingPayments,
+  } = summarizeSalesStats(sales);
 
   const totalPages = Math.ceil(tableTotal / TABLE_PAGE_SIZE);
 
@@ -578,7 +481,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
                   })}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {completedSales.length} vendas aprovadas
+                  {completedCount} vendas aprovadas
                 </p>
               </CardContent>
             </Spinner>
@@ -642,7 +545,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             <Spinner loading={isLoading} size={"3"}>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {completedSales.reduce((sum, sale) => sum + sale.quantity, 0)}
+                  {completedItemsCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Quantidade total
@@ -675,7 +578,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
                   })}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {pendingSales.length} vendas aguardando
+                  {pendingCount} vendas aguardando
                 </p>
               </CardContent>
             </Spinner>
@@ -739,7 +642,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             <Spinner loading={isLoading} size={"3"}>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {pendingSales.reduce((sum, sale) => sum + sale.quantity, 0)}
+                  {pendingItemsCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Quantidade aguardando
@@ -766,7 +669,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             <Spinner loading={isLoading} size={"3"}>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {paymentsCompleted.length}
+                  {paymentsCompletedCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Vendas com pagamento confirmado
@@ -785,7 +688,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
             <Spinner loading={isLoading} size={"3"}>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {paymentsPending.length}
+                  {paymentsPendingCount}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Vendas aguardando pagamento

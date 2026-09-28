@@ -31,6 +31,7 @@ import {
 import { Trash2, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatBR } from "@/lib/utils";
+import { filterAndSortFixedCosts } from "@/lib/calc/fixed-cost-table";
 
 interface FixedCostTableProps {
   fixedCosts: FixedCost[];
@@ -63,49 +64,13 @@ export function FixedCostTable({
   const [saleType, setSaleType] = useState("ambos");
   const [sortDirection, setSortDirection] = useState<"desc" | "asc">("desc");
 
-  const filteredCosts = fixedCosts
-    .filter((cost) => {
-      const matchesSearch =
-        cost.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (cost.category?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-          false);
-
-      const matchesCategory =
-        categoryFilter === "all" || cost.category === categoryFilter;
-
-      const matchesDate = (() => {
-        if (!dateFilter) return true;
-
-        const [y, m, d] = cost.start_date.split('-').map(Number);
-        const start = new Date(y, m - 1, d);
-        const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
-
-        const endMonth = new Date(
-          startMonth.getFullYear(),
-          startMonth.getMonth() + cost.qtdmonths,
-          1,
-        );
-
-        const [year, month] = dateFilter.split("-").map(Number);
-        
-        const filterMonth = new Date(year, month - 1, 1);
- 
-        return filterMonth >= startMonth && filterMonth < endMonth;
-      })();
-
-      const matchesType =
-        saleType === "ambos" || cost.category.toLowerCase() === saleType;
-
-      return matchesSearch && matchesCategory && matchesDate && matchesType;
-    })
-    .sort((a, b) => {
-      const valueA = new Date(a.start_date).getTime();
-      const valueB = new Date(b.start_date).getTime();
-
-      if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
-      if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
+  const filteredCosts = filterAndSortFixedCosts(fixedCosts, {
+    searchTerm,
+    categoryFilter,
+    dateFilter,
+    saleType,
+    sortDirection,
+  });
 
   const clearFilters = () => {
     setSearchTerm("");
