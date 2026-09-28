@@ -21,8 +21,9 @@ Esta fase é a etapa de *Planning* da skill, feita com o time e não por uma pes
 | Listar comportamentos, não passos de implementação | §5 |
 | Obter aprovação | §8 |
 
-**Não se escrevem asserções nesta fase.** Os casos das camadas UNIT e E2E entram no código como
-`it.todo("A-MW-01 …")`, agrupados por arquivo de teste; cada `todo` vira teste de verdade dentro do
+**Não se escrevem asserções nesta fase.** Os casos da camada UNIT entram no código como
+`it.todo("A-MW-01 …")` (Vitest) e os da camada E2E como `test.fixme("A-MW-01 …", () => {})`
+(Playwright, que não tem `it.todo`), agrupados por arquivo de teste; cada `todo` vira teste de verdade dentro do
 ciclo RED→GREEN da Fase 3. Os casos **MANUAL** (catálogo "Banco", §5) não viram `it.todo` — entram como
 linhas de um checklist (markdown ou planilha), sem execução ainda, que a Fase 3 executa à mão a cada
 fatia entregue.
@@ -96,9 +97,10 @@ negado, e não a aba. A proteção real continua sendo o RLS.
 
 ### 3.6 `user_id` nas inserções
 
-**Proposta:** coluna com `default public.current_tenant_id()` nas 10 tabelas, e política com
+**Decidido:** coluna com `default public.current_tenant_id()` nas 8 tabelas que têm `user_id`
+(`sale_items` e `sale_salespersons` não têm: derivam de `sales`), e política com
 `with check (user_id = current_tenant_id() and is_admin())`. O front deixa de enviar `user_id` nas 7
-inserções (N3). Alternativa: o front envia o `tenantId` da sessão.
+inserções (N3). *(Descartada: o front enviar o `tenantId` da sessão.)*
 
 ### 3.7 Estado vazio sem empresas
 
@@ -136,7 +138,7 @@ o CI, mas bloqueiam a saída da fatia.
 |---|---|---|
 | A-DB-01 | P1 | Após o backfill, o admin atual tem perfil `admin`, `tenant_id` igual ao próprio id e está ativo |
 | A-DB-02 | P1 | O token do admin traz `app_role = admin` e `tenant_id`; o de um usuário sem perfil não traz nenhum dos dois |
-| A-DB-03 | P1 | `current_tenant_id()`, `current_role()` e `is_admin()` dão o mesmo resultado com e sem as claims no token (queda para `profiles`) |
+| A-DB-03 | P1 | `current_tenant_id()`, `current_app_role()` e `is_admin()` dão o mesmo resultado com e sem as claims no token (queda para `profiles`) |
 | A-DB-04 | P1 | **Regressão:** o admin lê exatamente as contagens do fixture nas 10 tabelas e nas 2 views — C-DB-01 repetido com as novas políticas e o `security_invoker` (§7.4 do planejamento) |
 | A-DB-05 | P1 | O admin cria, altera e exclui em todas as tabelas que o front escreve — C-DB-02 repetido |
 | A-DB-06 | P1 | Outro inquilino: 0 linhas em todas as tabelas, nas 2 views e em `sale_items`; escrita negada. **C-DB-05 passa a valer** |
@@ -227,7 +229,7 @@ Qualquer outro teste da Fase 1 que quebrar durante a Fase 3 é regressão.
 - [ ] Catálogo aprovado por pelo menos um revisor além do autor
 - [ ] Decisões 3.1 a 3.7 registradas
 - [ ] Q7 respondida (ou A-DB-11/A-TEN-01 mantidos como detectores de N3)
-- [ ] `it.todo` presentes e listados no relatório do Vitest, para os casos UNIT/E2E
+- [ ] `it.todo` presentes e listados no relatório do Vitest (casos UNIT) e `test.fixme` no relatório do Playwright (casos E2E)
 - [ ] Checklist MANUAL redigido e revisado junto com o catálogo
 
 **Estimativa:** 4–6 h.

@@ -90,7 +90,7 @@ Sem login, só com a chave `anon`:
 |---|---|
 | cada uma das 10 tabelas | |
 | `sales_with_details`, `sales_with_salespersons` | |
-| funções `current_tenant_id()`, `current_role()`, `is_admin()` (após 3.2) | |
+| funções `current_tenant_id()`, `current_app_role()`, `is_admin()`, `custom_access_token_hook()` (após 3.2) | |
 | `profiles`, `profile_salespersons`, `role_permissions` (após 3.2) | |
 
 Era falha conhecida em C-DB-04 — **agora precisa passar**.
@@ -118,12 +118,12 @@ Para `admin@t1`, rodar com o JSON **com** e **sem** `app_metadata`:
 | Função | Com claims | Sem claims (queda para `profiles`) | Iguais? |
 |---|---|---|---|
 | `public.current_tenant_id()` | | | |
-| `public.current_role()` | | | |
+| `public.current_app_role()` | | | |
 | `public.is_admin()` | | | |
 
-> Chame `current_role` **sempre qualificada** (`public.current_role()`): sem o schema, o Postgres
-> resolve para a função SQL embutida `current_role`, que devolve `authenticated`. Ver decisão 3.3 em
-> [`docs/fase-2/README.md`](../fase-2/README.md).
+> A função se chama `current_app_role()`, e não `current_role()` como no rascunho do planejamento:
+> `current_role` é palavra reservada do SQL (achado 1 em [`docs/fase-2/README.md`](../fase-2/README.md)).
+> Confira também que `select current_role;` (sem parênteses) continua devolvendo `authenticated`.
 
 ### A-DB-12 (P1) — `profiles`: leitura, escalada, recursão
 

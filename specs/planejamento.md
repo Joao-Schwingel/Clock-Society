@@ -231,7 +231,9 @@ returns uuid language sql stable security definer set search_path = public as $$
   )
 $$;
 
-create or replace function public.current_role()
+-- não se chama current_role: é palavra reservada do SQL, e sem o schema resolveria para a
+-- função embutida do Postgres (que devolve o papel do banco, ex. 'authenticated')
+create or replace function public.current_app_role()
 returns text language sql stable security definer set search_path = public as $$
   select coalesce(
     nullif(auth.jwt() -> 'app_metadata' ->> 'app_role',''),
@@ -241,7 +243,7 @@ $$;
 
 create or replace function public.is_admin()
 returns boolean language sql stable security definer set search_path = public as $$
-  select public.current_role() = 'admin'
+  select coalesce(public.current_app_role() = 'admin', false)
 $$;
 
 create or replace function public.my_salesperson_ids()
@@ -786,7 +788,7 @@ Cada migration tem seu par de reversão. Ordem inversa da aplicação.
 
 | Migration | Reversão |
 |---|---|
-| `018_backfill_admin.sql` | `delete from profiles` |
+| `018_backfill_admin.sql` | Remover só os perfis criados pelo backfill (`id = tenant_id`, `role = 'admin'`, dono de empresas), nunca a tabela inteira |
 | `017_indexes.sql` | `drop index` |
 | `016_vendor_views.sql` | `drop view vendor_sales` + `drop function commission_summary(uuid, int, int[])` |
 | `015_rewrite_policies.sql` | Restaurar as políticas da linha de base salva em 1.1 |
