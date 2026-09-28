@@ -79,7 +79,7 @@ tokens):
 
 ## C-DB-04 — Acesso da chave anônima (sem login)
 
-> **Substituído por A-DB-09 a partir da Fase 3** ([checklist da Fase 2](fase-2-checklist-banco-admin.md)).
+> Continua valendo como registro: o fechamento desta brecha saiu do escopo da release 2 (issue #9).
 
 Usando a chave `anon` (pública), **sem nenhum login**, tente ler cada tabela
 e view listada em C-DB-01. Registre o que consegue ler:
@@ -89,12 +89,12 @@ e view listada em C-DB-01. Registre o que consegue ler:
 | ... | | |
 
 > Hoje (achados 1–3 do planejamento), é esperado que haja acesso indevido —
-> isso é um achado conhecido, não uma regressão desta fase. **Passa a valer
-> (ou seja, deixa de ser aceitável) na Fase 3.**
+> isso é um achado conhecido, não uma regressão desta fase. *(Planejado para a Fase 3, mas
+> saiu do escopo da release 2 — issue #9.)*
 
 ## C-DB-05 — Isolamento nas views e em `sale_items`
 
-> **Substituído por A-DB-06 a partir da Fase 3** ([checklist da Fase 2](fase-2-checklist-banco-admin.md)).
+> Continua valendo como registro: o fechamento desta brecha saiu do escopo da release 2 (issue #9).
 
 Como T2, tente ler `sales_with_details`, `sales_with_salespersons` e
 `sale_items` e confirme se linhas de T1 aparecem.
@@ -103,8 +103,7 @@ Como T2, tente ler `sales_with_details`, `sales_with_salespersons` e
 - [ ] `sales_with_salespersons` — isolado?
 - [ ] `sale_items` — isolado?
 
-> Mesma nota de C-DB-04: hoje é esperado falhar (achados 1–3). **Passa a
-> valer na Fase 3.**
+> Mesma nota de C-DB-04: hoje é esperado falhar (achados 1–3).
 
 ## C-DB-06 — Efeito real do gatilho `recalc_sale_total` (N1)
 

@@ -19,21 +19,13 @@
 - [ ] `explain analyze` das 3 consultas pesadas do admin (vendas paginadas, estatísticas, dashboard),
       antes/depois, num banco local com volume parecido (Fase 3 §4)
 
-## Fatia 3.1 — pode ir sozinha, antes do resto
-
-1. Backup do banco.
-2. Aplicar `scripts/012_fix_missing_rls.sql`. Ela liga o RLS nas 2 tabelas, põe `security_invoker`
-   nas 3 views, revoga o `anon` e tira do `authenticated` os objetos mortos e os privilégios extras.
-3. Aplicar `scripts/019_tenant_fk_restrict.sql` (apagar o usuário dono passa a ser recusado).
-4. Verificar na hora:
-   - **A-DB-04:** contagens do admin iguais às de antes;
-   - **A-DB-06:** views e `sale_items`;
-   - **A-DB-09:** anon não lê nada;
-   - **A-DB-18** e **A-DB-19**.
-   Se o A-DB-04 divergir, reverta a 012 com o `.down.sql` e investigue (§7.4 do planejamento).
+## Fatia 3.1 — nada a aplicar em produção
 
 A `011_reconcile_schema.sql` não altera nada em produção (tudo já existe); aplicá-la lá é opcional e
 serve só para registrar que o banco está reconciliado com os scripts.
+
+O fechamento das brechas do banco (RLS de `sale_items`/`sale_salespersons`, `security_invoker` nas
+views, grants do `anon`) **não faz parte desta release**: está na issue #9.
 
 ## Janela principal — fatias 3.2 a 3.6
 
@@ -60,11 +52,9 @@ serve só para registrar que o banco está reconciliado com os scripts.
 Ordem inversa, cada uma com o seu `scripts/rollback/*.down.sql`:
 
 1. *Redeploy* do app anterior na Vercel.
-2. `018` → `017` → `015` (o `.down` da 015 recria as 32 políticas da baseline). A `019` pode
-   ficar: ela não muda nada no uso normal.
+2. `018` → `017` → `015` (o `.down` da 015 recria as 32 políticas da baseline).
 3. Desabilitar o hook no painel **antes** de reverter a `014`.
 4. `014` → `013`.
-5. A `012` **não** é revertida em produção (fecha brechas).
 
 ## Registro
 

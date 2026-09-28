@@ -49,6 +49,10 @@ begin
 end $$;
 
 -- 3. Tabelas filhas sem user_id: herdam da venda-mãe.
+--    ATENÇÃO: em produção o RLS dessas duas tabelas está DESLIGADO (baseline de 28/09/2026), e
+--    ligá-lo está fora do escopo desta release (registrado como issue #9). Enquanto isso,
+--    as duas políticas abaixo existem mas não têm efeito. Ligar o RLS delas é pré-requisito da
+--    Fase 6: sem isso, o vendedor leria itens e vínculos de todas as vendas.
 create policy "sale_items_tenant_admin_all" on public.sale_items
   for all to authenticated
   using (public.is_admin() and exists (

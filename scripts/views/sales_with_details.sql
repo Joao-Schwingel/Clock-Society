@@ -1,5 +1,4 @@
--- sales_with_details — definição de PRODUÇÃO (pg_get_viewdef em 28/09/2026, docs/baseline/),
--- acrescida só de security_invoker (Fase 3.1, 012).
+-- sales_with_details — definição de PRODUÇÃO (pg_get_viewdef em 28/09/2026, docs/baseline/).
 --
 -- A versão anterior deste arquivo tinha duas colunas a mais (remaining_amount e sale_item_names,
 -- do commit 0e84158) que nunca chegaram a produção e que nenhum código do app usa. Foram removidas
@@ -7,7 +6,7 @@
 
 drop view if exists public.sales_with_details;
 
-create view public.sales_with_details with (security_invoker = on) as
+create view public.sales_with_details as
 select
   s.id,
   s.company_id,

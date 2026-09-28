@@ -81,23 +81,13 @@ de outros usuários (o auto-cadastro esteve aberto), e a 018 vai criar mais de u
 
 Rode também `scripts/retrato/retrato.sql` e guarde o resultado fora do repositório.
 
-## 5. Fatia 3.1 — `011`, `012` e `019`
+## 5. Fatia 3.1 — `011`
 
 ```bash
 psql "$LOCAL_DB" -v ON_ERROR_STOP=1 -f scripts/011_reconcile_schema.sql   # não deve mudar nada
-psql "$LOCAL_DB" -v ON_ERROR_STOP=1 -f scripts/012_fix_missing_rls.sql
-psql "$LOCAL_DB" -v ON_ERROR_STOP=1 -f scripts/019_tenant_fk_restrict.sql
 ```
 
-- **A-DB-18** e **A-DB-19:** siga o checklist. O A-DB-18 tenta apagar o seu usuário dentro de
-  `begin … rollback`, e o banco tem que recusar.
-
 - **A-DB-04:** repita a consulta simulada do passo 4. Tem que dar exatamente os mesmos números.
-- **A-DB-09:** sem login, só com a chave anon local:
-  ```bash
-  curl "http://127.0.0.1:54321/rest/v1/sales_with_details?select=id&limit=1" -H "apikey: $ANON_KEY"
-  ```
-  Esperado: erro `42501` (permission denied). Antes da 012, isso devolvia vendas.
 
 ## 6. Fatia 3.2 — `013`, `014` e o hook
 
@@ -164,7 +154,7 @@ mesmo assim.
 ## 9. A-DB-17 e limpeza
 
 1. Reverta, na ordem: `018`, `017`, `015`, `014` (desligue antes o hook no `config.toml` e reinicie),
-   `013`, `019`, `012` e `011`, cada um com o seu `scripts/rollback/*.down.sql`. Depois rode o passo 4: os números
+   `013` e `011`, cada um com o seu `scripts/rollback/*.down.sql`. Depois rode o passo 4: os números
    precisam voltar aos de antes.
 2. Reaplique tudo (passos 5 a 7) e confira o A-DB-04 de novo. O rollback da 013 apaga a tabela
    `profiles`; por isso rode o seed do passo 6 de novo depois de reaplicar a 014.

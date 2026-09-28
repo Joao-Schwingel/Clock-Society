@@ -1,14 +1,9 @@
 -- salesperson_summary — existe em produção, criada à mão no painel, e NÃO é usada pelo app.
--- Definição de produção (pg_get_viewdef em 28/09/2026, docs/baseline/), acrescida só de
--- security_invoker (Fase 3.1, 012).
---
--- Atenção: sem security_invoker ela agrega vendas e comissões de TODOS os inquilinos (não filtra
--- user_id) e, com o grant do anon, fica legível sem login. A regra de comissão dela também difere
--- da do Dashboard (exige payment_status = 'pago'). Candidata a remoção numa migration própria.
+-- Definição de produção (pg_get_viewdef em 28/09/2026, docs/baseline/), versionada só como registro.
 
 drop view if exists public.salesperson_summary;
 
-create view public.salesperson_summary with (security_invoker = on) as
+create view public.salesperson_summary as
 with sale_costs_sum as (
   select sale_costs.sale_id, sum(sale_costs.amount) as total_cost
   from sale_costs

@@ -64,7 +64,7 @@ Por isso a primeira fase não entrega funcionalidade nenhuma. Ela fixa em testes
 |---|---|---|---|
 | **1** | Fixar o comportamento atual | Suítes unit/DB/E2E verdes no CI; schema real versionado; fixture com números esperados | Inventário C-xx 100% coberto; nada mudou para o usuário |
 | **2** | Definir o que "suportar o admin" significa | Catálogo A-xx aprovado; decisões de interface; fixtures multi-papel | Catálogo revisado e aprovado pelo time |
-| **3** | Sistema com papéis, tendo o admin como único papel funcional | Migrations 012–015, 017, 018; camada de permissão; middleware por papel | A-xx verdes; suíte da Fase 1 verde (salvo as exceções da §4) |
+| **3** | Sistema com papéis, tendo o admin como único papel funcional | Migrations 011, 013–015, 017, 018 (a 012, de brechas, saiu do escopo: issue #9); camada de permissão; middleware por papel | A-xx verdes; suíte da Fase 1 verde (salvo as exceções da §4) |
 | **4** | Validar em homologação e produção | Checklist executado e registrado | Números do admin idênticos ao retrato; nenhuma pendência |
 | **5** | Definir o comportamento do vendedor | Catálogo V-xx aprovado; contratos de API, RPC e view | Q2, Q4 e Q6 respondidas; catálogo aprovado |
 | **6** | Área do vendedor e gestão de usuários | Migration 016; ramo do vendedor nas políticas; telas novas | V-xx verdes; matriz manual do §8 executada |

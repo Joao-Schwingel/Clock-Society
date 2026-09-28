@@ -93,7 +93,7 @@ async function handleRest(req, res, url, table, method) {
     return;
   }
 
-  // 012: o anon não tem grant em nada do schema public.
+  // Simplificação: o anon não acessa nada (ver e2e/mock-server/rls.mjs).
   if (ctx.kind === "anon") {
     sendJson(res, 401, { code: "42501", message: `permission denied for ${isView ? "view" : "table"} ${table}` });
     return;

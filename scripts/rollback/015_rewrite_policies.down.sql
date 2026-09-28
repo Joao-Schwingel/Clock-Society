@@ -1,6 +1,6 @@
 -- Reverte a 015: restaura EXATAMENTE as políticas de produção salvas na baseline
 -- (docs/baseline/pg_policies-producao-2026-09-28.json — 32 políticas, 4 por tabela, em 8 tabelas;
--- nenhuma política em sale_items nem em sale_salespersons). As filhas voltam ao estado da 012.
+-- nenhuma política em sale_items nem em sale_salespersons).
 
 begin;
 
@@ -58,15 +58,7 @@ create policy "Users can insert their own salespersons" on public.salespersons f
 create policy "Users can update their own salespersons" on public.salespersons for update using (auth.uid() = user_id);
 create policy "Users can delete their own salespersons" on public.salespersons for delete using (auth.uid() = user_id);
 
--- Filhas: mesmo estado deixado pela 012 (para voltar a antes da 012, use o .down dela).
-create policy "sale_items_owner_all" on public.sale_items
-  for all to authenticated
-  using (exists (select 1 from public.sales s where s.id = sale_items.sale_id and s.user_id = auth.uid()))
-  with check (exists (select 1 from public.sales s where s.id = sale_items.sale_id and s.user_id = auth.uid()));
-
-create policy "sale_salespersons_owner_all" on public.sale_salespersons
-  for all to authenticated
-  using (exists (select 1 from public.sales s where s.id = sale_salespersons.sale_id and s.user_id = auth.uid()))
-  with check (exists (select 1 from public.sales s where s.id = sale_salespersons.sale_id and s.user_id = auth.uid()));
+-- Filhas: na baseline, sale_items e sale_salespersons não têm política nenhuma (RLS desligado);
+-- as da 015 já foram removidas no bloco acima.
 
 commit;

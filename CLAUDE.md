@@ -27,7 +27,7 @@ Two client factories — use the right one depending on context:
 - `lib/supabase/server.ts` → `createClient()` for **Server Components** and **Server Actions** (cookie-based)
 - `lib/supabase/client.ts` → `createClient()` for **Client Components** (browser)
 
-All tables have RLS enabled. Since release-2 Fase 3, `user_id` means the **tenant** (not the logged-in user): policies are `user_id = public.current_tenant_id() and public.is_admin()`, and `user_id` defaults to `current_tenant_id()`. **Never filter or insert by the logged-in user's id** (N3) — let RLS scope reads and the column default fill inserts. `sale_items`/`sale_salespersons` inherit access from `sales`.
+All tables except `sale_items`/`sale_salespersons` have RLS enabled. Since release-2 Fase 3, `user_id` means the **tenant** (not the logged-in user): policies are `user_id = public.current_tenant_id() and public.is_admin()`, and `user_id` defaults to `current_tenant_id()`. **Never filter or insert by the logged-in user's id** (N3) — let RLS scope reads and the column default fill inserts. `sale_items`/`sale_salespersons` have policies inheriting from `sales`, but their RLS is still **off** in production (closing that, plus `security_invoker` on the views and the `anon` grants, is out of scope for release 2 — tracked in issue #9, prerequisite for the vendor role).
 
 Database schema lives in `scripts/*.sql` (migrations) and `scripts/views/` (DB views like `sales_with_details`).
 

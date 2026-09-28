@@ -90,7 +90,7 @@ por um humano, antes do merge/deploy da fatia correspondente (Fase 6 §2).
 
 > **Notas da revisão de 28/09/2026 (dados de produção):**
 > - **"Pago" × "concluída" (item 7):** a view `salesperson_summary` e a função
->   `salesperson_summary_by_months` (mortas, sem acesso desde a 012) só contam vendas pagas; o
+>   `salesperson_summary_by_months` (mortas: o app não as usa) só contam vendas pagas; o
 >   Dashboard (C-DASH-02) conta toda venda concluída. São 9 vendas concluídas e não pagas, cerca de
 >   1,9% do valor concluído. A regra da `commission_summary()` precisa ser fechada em Q2/Q10 **antes**
 >   de escrever o V-DB-12.

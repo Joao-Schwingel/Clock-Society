@@ -1,10 +1,10 @@
 -- sales_with_salespersons — usada pelo Dashboard (dashboard-view.tsx). Criada à mão no painel e
 -- nunca versionada (achado 4). Definição tirada de produção em 28/09/2026 com
--- pg_get_viewdef (docs/baseline/), acrescida só de security_invoker (Fase 3.1, 012).
+-- pg_get_viewdef (docs/baseline/).
 
 drop view if exists public.sales_with_salespersons;
 
-create view public.sales_with_salespersons with (security_invoker = on) as
+create view public.sales_with_salespersons as
 select
   s.id,
   s.company_id,

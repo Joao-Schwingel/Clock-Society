@@ -8,7 +8,7 @@
 -- que não existe em produção).
 --
 -- Fora de propósito: create_sale() e salesperson_summary_by_months() existem em produção, mas o
--- app não as usa e a 012 tira o acesso a elas; não são recriadas aqui.
+-- app não as usa; não são recriadas aqui.
 -- Rollback: nada a reverter em produção (scripts/rollback/011_reconcile_schema.down.sql).
 
 begin;

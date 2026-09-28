@@ -73,8 +73,8 @@ do catálogo.
 | A-REG-01 | P1 | a suíte da Fase 1 (`pnpm test`, `pnpm test:e2e`) | — | todas |
 
 Fase 1 substituída (§6 da spec): C-AUTH-05 → A-MW-03 (não havia teste); C-NAV-04 → A-BOOT-01 (o
-`test.fail()` foi removido de `e2e/tests/nav.spec.ts`); C-DB-04 → A-DB-09 e C-DB-05 → A-DB-06
-(marcados no checklist da Fase 1).
+`test.fail()` foi removido de `e2e/tests/nav.spec.ts`); C-DB-04 e C-DB-05 **não** são
+substituídos nesta release (fora do escopo, issue #9).
 
 ---
 
@@ -89,17 +89,14 @@ por esta automação.** Ordem e verificações: [`docs/fase-3/runbook.md`](../fa
 | Fatia | Migration | Conteúdo | Rollback |
 |---|---|---|---|
 | — | `011_reconcile_schema.sql` | Idempotente: o que produção tem e os scripts não criavam (colunas de `sales`, `qtdmonths`, `sale_items` sem gatilho, `sale_salespersons`). Em produção não muda nada | nada a reverter |
-| 3.1 | `012_fix_missing_rls.sql` | RLS em `sale_items` e `sale_salespersons` (herdado de `sales`, ainda com dono = `auth.uid()`); `security_invoker` nas 3 views; `revoke` de tudo do `anon`; o `authenticated` perde `TRUNCATE`/`TRIGGER`/`REFERENCES` e o acesso às 2 funções e à view que o app não usa | Só para o A-DB-17; **não reverter em produção** (fecha brecha) |
-| 3.1 | `019_tenant_fk_restrict.sql` | As 6 FKs `user_id → auth.users` passam de `CASCADE` para `RESTRICT`: apagar o usuário dono é recusado | volta a `CASCADE` |
-| 3.1 | `views/sales_with_details.sql` | Recriada `with (security_invoker = on)` | coberto pelo `.down` da 012 |
-| 3.1 | `views/sales_with_salespersons.sql`, `views/salesperson_summary.sql` | Definições de produção (baseline de 28/09/2026) + `security_invoker`. A 012 só faz o `alter view`; os arquivos documentam a definição | coberto pelo `.down` da 012 |
+| 3.1 | `views/*.sql` | Definição de produção das 3 views (baseline de 28/09/2026), só como registro; **sem** `security_invoker` nesta release | — |
 | 3.2 | `013_create_profiles.sql` | `profiles`, `profile_salespersons` (`unique (salesperson_id)`), `role_permissions` + seed do admin; gatilho `on_auth_user_created` (só cria perfil quando `app_metadata` traz papel e inquilino); RLS de `profiles` só com `auth.uid()` e claims (§7.2); nenhuma escrita pelo cliente | `drop` do gatilho, da função e das 3 tabelas |
 | 3.2 | `014_auth_helpers.sql` | `current_tenant_id()`, `current_app_role()`, `is_admin()` (claim → queda para `profiles` ativo); `custom_access_token_hook`; política de `profile_salespersons`. `my_salesperson_ids()` fica para a Fase 6 (D-6) | **Antes:** desligar o hook no painel; depois `drop` das funções e políticas |
 | 3.3 | `015_rewrite_policies.sql` | Remove todas as políticas das 10 tabelas; cria `<tabela>_tenant_admin_all` (comentada) nas 8 com `user_id` e nas 2 filhas; `default current_tenant_id()` em `user_id` | Volta ao modelo `auth.uid() = user_id` + remove o default. **Comparar com o `pg_policies` da baseline antes de usar em produção** |
 | 3.3 | `017_indexes.sql` | `profiles(tenant_id, role)`, `profile_salespersons(profile_id)`, `sale_salespersons(salesperson_id, sale_id)` | `drop index if exists` |
 | 3.3 | `018_backfill_admin.sql` | Todo dono de empresas vira admin do próprio inquilino (`tenant_id = id`) | Remove só os perfis do backfill |
 
-`016_vendor_views.sql` é da Fase 6. A `019` usa o próximo número livre, mas vai na fatia 3.1; as políticas do vendedor (Fase 6) passam a ser a `020`.
+`016_vendor_views.sql` é da Fase 6. **O fechamento das brechas do banco (planejamento 1.2, antiga `012`) e a troca de `CASCADE` por `RESTRICT` (revisão, item 4) saíram do escopo da release** e viraram as issues #9 e #10. O RLS de `sale_items`/`sale_salespersons` e o `security_invoker` das views são pré-requisito da Fase 6.
 
 ---
 
@@ -117,7 +114,7 @@ por esta automação.** Ordem e verificações: [`docs/fase-3/runbook.md`](../fa
 
 | Fatia | Situação |
 |---|---|
-| 3.1–3.3 (banco) | Migrations e rollbacks escritos. **Não aplicados**: dependem do checklist MANUAL e do runbook, executados por um humano |
+| 3.1–3.3 (banco) | Migrations e rollbacks escritos (sem a `012`, fora do escopo). **Não aplicados**: dependem do checklist MANUAL e do runbook, executados por um humano |
 | 3.4 (front) | `SessionProvider`, `usePermissions`, `<Can>`, `nav-registry`; abas de `dashboard-layout.tsx` e `company-dashboard.tsx` vêm do registro; nenhum uso do id do usuário logado em filtros ou inserções |
 | 3.5 (rotas) | Middleware decide pelas claims (`getClaims()`), renova a sessão uma vez; `app/403`; destino pós-login por papel; auto-cadastro fora das rotas públicas |
 | 3.6 (bootstrap) | Sem auto-criação de empresas; estado vazio |

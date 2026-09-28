@@ -5,7 +5,8 @@
 // Quem chama:
 // - sem header Authorization → o próprio harness de teste (request.get/delete do Playwright),
 //   que inspeciona o estado como o service_role: sem RLS;
-// - Bearer <anon key> (supabase-js sem sessão) → anon, sem grant nenhum (012);
+// - Bearer <anon key> (supabase-js sem sessão) → anon, sem acesso. Simplificação: em produção o anon
+//   ainda lê as views e as tabelas filhas (issue #9, fora do escopo); nenhum teste depende disso;
 // - Bearer <JWT de usuário> → RLS: só o admin do inquilino lê e escreve.
 
 import { decodeFakeToken } from "./auth.mjs";
@@ -43,7 +44,8 @@ export function rowAllowed(tables, ctx, table, row) {
   if (ctx.kind !== "user" || !ctx.isAdmin || !ctx.tenantId) return false;
   if (TENANT_TABLES.has(table)) return row.user_id === ctx.tenantId;
   if (CHILD_OF_SALE.has(table)) return saleVisible(tables, ctx, row.sale_id);
-  // Views com security_invoker = on: valem as políticas de sales.
+  // Views: o mock aplica as políticas de sales, como se tivessem security_invoker (em produção ainda
+  // não têm; para o admin único do inquilino o resultado é o mesmo).
   if (table === "sales_with_details" || table === "sales_with_salespersons") return saleVisible(tables, ctx, row.id);
   return false;
 }

@@ -438,6 +438,9 @@ Nenhuma tela nova. É a base sem a qual o restante não é seguro.
 
 #### 1.2 Fechar as brechas existentes — 1,5 h
 
+> **Fora do escopo da release 2 (decisão de 28/09/2026):** registrado na issue #9.
+> Continua sendo pré-requisito da área do vendedor (Fase 6).
+
 - [ ] `alter table public.sale_items enable row level security` + 4 políticas
 - [ ] Auditar `sale_salespersons`; habilitar RLS + 4 políticas
 - [ ] Recriar `sales_with_details` com `with (security_invoker = on)`

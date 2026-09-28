@@ -9,8 +9,8 @@
 > **Status: redigido na Fase 2, ainda não executado.** Os resultados entram na tabela "Registro de
 > execução" no fim do documento e são anexados ao PR da fatia.
 
-Substitui, a partir da Fase 3: C-DB-04 → **A-DB-09**, C-DB-05 → **A-DB-06** (Fase 2 §6). C-DB-01 e
-C-DB-02 são repetidos como A-DB-04 e A-DB-05.
+C-DB-01 e C-DB-02 são repetidos como A-DB-04 e A-DB-05. C-DB-04 e C-DB-05 **não** são substituídos
+nesta release (ver "Fora do escopo").
 
 ## Antes de começar
 
@@ -38,8 +38,6 @@ rollback;
 ```
 
 - **Sem claims** (queda para `profiles`, A-DB-03): omita `app_metadata` do JSON.
-- **Anônimo** (A-DB-09): `set local role anon;` sem `request.jwt.claims` — ou, melhor, pela API
-  REST com a chave `anon` e sem `Authorization` de usuário.
 - **Pelo caminho real (PostgREST + token do hook):** `node scripts/manual/fase-2/login-as.mjs <email>`.
 
 Tabelas: `companies`, `salespersons`, `sales`, `sale_items`, `sale_salespersons`, `sale_costs`,
@@ -47,14 +45,14 @@ Tabelas: `companies`, `salespersons`, `sales`, `sale_items`, `sale_salespersons`
 
 ---
 
-## Fatia 3.1 — brechas e proteção (`012_fix_missing_rls.sql`, `019_tenant_fk_restrict.sql`)
+## Antes das migrations — linha de base
 
 ### A-DB-04 (P1) — Regressão: contagens do admin nas 10 tabelas e nas 2 views
 
-Como `admin@t1`, **com as políticas atuais + `security_invoker` nas views** (§7.4 do planejamento).
-Repetir depois de 3.3.
+Como `admin@t1`, **antes** de qualquer migration e depois da fatia 3.3. As views seguem **sem**
+`security_invoker` nesta release (fora do escopo; ver "Fora do escopo" abaixo).
 
-| Tabela/view | Esperado (fixture) | Após 3.1 | Após 3.3 | OK? |
+| Tabela/view | Esperado (fixture) | Antes | Após 3.3 | OK? |
 |---|---|---|---|---|
 | `companies` | | | | |
 | `salespersons` | | | | |
@@ -71,64 +69,15 @@ Repetir depois de 3.3.
 
 Qualquer diferença = linha sumida sem erro (§7.6). Não seguir para a próxima fatia.
 
-### A-DB-06 (P1) — Outro inquilino: 0 linhas e escrita negada
+### Fora do escopo desta release
 
-Como `outro@t2`, contra os dados de T1:
+Registrados na issue #9, e **não** verificados aqui:
 
-- [ ] 0 linhas de T1 em cada uma das 10 tabelas
-- [ ] 0 linhas de T1 em `sales_with_details`, `sales_with_salespersons` e `sale_items` (era falha conhecida em C-DB-05 — **agora precisa passar**)
-- [ ] `insert` com `user_id` de T1 → negado (erro de política, não "0 linhas")
-- [ ] `update`/`delete` em linha de T1 → 0 linhas afetadas
-
-(Após 3.1 só views e `sale_items`; após 3.3, tudo.)
-
-### A-DB-09 (P1) — Chave anônima não lê nada
-
-Sem login, só com a chave `anon`:
-
-| Objeto | Consegue ler? (esperado: não) |
-|---|---|
-| cada uma das 10 tabelas | |
-| `sales_with_details`, `sales_with_salespersons` | |
-| funções `current_tenant_id()`, `current_app_role()`, `is_admin()`, `custom_access_token_hook()` (após 3.2) | |
-| `profiles`, `profile_salespersons`, `role_permissions` (após 3.2) | |
-
-Era falha conhecida em C-DB-04 — **agora precisa passar**.
-
-```sql
--- inventário de grants do anon (comparar com a baseline da Fase 1)
-select table_name, privilege_type from information_schema.role_table_grants
-where grantee = 'anon' and table_schema = 'public' order by 1, 2;
-```
-
----
-
-### A-DB-18 (P1) — Apagar o usuário dono é recusado (019)
-
-Dentro de `begin … rollback`, como `postgres`:
-
-```sql
-begin;
-delete from auth.users where id = '<ADMIN_ID>';   -- esperado: ERRO 23503 (violates foreign key constraint)
-rollback;
-```
-
-- [ ] Deu erro `23503`, e nenhuma linha sumiu (`select count(*) from companies` igual ao de antes)
-
-### A-DB-19 (P2) — Objetos mortos e privilégios extras fora do alcance do `authenticated` (012)
-
-Como `admin@t1` (claims simuladas):
-
-- [ ] `select * from public.salesperson_summary_by_months(2026, array[9]);` → `permission denied`
-- [ ] `select public.create_sale('{}', '[]', '[]');` → `permission denied`
-- [ ] `select * from public.salesperson_summary;` → `permission denied`
-
-```sql
--- nenhuma linha esperada
-select table_name, privilege_type from information_schema.role_table_grants
-where table_schema = 'public' and grantee = 'authenticated'
-  and privilege_type in ('TRUNCATE', 'TRIGGER', 'REFERENCES');
-```
+- **A-DB-09** (chave anônima não lê nada). Substituía o C-DB-04; o C-DB-04 continua valendo como
+  registro da situação atual.
+- A parte do **A-DB-06** sobre as views e sobre `sale_items`/`sale_salespersons` (substituía o
+  C-DB-05, que continua valendo como registro).
+- Ligar o RLS dessas duas tabelas e o `security_invoker` das views é **pré-requisito da Fase 6**.
 
 ## Fatia 3.2 — identidade (`013_create_profiles.sql`, `014_auth_helpers.sql`)
 
@@ -163,7 +112,6 @@ Para `admin@t1`, rodar com o JSON **com** e **sem** `app_metadata`:
 
 - [ ] Autenticado lê todas as linhas; as do admin batem com o catálogo §3.1 da spec
 - [ ] `insert`/`update`/`delete` pelo cliente → negado
-- [ ] `anon` não lê (coberto por A-DB-09)
 
 ### A-DB-14 (P2) — `profile_salespersons` único por vendedor
 
@@ -181,7 +129,7 @@ select id, tenant_id, role, is_active from public.profiles where id = '<id do ad
 
 - [ ] `role = 'admin'`, `tenant_id = id`, `is_active = true`
 
-### A-DB-04 (P1) — repetir a tabela da fatia 3.1, coluna "Após 3.3"
+### A-DB-04 (P1) — repetir a tabela da linha de base, coluna "Após 3.3"
 
 ### A-DB-05 (P1) — Admin escreve em tudo que o front escreve
 
@@ -190,7 +138,14 @@ Como `admin@t1`, dentro de `begin … rollback`: `insert`, `update` e `delete` d
 - [ ] `companies` · [ ] `salespersons` · [ ] `sales` · [ ] `sale_items` · [ ] `sale_salespersons`
 - [ ] `sale_costs` · [ ] `fixed_costs` · [ ] `contracts` · [ ] `inventory`
 
-### A-DB-06 (P1) — repetir a lista da fatia 3.1 em todas as tabelas
+### A-DB-06 (P1) — Outro inquilino: 0 linhas e escrita negada
+
+Como `outro@t2`, contra os dados de T1, nas **8 tabelas com `user_id`**. As views, `sale_items` e
+`sale_salespersons` ficam fora (issue #9):
+
+- [ ] 0 linhas de T1 em cada uma das 8 tabelas
+- [ ] `insert` com `user_id` de T1 → negado (erro de política, não "0 linhas")
+- [ ] `update`/`delete` em linha de T1 → 0 linhas afetadas
 
 ### A-DB-07 (P1) — Usuário sem perfil
 
@@ -246,10 +201,6 @@ Num banco **local descartável**, para cada migration da lista em
 | Migration | Aplica | Reverte | Reaplica | A-DB-04 depois de reaplicar |
 |---|---|---|---|---|
 | `011_reconcile_schema.sql` (no-op em produção) | | | | |
-| `012_fix_missing_rls.sql` | | | | |
-| `019_tenant_fk_restrict.sql` | | | | |
-| `views/sales_with_details.sql` | | | | |
-| `views/sales_with_salespersons.sql` | | | | |
 | `013_create_profiles.sql` | | | | |
 | `014_auth_helpers.sql` | | | | |
 | `015_rewrite_policies.sql` | | | | |

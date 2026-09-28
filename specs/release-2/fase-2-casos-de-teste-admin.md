@@ -36,14 +36,15 @@ fatia entregue.
 
 - Identidade: `profiles`, inquilino, papel e claims no token (planejamento 1.3)
 - Banco que nega por padrão: toda política exige ser admin do inquilino (1.4, só o ramo do admin — D-6)
-- Brechas atuais fechadas: `sale_items`, `sale_salespersons`, views com `security_invoker`, grants do `anon` (1.2)
 - Camada de permissão no front aplicada a **todas** as telas: `SessionProvider`, `usePermissions`, `<Can>`, `nav-registry` (2.1)
 - Middleware por papel, página 403, auto-cadastro fechado, redirecionamento pós-login por papel (2.2)
 - Dashboard sem auto-criação de empresas (2.4)
 - `tenant_id` no lugar do id do usuário logado em filtros e inserções (N3)
 - Backfill do admin atual (1.6)
 
-**Não inclui** (Fase 5/6): qualquer acesso do vendedor, `vendor_sales`, `commission_summary()`, gestão
+**Não inclui:** o fechamento das brechas atuais do banco (planejamento 1.2: RLS de `sale_items` e
+`sale_salespersons`, `security_invoker` nas views, grants do `anon`), que saiu do escopo da release e
+virou a issue #9; é pré-requisito da Fase 6. Também não inclui (Fase 5/6): qualquer acesso do vendedor, `vendor_sales`, `commission_summary()`, gestão
 de usuários, troca de senha obrigatória, área do vendedor.
 
 ---
@@ -141,10 +142,10 @@ o CI, mas bloqueiam a saída da fatia.
 | A-DB-03 | P1 | `current_tenant_id()`, `current_app_role()` e `is_admin()` dão o mesmo resultado com e sem as claims no token (queda para `profiles`) |
 | A-DB-04 | P1 | **Regressão:** o admin lê exatamente as contagens do fixture nas 10 tabelas e nas 2 views — C-DB-01 repetido com as novas políticas e o `security_invoker` (§7.4 do planejamento) |
 | A-DB-05 | P1 | O admin cria, altera e exclui em todas as tabelas que o front escreve — C-DB-02 repetido |
-| A-DB-06 | P1 | Outro inquilino: 0 linhas em todas as tabelas, nas 2 views e em `sale_items`; escrita negada. **C-DB-05 passa a valer** |
+| A-DB-06 | P1 | Outro inquilino: 0 linhas nas 8 tabelas com `user_id`; escrita negada. *(A parte das views e de `sale_items`/`sale_salespersons`, que faria o C-DB-05 passar a valer, saiu do escopo da release: issue #9.)* |
 | A-DB-07 | P1 | Usuário autenticado sem perfil: 0 linhas em tudo; escrita negada |
 | A-DB-08 | P1 | Perfil `vendedor` sem vínculo: 0 linhas em tudo; escrita negada |
-| A-DB-09 | P1 | Chave anônima: nenhuma tabela, view ou função legível. **C-DB-04 passa a valer** |
+| ~~A-DB-09~~ | — | *Fora do escopo da release (issue #9).* Chave anônima: nenhuma tabela, view ou função legível |
 | A-DB-10 | P1 | Inserção sem `user_id` recebe o inquilino; inserção ou alteração com `user_id` de outro inquilino é recusada |
 | A-DB-11 | P2 | Segundo admin do mesmo inquilino lê e escreve os mesmos dados que o primeiro |
 | A-DB-12 | P1 | `profiles`: o admin lê os perfis do inquilino; cada usuário lê o próprio; **nenhum usuário altera `role`, `tenant_id`, `is_active` ou `must_change_password` pelo cliente**; a consulta não entra em recursão (§7.2) |
@@ -153,8 +154,6 @@ o CI, mas bloqueiam a saída da fatia.
 | A-DB-15 | P2 | Toda política do schema `public` tem `comment on policy` (critério de aceite da Etapa 1) |
 | A-DB-16 | P2 | Criar empresa continua criando o vendedor "Site" sob as novas políticas (C-SET-02 repetido) |
 | A-DB-17 | P1 | Cada migration da fase aplica, reverte (§9 do planejamento) e reaplica num banco local descartável sem erro |
-| A-DB-18 | P1 | Apagar o usuário dono dos dados (o inquilino) é **recusado** pelo banco, em vez de apagar tudo em cascata (019; revisão de 28/09/2026, item 4) |
-| A-DB-19 | P2 | `authenticated` não executa `create_sale()` nem `salesperson_summary_by_months()`, não lê `salesperson_summary` e não tem `TRUNCATE`/`TRIGGER`/`REFERENCES` em nenhuma tabela (012; revisão, itens 3 e 9) |
 
 **Dois casos saem daqui porque não precisam de banco de verdade para serem provados:**
 
@@ -199,7 +198,7 @@ o CI, mas bloqueiam a saída da fatia.
 
 | ID | Pri. | Comportamento |
 |---|---|---|
-| A-REG-01 | P1 | Toda a suíte da Fase 1 continua verde, exceto C-AUTH-05, C-NAV-04, C-DB-04 e C-DB-05, substituídos pelos casos acima |
+| A-REG-01 | P1 | Toda a suíte da Fase 1 continua verde, exceto C-AUTH-05 e C-NAV-04, substituídos pelos casos acima |
 
 ---
 
@@ -209,8 +208,6 @@ o CI, mas bloqueiam a saída da fatia.
 |---|---|
 | C-AUTH-05 | A-MW-03 |
 | C-NAV-04 | A-BOOT-01 |
-| C-DB-04 (MANUAL) | A-DB-09 (MANUAL) |
-| C-DB-05 (MANUAL) | A-DB-06 (MANUAL) |
 
 Qualquer outro teste da Fase 1 que quebrar durante a Fase 3 é regressão.
 
