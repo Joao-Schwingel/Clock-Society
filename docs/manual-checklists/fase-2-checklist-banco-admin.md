@@ -234,4 +234,18 @@ Detecta qualquer uso remanescente do id do usuário logado (N3).
 
 | Data | Fatia | Ambiente (local/homologação) | Executado por | Itens OK | Itens com falha | PR |
 |---|---|---|---|---|---|---|
-| | | | | | | |
+| 28/09/2026 | 3.1–3.4 | Local (Supabase CLI + backup de produção de 28/09/2026) | Lucas, com apoio do Claude Code | A-DB-01, 02, 03, 04, 06, 07, 08, 10, 11, 12, 13, 15, 17 (018/017/015), A-TEN-01 | — | #8 |
+
+**Notas do ensaio de 28/09/2026:**
+
+- **A-DB-04:** contagens do admin idênticas antes e depois (companies 3, salespersons 18, sales 682,
+  sale_items 754, sale_salespersons 722, sale_costs 2324, costs 0, fixed_costs 559, contracts 4,
+  inventory 184, as 2 views 682).
+- **A-DB-12:** sem o papel no token, o admin lê só o próprio perfil; com o papel (como o hook
+  coloca), lê os 4 do inquilino. É o esperado: a política de `profiles` usa só as claims (§7.2).
+- **A-DB-17:** testados os rollbacks da 018, 017 e 015 (voltam às 32 políticas da baseline) e a
+  reaplicação. Os da 013 e 014 não foram executados.
+- **Não executados:** A-DB-05 (coberto em parte pelo T3 do ensaio), A-DB-14 (Fase 6) e A-DB-16 (sem
+  tela para criar empresa).
+- Telas verificadas com Playwright contra o banco local (7 casos), fora do repositório e do CI.
+- Achados fora do escopo: issues #11 (nº do pedido aceita texto) e #12 (`id="name"` duplicado).

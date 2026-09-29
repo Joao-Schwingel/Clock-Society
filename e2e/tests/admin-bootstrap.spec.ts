@@ -29,6 +29,8 @@ test("A-BOOT-01 — admin sem empresas vê 'Nenhuma empresa disponível.' e a te
 
   await expect(page.getByText("Nenhuma empresa disponível.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Sair" })).toBeVisible();
+  // Contratos são do inquilino, não de uma empresa: a aba continua acessível sem empresas.
+  await expect(page.getByRole("tab", { name: "Contratos" })).toBeVisible();
 });
 
 test("A-BOOT-01 — entrar sem empresas não envia nenhum insert em companies", async ({ page, request }) => {

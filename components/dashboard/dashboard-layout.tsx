@@ -65,10 +65,12 @@ export function DashboardLayout({ companies }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        {companies.length === 0 ? (
-          // Sem empresas: estado vazio, sem criar nada (N4, A-BOOT-01).
+        {companies.length === 0 && (
+          // Sem empresas: estado vazio, sem criar nada (N4, A-BOOT-01). As páginas que não dependem
+          // de empresa (ex.: Contratos, do inquilino) continuam acessíveis abaixo.
           <p className="py-16 text-center text-muted-foreground">Nenhuma empresa disponível.</p>
-        ) : (
+        )}
+        {visibleTabs.length > 0 && (
           <Tabs
             id="CompaniesTabs"
             value={resolution.kind === "tab" ? resolution.value : tab}

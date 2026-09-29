@@ -29,3 +29,6 @@ playwright-report/
 test-results/
 .vitest-cache/
 *.tsbuildinfo
+
+# backups do banco (dados reais + hashes de senha)
+backups/
