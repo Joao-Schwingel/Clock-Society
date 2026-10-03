@@ -22,13 +22,15 @@ const fictitious: Permission[] = ["sales.view", "inventory.view"];
 
 describe("nav-registry", () => {
   it("A-PERM-04 — para o admin, gera exatamente as abas de hoje, na mesma ordem", () => {
+    // Fase 6 (6.7): o admin ganha a aba Usuários depois de Contratos (planejamento, Anexo C).
     expect(topLevelTabs(companies, admin).map((t) => t.label)).toEqual([
       "Clock Society",
       "The Secret",
       "Morfeus",
       "Contratos",
+      "Usuários",
     ]);
-    expect(topLevelTabs(companies, admin).map((t) => t.value)).toEqual(["A", "B", "C", "contracts"]);
+    expect(topLevelTabs(companies, admin).map((t) => t.value)).toEqual(["A", "B", "C", "contracts", "users"]);
     expect(companySubTabs(admin).map((t) => [t.value, t.label])).toEqual([
       ["dashboard", "Dashboard"],
       ["vendas", "Vendas"],
@@ -60,6 +62,12 @@ describe("nav-registry", () => {
     expect(resolveTab(null, COMPANY_SUBTABS, fictitious)).toEqual({ kind: "tab", value: "vendas" });
     expect(resolveTab("inexistente", COMPANY_SUBTABS, admin)).toEqual({ kind: "tab", value: "dashboard" });
     expect(resolveTab(null, COMPANY_SUBTABS, [])).toEqual({ kind: "denied" });
+  });
+
+  it("V-UI-09 — a aba Usuários exige users.manage; ?company=users sem a permissão → acesso negado", () => {
+    const semUsuarios = admin.filter((p) => p !== "users.manage");
+    expect(topLevelTabs(companies, semUsuarios).map((t) => t.value)).not.toContain("users");
+    expect(resolveTab("users", topLevelTabs(companies, admin), semUsuarios)).toEqual({ kind: "denied" });
   });
 
   it("A-PERM-06 — o botão Configurações depende de salespersons.manage", () => {

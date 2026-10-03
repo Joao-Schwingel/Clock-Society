@@ -132,5 +132,10 @@ describe("vendedor (Fase 6)", () => {
     });
   });
   it.todo("V-MW-03 — vendedor em /dashboard (área do admin) → /403");
-  it.todo("V-MW-04 — perfil desativado: o token renovado vem sem claims → /403 (decisão 3.7)");
+  it("V-MW-04 — perfil desativado com sessão aberta: o token renovado vem sem claims → /403 (decisão 3.7)", () => {
+    expect(decideRoute({ pathname: "/dashboard", session: { appRole: null, tenantId: null }, refreshed: true })).toEqual({
+      action: "redirect",
+      to: "/403",
+    });
+  });
 });

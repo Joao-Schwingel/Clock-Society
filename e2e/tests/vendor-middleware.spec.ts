@@ -36,4 +36,10 @@ test("V-MW-02 — depois de trocar a senha, a troca deixa de ser exigida", async
   // A área do vendedor só existe na fatia 6.8; até lá a home do vendedor é a /403.
 });
 test.fixme("V-MW-03 — vendedor em /dashboard, ?tab=custos-fixos, ?company=contracts ou Usuários vê acesso negado", () => {});
-test.fixme("V-MW-04 — vend-inativo@t1 não consegue entrar", () => {});
+test("V-MW-04 — vend-inativo@t1 não consegue entrar", async ({ page }) => {
+  await signIn(page, "vend-inativo@t1.test");
+  await expect(page.getByText("Usuário desativado. Fale com o administrador.")).toBeVisible();
+  await expect(page).toHaveURL(/\/auth\/login$/);
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/auth\/login$/);
+});

@@ -100,9 +100,15 @@ export function createSupabaseUsersRepo(): UsersRepo {
       fail(error);
       const ids = (profiles ?? []).map((p) => p.id as string);
       const { data: links, error: linksError } = ids.length
-        ? await db.from("profile_salespersons").select("profile_id, salespersons(id, name, company_id)").in("profile_id", ids)
+        ? await db.from("profile_salespersons").select("profile_id, salesperson_id").in("profile_id", ids)
         : { data: [], error: null };
       fail(linksError);
+      const spIds = [...new Set((links ?? []).map((l) => l.salesperson_id as string))];
+      const { data: sps, error: spError } = spIds.length
+        ? await db.from("salespersons").select("id, name, company_id").in("id", spIds)
+        : { data: [], error: null };
+      fail(spError);
+      const spById = new Map((sps ?? []).map((sp) => [sp.id as string, sp as UserSummary["salespersons"][number]]));
       const emails = new Map((await allAuthUsers()).map((u) => [u.id, u.email ?? ""]));
       return (profiles ?? []).map(
         (p): UserSummary => ({
@@ -114,7 +120,7 @@ export function createSupabaseUsersRepo(): UsersRepo {
           must_change_password: p.must_change_password,
           salespersons: (links ?? [])
             .filter((l) => l.profile_id === p.id)
-            .flatMap((l) => (l.salespersons ? [l.salespersons as unknown as UserSummary["salespersons"][number]] : [])),
+            .flatMap((l) => (spById.has(l.salesperson_id) ? [spById.get(l.salesperson_id)!] : [])),
         }),
       );
     },

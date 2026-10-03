@@ -57,7 +57,8 @@
     "id": "u-vend-inativo",
     "email": "vend-inativo@t1.test",
     "password": "senha123",
-    "note": "Fase 5 §4: perfil DESATIVADO, vinculado a Elis (A), vendedora inativa com venda (N12)."
+    "note": "Fase 5 §4: perfil DESATIVADO, vinculado a Elis (A), vendedora inativa com venda (N12). Login bloqueado no Auth (ban), decisão 3.7.",
+    "banned": true
   },
   {
     "id": "u-vend-troca",

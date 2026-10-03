@@ -10,7 +10,16 @@ import { randomUUID } from "node:crypto";
 import { loadUsers, freshTables } from "./db.mjs";
 import { filterRows, orderRows, paginate, selectColumns } from "./postgrest-filter.mjs";
 import { VIEW_BUILDERS } from "./views.mjs";
-import { signInWithPassword, refreshSession, getUserFromToken, updateUserPassword } from "./auth.mjs";
+import {
+  signInWithPassword,
+  refreshSession,
+  getUserFromToken,
+  updateUserPassword,
+  adminListUsers,
+  adminCreateUser,
+  adminUpdateUser,
+  adminDeleteUser,
+} from "./auth.mjs";
 import { authContext, rowAllowed, applyInsertDefaults, permissionDenied } from "./rls.mjs";
 
 let users = loadUsers();
@@ -97,6 +106,12 @@ async function handleRest(req, res, url, table, method) {
   // Simplificação: o anon não acessa nada (ver e2e/mock-server/rls.mjs).
   if (ctx.kind === "anon") {
     sendJson(res, 401, { code: "42501", message: `permission denied for ${isView ? "view" : "table"} ${table}` });
+    return;
+  }
+
+  // 013/014: o cliente não escreve em profiles nem em profile_salespersons (só a chave de serviço).
+  if (ctx.kind === "user" && ["profiles", "profile_salespersons"].includes(table) && method !== "GET" && method !== "HEAD") {
+    sendJson(res, 403, permissionDenied(table));
     return;
   }
 
@@ -194,6 +209,25 @@ async function handleAuth(req, res, url, method) {
     }
 
     sendJson(res, 400, { error: "unsupported_grant_type", error_description: grantType });
+    return;
+  }
+
+  // API administrativa (só com a chave de serviço do mock)
+  if (url.pathname.startsWith("/auth/v1/admin/users")) {
+    const token = (req.headers["authorization"] ?? "").replace(/^Bearer\s+/i, "");
+    if (token !== SERVICE_KEY) {
+      sendJson(res, 403, { msg: "User not allowed" });
+      return;
+    }
+    const id = url.pathname.split("/")[5];
+    const body = (await readJsonBody(req)) ?? {};
+    let result;
+    if (!id && method === "GET") result = adminListUsers(users);
+    else if (!id && method === "POST") result = adminCreateUser(users, tables, body);
+    else if (id && method === "PUT") result = adminUpdateUser(users, id, body);
+    else if (id && method === "DELETE") result = adminDeleteUser(users, tables, id);
+    else result = { status: 405, body: { msg: "Método não suportado no mock" } };
+    sendJson(res, result.status, result.body);
     return;
   }
 

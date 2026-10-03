@@ -162,6 +162,14 @@ describe("updateUser", () => {
     expect(f.state.profiles.get("p-outro")!.is_active).toBe(true);
   });
 
+  it("erro do Auth/banco ao salvar → 500 com mensagem em PT-BR", async () => {
+    f.repo.setLoginBlocked = async () => {
+      throw new Error("falha simulada");
+    };
+    const res = await updateUser(f.repo, TENANT, "admin-id", "p-bruno", { is_active: false });
+    expect(res).toEqual({ status: 500, body: { error: "Não foi possível salvar as alterações." } });
+  });
+
   it("o admin não desativa o próprio usuário (422)", async () => {
     f.state.profiles.set("admin-id", { id: "admin-id", tenant_id: TENANT, role: "admin", is_active: true, must_change_password: false, full_name: "Admin" });
     const res = await updateUser(f.repo, TENANT, "admin-id", "admin-id", { is_active: false });

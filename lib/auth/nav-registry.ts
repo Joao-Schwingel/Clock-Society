@@ -22,6 +22,7 @@ export const COMPANY_SUBTABS: NavEntry[] = [
 // Abas de nível superior que não são empresas, exibidas depois delas.
 export const TOP_LEVEL_PAGES: NavEntry[] = [
   { value: "contracts", label: "Contratos", permission: "contracts.manage" },
+  { value: "users", label: "Usuários", permission: "users.manage" },
 ]
 
 export const SETTINGS_PERMISSION: Permission = "salespersons.manage"

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { PERMISSIONS, ROLE_PERMISSIONS, hasPermission, permissionsForRole } from "./permissions";
@@ -7,11 +7,18 @@ import { PERMISSIONS, ROLE_PERMISSIONS, hasPermission, permissionsForRole } from
 // Nenhum destes testes abre conexão com banco (Fase 1 §1): o A-PERM-01 lê o SQL de seed de
 // role_permissions como TEXTO e compara com o catálogo do front.
 
+// Todas as linhas inseridas em role_permissions pelas migrations numeradas (013 em diante).
 function seededRolePermissions(): Array<[string, string]> {
-  const sql = readFileSync(join(process.cwd(), "scripts", "013_create_profiles.sql"), "utf8");
-  const insert = sql.match(/insert into public\.role_permissions[\s\S]*?;/i);
-  if (!insert) throw new Error("insert em role_permissions não encontrado na 013");
-  return [...insert[0].matchAll(/\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/g)].map((m) => [m[1], m[2]]);
+  const dir = join(process.cwd(), "scripts");
+  const rows: Array<[string, string]> = [];
+  for (const file of readdirSync(dir).filter((f) => /^\d{3}_.*\.sql$/.test(f)).sort()) {
+    const sql = readFileSync(join(dir, file), "utf8");
+    for (const insert of sql.matchAll(/insert into public\.role_permissions[\s\S]*?;/gi)) {
+      rows.push(...[...insert[0].matchAll(/\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/g)].map((m) => [m[1], m[2]] as [string, string]));
+    }
+  }
+  if (rows.length === 0) throw new Error("nenhum insert em role_permissions nas migrations");
+  return rows;
 }
 
 describe("catálogo de permissões", () => {
@@ -29,7 +36,8 @@ describe("catálogo de permissões", () => {
 
   it("A-PERM-02 — o papel admin tem todas as permissões do catálogo", () => {
     expect([...permissionsForRole("admin")].sort()).toEqual([...PERMISSIONS].sort());
-    expect(PERMISSIONS).toHaveLength(11);
+    // 11 da Fase 3 + users.manage (Fase 6, fatia 6.7)
+    expect(PERMISSIONS).toHaveLength(12);
   });
 
   it("papel desconhecido ou ausente não tem permissão nenhuma (nega por padrão)", () => {
@@ -52,5 +60,9 @@ describe("vendedor (Fase 6)", () => {
   it.todo("V-UI-04 — o vendedor não tem sales.view_costs nem sales.write");
   it.todo("V-UI-07 — o vendedor não tem inventory.write");
   it.todo("V-MW-03 — o vendedor não tem fixed_costs.manage, contracts.manage, salespersons.manage nem users.manage");
-  it.todo("users.manage entra no catálogo (só admin) e nas linhas de role_permissions da migration da Fase 6");
+  it("V-UI-09 — users.manage está no catálogo e é só do admin (seed na migration 020)", () => {
+    expect(PERMISSIONS).toContain("users.manage");
+    expect(permissionsForRole("admin")).toContain("users.manage");
+    expect(permissionsForRole("vendedor")).not.toContain("users.manage");
+  });
 });

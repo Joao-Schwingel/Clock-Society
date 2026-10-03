@@ -41,7 +41,7 @@ Middleware (`middleware.ts` → `lib/supabase/middleware.ts`) reads `app_role`/`
 
 ### Roles and permissions (release-2)
 
-- `lib/auth/permissions.ts` — permission catalog, mirror of `role_permissions` (seed in `scripts/013_create_profiles.sql`; the A-PERM-01 unit test compares both). Only `admin` is functional until Fase 6.
+- `lib/auth/permissions.ts` — permission catalog, mirror of `role_permissions` (seeded by the `insert into public.role_permissions` statements of the numbered migrations — 013, 020…; the A-PERM-01 unit test parses them and compares). Admin-only `users.manage` gates the **Usuários** tab (`components/dashboard/users/`).
 - `lib/auth/session.ts` / `session-provider.tsx` — `AppSession` built from JWT claims in `app/dashboard/page.tsx`; `usePermissions()` and `<Can permission=…>` in client components.
 - `lib/auth/nav-registry.ts` — tabs declare the permission they need; `dashboard-layout.tsx`/`company-dashboard.tsx` render tabs from it, and a forbidden `?tab=`/`?company=` renders `<AccessDenied/>`. Don't add hard-coded tab lists.
 

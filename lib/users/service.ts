@@ -88,14 +88,18 @@ export async function updateUser(
     return invalid({ is_active: "Você não pode desativar o próprio usuário." });
   }
 
-  if (data.full_name !== undefined) await repo.updateProfile(userId, { full_name: data.full_name });
-  if (data.is_active !== undefined) {
-    await repo.updateProfile(userId, { is_active: data.is_active });
-    await repo.setLoginBlocked(userId, !data.is_active);
-  }
-  if (data.reset_password !== undefined) {
-    await repo.setPassword(userId, data.reset_password);
-    await repo.updateProfile(userId, { must_change_password: true });
+  try {
+    if (data.full_name !== undefined) await repo.updateProfile(userId, { full_name: data.full_name });
+    if (data.is_active !== undefined) {
+      await repo.updateProfile(userId, { is_active: data.is_active });
+      await repo.setLoginBlocked(userId, !data.is_active);
+    }
+    if (data.reset_password !== undefined) {
+      await repo.setPassword(userId, data.reset_password);
+      await repo.updateProfile(userId, { must_change_password: true });
+    }
+  } catch {
+    return { status: 500, body: { error: "Não foi possível salvar as alterações." } };
   }
 
   return { status: 200, body: { ok: true } };

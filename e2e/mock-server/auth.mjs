@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 // Emula só o suficiente do GoTrue (Supabase Auth) para signInWithPassword,
 // refresh de sessão, getUser e signOut — o bastante para @supabase/auth-js e
 // @supabase/ssr funcionarem sem saber que não há um Supabase real do outro lado.
@@ -87,6 +89,9 @@ function issueSession(user, profiles, { withClaims }) {
 
 export function signInWithPassword(users, profiles, email, password, { legacyTokens = false } = {}) {
   const user = users.find((u) => u.email === email && u.password === password);
+  if (user?.banned) {
+    return { status: 400, body: { error: "invalid_grant", error_code: "user_banned", msg: "User is banned" } };
+  }
   if (!user) {
     return {
       status: 400,
@@ -144,4 +149,56 @@ export function updateUserPassword(users, authorizationHeader, password) {
   }
   user.password = password;
   return { status: 200, body: toGoTrueUser(user) };
+}
+
+// ── API administrativa do Auth (chave de serviço), usada por lib/users/supabase-repo.ts ──────────
+
+export function adminListUsers(users) {
+  return { status: 200, body: { users: users.map(toGoTrueUser), aud: "authenticated" } };
+}
+
+// Cria o login e emula o gatilho on_auth_user_created (013): perfil só com app_role + tenant_id.
+export function adminCreateUser(users, tables, body) {
+  const email = String(body.email ?? "").toLowerCase();
+  if (users.some((u) => u.email.toLowerCase() === email)) {
+    return {
+      status: 422,
+      body: { code: "email_exists", error_code: "email_exists", msg: "A user with this email address has already been registered" },
+    };
+  }
+  const user = { id: randomUUID(), email, password: body.password };
+  users.push(user);
+  const meta = body.app_metadata ?? {};
+  if (meta.app_role && meta.tenant_id) {
+    const now = new Date().toISOString();
+    tables.profiles.push({
+      id: user.id,
+      tenant_id: meta.tenant_id,
+      role: meta.app_role,
+      full_name: body.user_metadata?.full_name ?? null,
+      is_active: true,
+      must_change_password: false,
+      created_at: now,
+      updated_at: now,
+    });
+  }
+  return { status: 200, body: toGoTrueUser(user) };
+}
+
+export function adminUpdateUser(users, id, body) {
+  const user = users.find((u) => u.id === id);
+  if (!user) return { status: 404, body: { msg: "User not found" } };
+  if (typeof body.password === "string") user.password = body.password;
+  if (typeof body.ban_duration === "string") user.banned = body.ban_duration !== "none";
+  return { status: 200, body: toGoTrueUser(user) };
+}
+
+export function adminDeleteUser(users, tables, id) {
+  const i = users.findIndex((u) => u.id === id);
+  if (i === -1) return { status: 404, body: { msg: "User not found" } };
+  users.splice(i, 1);
+  // on delete cascade de profiles → auth.users
+  tables.profiles = tables.profiles.filter((p) => p.id !== id);
+  tables.profile_salespersons = tables.profile_salespersons.filter((l) => l.profile_id !== id);
+  return { status: 200, body: {} };
 }
