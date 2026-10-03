@@ -35,6 +35,9 @@ export function decideRoute({
   refreshed: boolean
 }): RouteDecision {
   if (PUBLIC_ROUTES.has(pathname)) return { action: "next" }
+  // As rotas de API fazem a própria autorização e respondem 401/403 (lib/users/auth.ts); redirecionar
+  // para a página de login quebraria quem chama a API (V-API-02).
+  if (pathname === "/api" || pathname.startsWith("/api/")) return { action: "next" }
   if (!session) return { action: "redirect", to: LOGIN_ROUTE }
 
   // Token emitido antes do hook (sem claims): renova uma vez; se continuar sem papel, é usuário

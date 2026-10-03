@@ -84,6 +84,15 @@ describe("tabela de decisão (§3.4)", () => {
   });
 });
 
+describe("rotas de API", () => {
+  it("V-API-02 — /api/* não é redirecionada: a própria API responde 401/403 (sem página de login no meio)", () => {
+    for (const session of [null, noClaims, { appRole: "vendedor", tenantId: "t1" }]) {
+      expect(decideRoute({ pathname: "/api/users", session, refreshed: false })).toEqual({ action: "next" });
+      expect(decideRoute({ pathname: "/api/users/abc", session, refreshed: true })).toEqual({ action: "next" });
+    }
+  });
+});
+
 describe("destino pós-login", () => {
   it("A-MW-05 — o destino por papel vem de uma única função; admin → /dashboard", () => {
     expect(homeForRole("admin")).toBe("/dashboard");

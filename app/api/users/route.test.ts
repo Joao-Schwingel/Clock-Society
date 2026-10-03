@@ -1,26 +1,54 @@
-import { describe, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GET, POST } from "./route";
+import { PATCH } from "./[id]/route";
 
-// Fase 5 §5 "API de usuários" / Fase 6 fatia 6.5. Só `it.todo`: viram testes quando
-// app/api/users/route.ts existir. Os route handlers são testados com o cliente de serviço
-// (lib/supabase/admin.ts) MOCKADO — nenhum teste abre conexão com banco (Fase 1 §1).
-// Contrato proposto: decisão 3.5 (issue #13).
+// Fase 5 §5 "API de usuários" / Fase 6 fatia 6.5. Autorização dos route handlers. O cliente do
+// servidor e o repositório são MOCKADOS: nenhum teste abre conexão com banco (Fase 1 §1).
+// As regras (V-API-01, 03, 04, 05) estão em lib/users/service.test.ts.
 
-describe("POST /api/users", () => {
-  it.todo(
-    "V-API-01 — admin cria vendedor com nome, e-mail, senha temporária, papel e vínculos (registro existente ou novo em salespersons); o perfil nasce com must_change_password",
-  );
-  it.todo("V-API-03 — e-mail duplicado → 409, com mensagem em PT-BR");
-  it.todo("V-API-03 — payload inválido (schema zod) → 422, com as mensagens de campo em PT-BR");
-  it.todo("V-API-04 — vincular registro de vendedor que já tem login → erro de validação antes de chamar o banco");
+const { getClaims, repoFactory } = vi.hoisted(() => ({ getClaims: vi.fn(), repoFactory: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => ({ auth: { getClaims } }),
+}));
+vi.mock("@/lib/users/supabase-repo", () => ({ createSupabaseUsersRepo: () => repoFactory() }));
+
+function req(body?: unknown) {
+  return new Request("http://localhost/api/users", {
+    method: body ? "POST" : "GET",
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+const claims = (app_role: string) => ({ data: { claims: { sub: "u1", app_metadata: { app_role, tenant_id: "t1" } } }, error: null });
+const ctx = { params: Promise.resolve({ id: "x" }) };
+
+beforeEach(() => {
+  getClaims.mockReset();
+  repoFactory.mockReset();
 });
 
 describe("autorização (todos os endpoints)", () => {
-  it.todo("V-API-02 — sem sessão → 401");
-  it.todo("V-API-02 — sessão de vendedor → 403");
-});
+  it("V-API-02 — sem sessão → 401", async () => {
+    getClaims.mockResolvedValue({ data: null, error: null });
+    for (const res of [await GET(), await POST(req({})), await PATCH(req({}), ctx)]) {
+      expect(res.status).toBe(401);
+      expect(await res.json()).toEqual({ error: "Não autenticado." });
+    }
+    expect(repoFactory).not.toHaveBeenCalled();
+  });
 
-describe("PATCH /api/users/[id]", () => {
-  it.todo("V-API-05 — desativar: is_active = false e login bloqueado no Auth (ban_duration, decisão 3.7)");
-  it.todo("V-API-05 — reativar: is_active = true e ban removido");
-  it.todo("V-API-05 — resetar a senha reativa must_change_password");
+  it("V-API-02 — sessão de vendedor → 403", async () => {
+    getClaims.mockResolvedValue(claims("vendedor"));
+    for (const res of [await GET(), await POST(req({})), await PATCH(req({}), ctx)]) {
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: "Acesso negado." });
+    }
+    expect(repoFactory).not.toHaveBeenCalled();
+  });
+
+  it("admin com corpo inválido → 422 (a validação roda antes de qualquer acesso ao banco)", async () => {
+    getClaims.mockResolvedValue(claims("admin"));
+    repoFactory.mockReturnValue({});
+    const res = await POST(req({ email: "x" }));
+    expect(res.status).toBe(422);
+  });
 });
