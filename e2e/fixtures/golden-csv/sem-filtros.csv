@@ -1,0 +1,12 @@
+﻿Data,Nº Pedido,Produtos,Cliente,Vendedor,Status,Quantidade,Valor do Produto,Custo Total,Valor Líquido,Valor Líquido após Comissão,Entrada,Faltante,Status Pagamento
+25/09/2026,1011,Camiseta Preta,Fernanda Dias,Bruno,Concluída,1,"220,00","0,00","220,00","202,40","220,00","0,00",Pago
+12/09/2026,1010,Caneca Azul,Roberto Alves,Ana,Concluída,1,"180,00","0,00","180,00","162,00","180,00","0,00",Pago
+05/09/2026,1009,Squeeze,Cliente Sem Entrada,Bruno,Pendente,2,"250,00","0,00","250,00","230,00",-,"250,00",Pendente
+10/03/2026,1008,Camiseta Preta,Cliente Março,Ana,Concluída,1,"130,00","0,00","130,00","117,00","130,00","0,00",Pago
+01/01/2026,1007,Caneca Azul,Cliente Ano Novo,Bruno,Concluída,1,"110,00","0,00","110,00","101,20","110,00","0,00",Pago
+31/12/2025,1006,Caneca Azul,Cliente 2025,Ana,Concluída,1,"90,00","0,00","90,00","81,00","90,00","0,00",Pago
+10/09/2026,1005,Squeeze,Ana Souza,Carla,Concluída,1,"100,00","0,00","100,00","66,667","100,00","0,00",Pago
+20/09/2026,1004,Squeeze,Pedro Lima,Elis,Concluída,1,"100,00","0,00","100,00","80,00","100,00","0,00",Pago
+15/09/2026,1003,"Caneca Azul, Camiseta Preta",Maria Costa,"Ana, Bruno",Pendente,3,"400,00","40,00","360,00","306,00","100,00","300,00",Pendente
+30/09/2026,1002,Camiseta Preta,João Pereira,Bruno,Concluída,1,"150,00","20,00","130,00","119,60","150,00","0,00",Pago
+01/09/2026,1001,Caneca Azul,Maria Silva,Ana,Concluída,2,"200,00","0,00","200,00","180,00","200,00","0,00",Pago

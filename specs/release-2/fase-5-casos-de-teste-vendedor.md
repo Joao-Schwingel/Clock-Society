@@ -59,6 +59,11 @@ Os ciclos RED→GREEN acontecem na Fase 6.
 
 A venda compartilhada do fixture da Fase 1 fica entre Ana e Bruno na empresa A.
 
+> **Implementação (Fase 5):** os logins foram mapeados para os registros que já existem no fixture
+> da Fase 1, para não alterar o oráculo — `vend-ab` usa Carla (A + B), `vend-inativo` usa Elis,
+> `vend-troca` fica sem vínculo e entra `vend-b` (Bruno, o outro lado da venda compartilhada). Ver
+> `docs/fase-5/README.md` §1.
+
 ---
 
 ## 5. Catálogo V-xx

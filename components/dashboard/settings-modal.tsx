@@ -26,6 +26,8 @@ export function SettingsModal({ companies, onClose }: SettingsModalProps) {
   const [editingSalesperson, setEditingSalesperson] = useState<Salesperson | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [activeTab, setActiveTab] = useState<'list' | 'add'>('list')
+  // Registros de vendedor que têm login (Fase 6, fatia 6.7; V-UI-09)
+  const [withLogin, setWithLogin] = useState<Set<string>>(new Set())
 
   // Form state
   const [name, setName] = useState("")
@@ -48,6 +50,9 @@ export function SettingsModal({ companies, onClose }: SettingsModalProps) {
     if (!error && data) {
       setSalespersons(data)
     }
+
+    const { data: links } = await supabase.from("profile_salespersons").select("salesperson_id")
+    setWithLogin(new Set((links ?? []).map((l: { salesperson_id: string }) => l.salesperson_id)))
   }
 
   const resetForm = () => {
@@ -155,7 +160,14 @@ export function SettingsModal({ companies, onClose }: SettingsModalProps) {
                   <TableBody>
                     {salespersons.map((salesperson) => (
                       <TableRow key={salesperson.id}>
-                        <TableCell className="font-medium">{salesperson.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {salesperson.name}
+                          {withLogin.has(salesperson.id) && (
+                            <Badge variant="outline" className="ml-2">
+                              Com login
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>{getCompanyName(salesperson.company_id)}</TableCell>
                         <TableCell>
                           {salesperson.is_active ? (

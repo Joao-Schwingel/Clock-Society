@@ -14,6 +14,8 @@ export const PERMISSIONS = [
   "fixed_costs.manage",
   "contracts.manage",
   "salespersons.manage",
+  // Fase 6 (6.7): gestão de usuários — só admin (seed na migration 020)
+  "users.manage",
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]

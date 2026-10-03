@@ -17,10 +17,11 @@ const TENANT_TABLES = new Set([
 ]);
 const CHILD_OF_SALE = new Set(["sale_items", "sale_salespersons"]);
 
-export function authContext(req, profiles, anonKey) {
+export function authContext(req, profiles, anonKey, serviceKey) {
   const header = req.headers["authorization"];
   if (!header) return { kind: "service" };
   const token = header.replace(/^Bearer\s+/i, "");
+  if (token === serviceKey) return { kind: "service" };
   if (token === anonKey) return { kind: "anon" };
 
   const payload = decodeFakeToken(token);
@@ -30,7 +31,7 @@ export function authContext(req, profiles, anonKey) {
   const profile = profiles.find((p) => p.id === payload.sub && p.is_active);
   const tenantId = payload.app_metadata?.tenant_id || profile?.tenant_id || null;
   const role = payload.app_metadata?.app_role || profile?.role || null;
-  return { kind: "user", tenantId, isAdmin: role === "admin" };
+  return { kind: "user", userId: payload.sub, tenantId, isAdmin: role === "admin" };
 }
 
 function saleVisible(tables, ctx, saleId) {
@@ -44,6 +45,13 @@ export function rowAllowed(tables, ctx, table, row) {
   if (ctx.kind !== "user" || !ctx.isAdmin || !ctx.tenantId) return false;
   if (TENANT_TABLES.has(table)) return row.user_id === ctx.tenantId;
   if (CHILD_OF_SALE.has(table)) return saleVisible(tables, ctx, row.sale_id);
+  // profiles (013): o próprio perfil; o admin lê os do inquilino.
+  if (table === "profiles") return row.id === ctx.userId || (ctx.isAdmin && row.tenant_id === ctx.tenantId);
+  // profile_salespersons (014): os próprios vínculos; o admin lê os do inquilino.
+  if (table === "profile_salespersons") {
+    const profile = tables.profiles.find((p) => p.id === row.profile_id);
+    return row.profile_id === ctx.userId || (ctx.isAdmin && profile?.tenant_id === ctx.tenantId);
+  }
   // Views: o mock aplica as políticas de sales, como se tivessem security_invoker (em produção ainda
   // não têm; para o admin único do inquilino o resultado é o mesmo).
   if (table === "sales_with_details" || table === "sales_with_salespersons") return saleVisible(tables, ctx, row.id);

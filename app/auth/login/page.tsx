@@ -32,6 +32,8 @@ export default function LoginPage() {
       })
       if (error) {
         setIsLoading(false)
+        // Usuário desativado: o login fica bloqueado no Auth (decisão 3.7, V-MW-04).
+        if (error.code === "user_banned") throw new Error("Usuário desativado. Fale com o administrador.")
         throw error
       }
       // Destino por papel, a partir das claims do token (A-MW-05). Token sem papel → /403; o
