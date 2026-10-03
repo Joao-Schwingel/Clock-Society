@@ -61,7 +61,7 @@ Ordem inversa, cada uma com o seu `scripts/rollback/*.down.sql`:
 | Data | Ambiente | Executado por | Passos OK | Observações |
 |---|---|---|---|---|
 | 28/09/2026 | Local (ensaio com backup de produção) | Lucas + Claude Code | Todos | Ver registro no checklist da Fase 2 |
-| 03/10/2026 | **Produção** | Lucas | 1–5 (backup, 013, 014, hook, 015/017/018) | Banco pronto. Deploy do app (passo 6) e auto-cadastro (passo 7) pendentes no momento do registro |
+| 03/10/2026 | **Produção** | Lucas | 1–5 (backup, 013, 014, hook, 015/017/018) e 7 (auto-cadastro desligado) | Banco pronto. **Deploy do app (passo 6) adiado por decisão do responsável**: produção roda o app antigo sobre o banco novo, que é compatível |
 
 **Evidências da janela de produção (03/10/2026):**
 
