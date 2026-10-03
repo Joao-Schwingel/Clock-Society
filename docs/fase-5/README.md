@@ -67,10 +67,10 @@ por isso o seed manual só **lista** os vínculos esperados; quem executa o chec
 | V-API-01, 03, 04, 05 | UNIT (repositório em memória) | `lib/users/service.test.ts` | 6.5 ✅ |
 | V-API-02 | UNIT + E2E | `app/api/users/route.test.ts`, `e2e/tests/users-admin.spec.ts`, `lib/auth/route-guard.test.ts` | 6.5 ✅ |
 | V-API-06 | UNIT + CI (`scripts/check-service-role-leak.mjs` depois do build) | `lib/supabase/admin.test.ts` | 6.5 ✅ |
-| V-MW-01 … V-MW-04 | UNIT + E2E | `lib/auth/route-guard.test.ts`, `e2e/tests/vendor-middleware.spec.ts` | 6.6, 6.8 |
+| V-MW-01 … V-MW-04 | UNIT + E2E | `lib/auth/route-guard.test.ts`, `e2e/tests/vendor-middleware.spec.ts` | 6.6 (V-MW-02 ✅), 6.8 |
 | V-UI-01, 02 | UNIT + E2E | `lib/auth/nav-registry.test.ts`, `lib/auth/permissions.test.ts`, `e2e/tests/vendor-ui.spec.ts` | 6.8 |
 | V-UI-03 … V-UI-07 | E2E | `e2e/tests/vendor-ui.spec.ts` | 6.4, 6.8 |
-| V-UI-08 | UNIT + E2E | `lib/auth/password-rules.test.ts`, `e2e/tests/users-admin.spec.ts` | 6.6 |
+| V-UI-08 | UNIT + E2E | `lib/auth/password-rules.test.ts`, `app/api/me/password/route.test.ts`, `e2e/tests/users-admin.spec.ts` | 6.6 ✅ |
 | V-UI-09 | E2E | `e2e/tests/users-admin.spec.ts` | 6.7 |
 | V-REG-01 … V-REG-03 | E2E | `e2e/tests/vendor-regression.spec.ts` (V-REG-02 ✅, fotos em `e2e/fixtures/golden-csv/`) | 6.1, 6.4 |
 

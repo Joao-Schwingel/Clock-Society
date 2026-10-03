@@ -54,7 +54,11 @@ function toGoTrueUser(fixtureUser) {
 export function hookClaimsFor(profiles, userId) {
   const profile = profiles.find((p) => p.id === userId);
   if (!profile || !profile.is_active) return null;
-  return { app_role: profile.role, tenant_id: profile.tenant_id };
+  return {
+    app_role: profile.role,
+    tenant_id: profile.tenant_id,
+    ...(profile.must_change_password ? { must_change_password: true } : {}),
+  };
 }
 
 // `withClaims: false` simula um token emitido antes de o hook existir (A-MW-06).
@@ -124,5 +128,20 @@ export function getUserFromToken(users, authorizationHeader) {
   const user = users.find((u) => u.id === payload.sub);
   if (!user) return { status: 401, body: { message: "User not found" } };
 
+  return { status: 200, body: toGoTrueUser(user) };
+}
+
+// updateUser({ password }) do GoTrue. Senha igual à atual → 422 "same_password", como o real.
+export function updateUserPassword(users, authorizationHeader, password) {
+  const current = getUserFromToken(users, authorizationHeader);
+  if (current.status !== 200) return current;
+  const user = users.find((u) => u.id === current.body.id);
+  if (password === user.password) {
+    return {
+      status: 422,
+      body: { code: "same_password", error_code: "same_password", msg: "New password should be different from the old password." },
+    };
+  }
+  user.password = password;
   return { status: 200, body: toGoTrueUser(user) };
 }

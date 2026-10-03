@@ -7,14 +7,13 @@
 
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
-import { loadUsers, loadProfiles, freshTables } from "./db.mjs";
+import { loadUsers, freshTables } from "./db.mjs";
 import { filterRows, orderRows, paginate, selectColumns } from "./postgrest-filter.mjs";
 import { VIEW_BUILDERS } from "./views.mjs";
-import { signInWithPassword, refreshSession, getUserFromToken } from "./auth.mjs";
+import { signInWithPassword, refreshSession, getUserFromToken, updateUserPassword } from "./auth.mjs";
 import { authContext, rowAllowed, applyInsertDefaults, permissionDenied } from "./rls.mjs";
 
 let users = loadUsers();
-let profiles = loadProfiles();
 let tables = freshTables();
 // Quando true, o próximo login devolve um token sem as claims do hook (sessão aberta antes da
 // implantação — A-MW-06). Volta a false no reset.
@@ -24,6 +23,8 @@ let legacyTokens = false;
 let requestLog = [];
 
 const ANON_KEY = process.env.MOCK_ANON_KEY ?? "mock-anon-key";
+// Chave de serviço do mock (o app a recebe em SUPABASE_SERVICE_ROLE_KEY): ignora o RLS emulado.
+const SERVICE_KEY = process.env.MOCK_SERVICE_KEY ?? "mock-service-role-key";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -84,7 +85,7 @@ function contentRangeHeader(offset, pageLength, total) {
 
 async function handleRest(req, res, url, table, method) {
   const isView = Boolean(VIEW_BUILDERS[table]);
-  const ctx = authContext(req, profiles, ANON_KEY);
+  const ctx = authContext(req, tables.profiles, ANON_KEY, SERVICE_KEY);
   requestLog.push({ method, table, search: url.search, auth: ctx.kind });
   const allRows = rowsForTable(table);
 
@@ -179,7 +180,7 @@ async function handleAuth(req, res, url, method) {
     const body = (await readJsonBody(req)) ?? {};
 
     if (grantType === "password") {
-      const { status, body: respBody } = signInWithPassword(users, profiles, body.email, body.password, {
+      const { status, body: respBody } = signInWithPassword(users, tables.profiles, body.email, body.password, {
         legacyTokens,
       });
       sendJson(res, status, respBody);
@@ -187,12 +188,20 @@ async function handleAuth(req, res, url, method) {
     }
 
     if (grantType === "refresh_token") {
-      const { status, body: respBody } = refreshSession(users, profiles, body.refresh_token);
+      const { status, body: respBody } = refreshSession(users, tables.profiles, body.refresh_token);
       sendJson(res, status, respBody);
       return;
     }
 
     sendJson(res, 400, { error: "unsupported_grant_type", error_description: grantType });
+    return;
+  }
+
+  // updateUser({ password }) — troca de senha da Fase 6 (6.6)
+  if (method === "PUT" && url.pathname === "/auth/v1/user") {
+    const body = (await readJsonBody(req)) ?? {};
+    const { status, body: respBody } = updateUserPassword(users, req.headers["authorization"], body.password);
+    sendJson(res, status, respBody);
     return;
   }
 
@@ -230,7 +239,6 @@ export function createMockServer() {
 
       if (url.pathname === "/__test__/reset" && method === "POST") {
         users = loadUsers();
-        profiles = loadProfiles();
         tables = freshTables();
         legacyTokens = false;
         requestLog = [];

@@ -17,10 +17,11 @@ const TENANT_TABLES = new Set([
 ]);
 const CHILD_OF_SALE = new Set(["sale_items", "sale_salespersons"]);
 
-export function authContext(req, profiles, anonKey) {
+export function authContext(req, profiles, anonKey, serviceKey) {
   const header = req.headers["authorization"];
   if (!header) return { kind: "service" };
   const token = header.replace(/^Bearer\s+/i, "");
+  if (token === serviceKey) return { kind: "service" };
   if (token === anonKey) return { kind: "anon" };
 
   const payload = decodeFakeToken(token);

@@ -18,6 +18,10 @@ const TABLE_FILES = {
   fixed_costs: "fixed_costs.json",
   contracts: "contracts.json",
   inventory: "inventory.json",
+  // Fase 6: perfis e vínculos como tabelas — escritas (ex.: limpar must_change_password) aparecem
+  // nas claims do próximo token, como no hook real.
+  profiles: "profiles.json",
+  profile_salespersons: "profile_salespersons.json",
 };
 
 function loadJson(filename) {

@@ -35,7 +35,9 @@ Database schema lives in `scripts/*.sql` (migrations) and `scripts/views/` (DB v
 
 ### Auth Flow
 
-Middleware (`middleware.ts` → `lib/supabase/middleware.ts`) reads `app_role`/`tenant_id` from the access-token claims via `supabase.auth.getClaims()` (injected by the custom access token hook, `scripts/014_auth_helpers.sql`; `getUser()` does **not** see them) and applies the pure decision table in `lib/auth/route-guard.ts`: no session → `/auth/login`; no role claim → refresh the session once, still none → `/403`; role without permission for the area → `/403`. Public routes: `/`, `/auth/login`, `/auth/error` (sign-up is closed). Post-login destination per role: `homeForRole()`.
+Middleware (`middleware.ts` → `lib/supabase/middleware.ts`) reads `app_role`/`tenant_id` from the access-token claims via `supabase.auth.getClaims()` (injected by the custom access token hook, `scripts/014_auth_helpers.sql`; `getUser()` does **not** see them) and applies the pure decision table in `lib/auth/route-guard.ts`: no session → `/auth/login`; no role claim → refresh the session once, still none → `/403`; role without permission for the area → `/403`. Public routes: `/`, `/auth/login`, `/auth/error` (sign-up is closed). `/api/*` is passed through: route handlers do their own auth and answer 401/403 (`lib/users/auth.ts`). A `must_change_password` claim forces every page to `/auth/trocar-senha` until the user changes it (`app/api/me/password`, which clears the flag with the service key and refreshes the session). Post-login destination per role: `homeForRole()`.
+
+**Service-role key** (`SUPABASE_SERVICE_ROLE_KEY`): only in `lib/supabase/admin.ts`, which starts with `import "server-only"`. Never import it (or `lib/users/supabase-repo.ts`) from a `"use client"` file — a unit test and a CI step after `next build` check this (V-API-06). User management lives in `/api/users` (`lib/users/`: zod schemas, a service tested against an in-memory repo, and the Supabase repo).
 
 ### Roles and permissions (release-2)
 
