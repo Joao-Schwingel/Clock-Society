@@ -64,7 +64,7 @@ Por isso a primeira fase não entrega funcionalidade nenhuma. Ela fixa em testes
 |---|---|---|---|
 | **1** | Fixar o comportamento atual | Suítes unit/DB/E2E verdes no CI; schema real versionado; fixture com números esperados | Inventário C-xx 100% coberto; nada mudou para o usuário |
 | **2** | Definir o que "suportar o admin" significa | Catálogo A-xx aprovado; decisões de interface; fixtures multi-papel | Catálogo revisado e aprovado pelo time |
-| **3** | Sistema com papéis, tendo o admin como único papel funcional | Migrations 012–015, 017, 018; camada de permissão; middleware por papel | A-xx verdes; suíte da Fase 1 verde (salvo as exceções da §4) |
+| **3** | Sistema com papéis, tendo o admin como único papel funcional | Migrations 011, 013–015, 017, 018 (a 012, de brechas, saiu do escopo: issue #9); camada de permissão; middleware por papel | A-xx verdes; suíte da Fase 1 verde (salvo as exceções da §4) |
 | **4** | Validar em homologação e produção | Checklist executado e registrado | Números do admin idênticos ao retrato; nenhuma pendência |
 | **5** | Definir o comportamento do vendedor | Catálogo V-xx aprovado; contratos de API, RPC e view | Q2, Q4 e Q6 respondidas; catálogo aprovado |
 | **6** | Área do vendedor e gestão de usuários | Migration 016; ramo do vendedor nas políticas; telas novas | V-xx verdes; matriz manual do §8 executada |
@@ -186,7 +186,7 @@ Os dois reduzem a exposição dos achados 1–3 enquanto a Fase 3 não chega.
 |---|---|---|---|
 | D-1 | Ferramentas de teste | Vitest (unit), Playwright (E2E, com rede mockada via `page.route()`). Supabase CLI local (Docker) só é usado por quem executa o checklist MANUAL — nunca pelo CI, nunca por este agente | Jest; Cypress |
 | D-2 | Como testar RLS | **Revisado:** nenhum teste automatizado pode autenticar contra um banco real. RLS, grants e views viram um checklist **MANUAL** (Fase 1 §2/§7), executado por um humano contra o Supabase local ou de homologação | *(rejeitada pela restrição de banco)* Vitest + `supabase-js` contra o PostgREST local — era a recomendação original: o mesmo caminho do navegador, pegando grant faltando, view ignorando RLS e política errada de uma vez. pgTAP (`supabase test db`) tem a mesma limitação: ainda é um teste tocando banco |
-| D-3 | Onde vivem as migrations | Adotar `supabase/migrations/` como fonte única a partir da Fase 1 (baseline = dump de produção); `scripts/` fica congelado como histórico | Manter `scripts/` e montar o banco de teste a partir dele — duas fontes de verdade |
+| D-3 | Onde vivem as migrations | **Decidido (Fase 2):** continuar em `scripts/`, com arquivos numerados e o par de rollback em `scripts/rollback/` — é o que o `CLAUDE.md` já determina e o que o repositório usa | *(descartada)* `supabase/migrations/` como fonte única |
 | D-4 | Refatoração na Fase 1 | Só extrações mecânicas de funções puras, uma por commit, sem mudar lógica (lista na Fase 1 §5) | Nenhuma extração; testar tudo via E2E (mais lento e frágil) |
 | D-5 | Bugs achados na Fase 1 | Fixar o comportamento atual no teste e registrar o bug; corrigir fora desta release, salvo segurança | Corrigir na hora (mistura mudança de comportamento com a rede de proteção) |
 | D-6 | Política na Fase 3 | Nega por padrão: só o admin do inquilino acessa; o ramo do vendedor entra na Fase 6 | Escrever já as políticas finais (ramo do vendedor sem teste até a Fase 6) |
@@ -210,4 +210,4 @@ Os dois reduzem a exposição dos achados 1–3 enquanto a Fase 3 não chega.
 | Q7 | Haverá mais de um admin? | Fase 2 (A-DB-11, A-TEN-01) | Testar mesmo assim: é o único detector de N3 |
 | Q8 | Quem tem acesso à string de conexão de produção para o dump da Fase 1? | Fase 1 | — |
 | Q9 | Docker disponível nas máquinas de quem for executar o checklist MANUAL? Não é mais necessário no CI (nenhuma etapa do pipeline sobe banco de dados) | Fase 1 | Levantar por pessoa, conforme for executar o checklist |
-| Q10 | Venda de vendedor inativo entra no total de comissões (N12)? E arredondamento: 2 casas no total ou exibir como hoje (N13)? | Fase 5 | Manter o comportamento atual e adaptar a RPC a ele |
+| Q10 | Venda de vendedor inativo entra no total de comissões (N12)? E arredondamento: 2 casas no total ou exibir como hoje (N13)? **E a comissão conta toda venda concluída (como o Dashboard) ou só as pagas (como a view e a função antigas do banco)?** Diferença hoje: 9 vendas, cerca de 1,9% do valor | Fase 5 | Manter o comportamento atual do Dashboard (toda concluída) e adaptar a RPC a ele |

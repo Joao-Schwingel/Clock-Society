@@ -32,22 +32,12 @@ export function SaleCostForm({ saleId, onSuccess, onCancel }: SaleCostFormProps)
     setIsSubmitting(true)
 
     const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      alert("Você precisa estar logado")
-      setIsSubmitting(false)
-      return
-    }
 
     const { error } = await supabase.from("sale_costs").insert({
       sale_id: saleId,
       cost_type: formData.cost_type,
       description: formData.description || null,
       amount: Number.parseFloat(formData.amount),
-      user_id: user.id,
     })
 
     if (error) {

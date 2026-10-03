@@ -231,7 +231,9 @@ returns uuid language sql stable security definer set search_path = public as $$
   )
 $$;
 
-create or replace function public.current_role()
+-- não se chama current_role: é palavra reservada do SQL, e sem o schema resolveria para a
+-- função embutida do Postgres (que devolve o papel do banco, ex. 'authenticated')
+create or replace function public.current_app_role()
 returns text language sql stable security definer set search_path = public as $$
   select coalesce(
     nullif(auth.jwt() -> 'app_metadata' ->> 'app_role',''),
@@ -241,7 +243,7 @@ $$;
 
 create or replace function public.is_admin()
 returns boolean language sql stable security definer set search_path = public as $$
-  select public.current_role() = 'admin'
+  select coalesce(public.current_app_role() = 'admin', false)
 $$;
 
 create or replace function public.my_salesperson_ids()
@@ -287,6 +289,11 @@ create policy "sale_items_select" on public.sale_items for select using (
 );
 -- o RLS de sales já filtra o exists acima
 ```
+
+**Exceção em `sale_salespersons` (revisão de 28/09/2026):** a leitura do vendedor **não** deriva da
+venda-mãe. Numa venda compartilhada, isso exporia o `commission_percent` do colega. O vendedor lê
+só as próprias linhas (`salesperson_id in (select public.my_salesperson_ids())`); o admin lê todas
+do inquilino.
 
 `sale_costs` é a exceção: **vendedor nunca lê**, mesmo das próprias vendas.
 
@@ -430,6 +437,9 @@ Nenhuma tela nova. É a base sem a qual o restante não é seguro.
 - [ ] Salvar o estado inicial como linha de base do rollback
 
 #### 1.2 Fechar as brechas existentes — 1,5 h
+
+> **Fora do escopo da release 2 (decisão de 28/09/2026):** registrado na issue #9.
+> Continua sendo pré-requisito da área do vendedor (Fase 6).
 
 - [ ] `alter table public.sale_items enable row level security` + 4 políticas
 - [ ] Auditar `sale_salespersons`; habilitar RLS + 4 políticas
@@ -786,7 +796,7 @@ Cada migration tem seu par de reversão. Ordem inversa da aplicação.
 
 | Migration | Reversão |
 |---|---|
-| `018_backfill_admin.sql` | `delete from profiles` |
+| `018_backfill_admin.sql` | Remover só os perfis criados pelo backfill (`id = tenant_id`, `role = 'admin'`, dono de empresas), nunca a tabela inteira |
 | `017_indexes.sql` | `drop index` |
 | `016_vendor_views.sql` | `drop view vendor_sales` + `drop function commission_summary(uuid, int, int[])` |
 | `015_rewrite_policies.sql` | Restaurar as políticas da linha de base salva em 1.1 |

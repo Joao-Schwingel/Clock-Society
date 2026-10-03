@@ -12,11 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import { DatePickerBR } from "./date-picker-br";
 
 interface ContractsFormProps {
-  userId: string;
   onSuccess: () => void;
 }
 
-export function ContractsForm({ userId, onSuccess }: ContractsFormProps) {
+export function ContractsForm({ onSuccess }: ContractsFormProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -33,7 +32,6 @@ export function ContractsForm({ userId, onSuccess }: ContractsFormProps) {
 
     const supabase = createClient();
     const { error } = await supabase.from("contracts").insert({
-      user_id: userId,
       name: formData.name,
       monthly_value: Number.parseFloat(formData.monthly_value),
       start_date: formData.start_date,

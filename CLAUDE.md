@@ -27,7 +27,7 @@ Two client factories — use the right one depending on context:
 - `lib/supabase/server.ts` → `createClient()` for **Server Components** and **Server Actions** (cookie-based)
 - `lib/supabase/client.ts` → `createClient()` for **Client Components** (browser)
 
-All tables have RLS enabled; policies scope data to `auth.uid()`.
+All tables except `sale_items`/`sale_salespersons` have RLS enabled. Since release-2 Fase 3, `user_id` means the **tenant** (not the logged-in user): policies are `user_id = public.current_tenant_id() and public.is_admin()`, and `user_id` defaults to `current_tenant_id()`. **Never filter or insert by the logged-in user's id** (N3) — let RLS scope reads and the column default fill inserts. `sale_items`/`sale_salespersons` have policies inheriting from `sales`, but their RLS is still **off** in production (closing that, plus `security_invoker` on the views and the `anon` grants, is out of scope for release 2 — tracked in issue #9, prerequisite for the vendor role).
 
 Database schema lives in `scripts/*.sql` (migrations) and `scripts/views/` (DB views like `sales_with_details`).
 
@@ -35,7 +35,13 @@ Database schema lives in `scripts/*.sql` (migrations) and `scripts/views/` (DB v
 
 ### Auth Flow
 
-Middleware (`middleware.ts` → `lib/supabase/middleware.ts`) refreshes session cookies on every request. Unauthenticated users are redirected to `/auth/login`. Public routes: `/`, `/auth/login`, `/auth/sign-up`, `/auth/sign-up-success`, `/auth/error`.
+Middleware (`middleware.ts` → `lib/supabase/middleware.ts`) reads `app_role`/`tenant_id` from the access-token claims via `supabase.auth.getClaims()` (injected by the custom access token hook, `scripts/014_auth_helpers.sql`; `getUser()` does **not** see them) and applies the pure decision table in `lib/auth/route-guard.ts`: no session → `/auth/login`; no role claim → refresh the session once, still none → `/403`; role without permission for the area → `/403`. Public routes: `/`, `/auth/login`, `/auth/error` (sign-up is closed). Post-login destination per role: `homeForRole()`.
+
+### Roles and permissions (release-2)
+
+- `lib/auth/permissions.ts` — permission catalog, mirror of `role_permissions` (seed in `scripts/013_create_profiles.sql`; the A-PERM-01 unit test compares both). Only `admin` is functional until Fase 6.
+- `lib/auth/session.ts` / `session-provider.tsx` — `AppSession` built from JWT claims in `app/dashboard/page.tsx`; `usePermissions()` and `<Can permission=…>` in client components.
+- `lib/auth/nav-registry.ts` — tabs declare the permission they need; `dashboard-layout.tsx`/`company-dashboard.tsx` render tabs from it, and a forbidden `?tab=`/`?company=` renders `<AccessDenied/>`. Don't add hard-coded tab lists.
 
 ### Key Patterns
 
@@ -75,5 +81,6 @@ Tailwind CSS v4 with OKLCH color variables defined in `app/globals.css`. Light/d
 - **Unit** (Vitest): pure functions extracted from components into `lib/calc/*.ts` (e.g. `lib/calc/dashboard.ts`, `lib/calc/sales-stats.ts`). `vitest.config.ts` fixes the clock to 2026-09-15 12:00 `America/Sao_Paulo` and aliases `@/*`.
 - **E2E** (Playwright, Chromium only): `e2e/tests/*.spec.ts`, run against `next dev` with `NEXT_PUBLIC_SUPABASE_URL` pointed at a **local mock server** (`e2e/mock-server/`) instead of Supabase — a small in-memory Auth (GoTrue) + REST (PostgREST) emulator, fixture-driven from `e2e/fixtures/*.json`, reset between tests via `POST /__test__/reset`. It exists because Playwright's `page.route()` only intercepts browser-made requests — it can't intercept the Supabase calls that `middleware.ts` and `app/dashboard/page.tsx` make server-side, which a pure route-mocking approach (as originally scoped) would miss entirely.
 - `e2e/fixtures/expected-numbers.json` is the oracle: expected dashboard/sales/inventory/fixed-costs/contracts numbers for the fixture data, computed independently of the app code — E2E tests assert against it, not against the implementation.
-- **Manual-only, never automated**: RLS/grants/view-isolation checks and a couple of DB-trigger checks (`fixed_costs.end_date`, the "Site" salesperson auto-create trigger) live in `docs/manual-checklists/fase-1-checklist-banco.md`, executed by a human against Supabase local/homologação.
-- Two real app bugs were found and characterized (not fixed) during this work: a race between the two `useTabWithQuery` mounts on initial dashboard load (`hooks/use-queryTab.ts`, see `e2e/tests/nav.spec.ts`), and a likely production crash for brand-new users with zero companies, caused by Next.js Request Memoization returning a stale (pre-insert) empty result for the auto-create-then-refetch query in `app/dashboard/page.tsx` (documented as `test.fail()` in `e2e/tests/nav.spec.ts`).
+- The mock server also emulates the token hook (claims from `e2e/fixtures/profiles.json`), session refresh, and tenant RLS (`e2e/mock-server/rls.mjs`). Requests **without** an `Authorization` header (the test harness itself) bypass RLS like `service_role`; the anon key gets nothing. Test hooks: `POST /__test__/reset`, `POST /__test__/legacy-tokens`, `GET /__test__/requests`.
+- **Manual-only, never automated**: RLS/grants/view-isolation checks and a couple of DB-trigger checks live in `docs/manual-checklists/fase-1-checklist-banco.md` and `docs/manual-checklists/fase-2-checklist-banco-admin.md`, executed by a human against Supabase local/homologação. Migrations are applied by a human following `docs/fase-3/runbook.md`; each has a rollback in `scripts/rollback/`.
+- Two real app bugs were found and characterized (not fixed) during this work: a race between the two `useTabWithQuery` mounts on initial dashboard load (`hooks/use-queryTab.ts`, see `e2e/tests/nav.spec.ts`), and a likely production crash for brand-new users with zero companies (Next.js Request Memoization on the old auto-create-then-refetch in `app/dashboard/page.tsx`) — removed in Fase 3 together with the auto-create (A-BOOT-01).

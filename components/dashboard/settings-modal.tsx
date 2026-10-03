@@ -16,12 +16,11 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import type { Company, Salesperson } from "@/lib/types"
 
 interface SettingsModalProps {
-  userId: string
   companies: Company[]
   onClose: () => void
 }
 
-export function SettingsModal({ userId, companies, onClose }: SettingsModalProps) {
+export function SettingsModal({ companies, onClose }: SettingsModalProps) {
   const [salespersons, setSalespersons] = useState<Salesperson[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [editingSalesperson, setEditingSalesperson] = useState<Salesperson | null>(null)
@@ -44,7 +43,6 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
     const { data, error } = await supabase
       .from("salespersons")
       .select("*")
-      .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
     if (!error && data) {
@@ -70,7 +68,6 @@ export function SettingsModal({ userId, companies, onClose }: SettingsModalProps
       company_id: companyId,
       commission_percentage: 0,
       is_active: isActive,
-      user_id: userId,
     }
 
     try {

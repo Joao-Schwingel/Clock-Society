@@ -11,10 +11,9 @@ import { CostsTable } from "./costs-table"
 
 interface CostsViewProps {
   companyId: string
-  userId: string
 }
 
-export function CostsView({ companyId, userId }: CostsViewProps) {
+export function CostsView({ companyId }: CostsViewProps) {
   const [costs, setCosts] = useState<Cost[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCost, setEditingCost] = useState<Cost | null>(null)
@@ -143,7 +142,6 @@ export function CostsView({ companyId, userId }: CostsViewProps) {
       {isFormOpen && (
         <CostsForm
           companyId={companyId}
-          userId={userId}
           cost={editingCost}
           onSuccess={handleFormSuccess}
           onCancel={() => setIsFormOpen(false)}

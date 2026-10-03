@@ -31,7 +31,6 @@ import { buildSalesCsvContent } from "@/lib/calc/sales-csv";
 
 interface SalesViewProps {
   companyId: string;
-  userId: string;
 }
 
 const TABLE_PAGE_SIZE = 10;
@@ -44,7 +43,7 @@ const STATS_SELECT =
 const TABLE_SELECT =
   "id, company_id, user_id, entry_value, payment_status, product_name, customer_name, sale_date, quantity, unit_price, total_price, status, order_number, notes, created_at, salespersons, costs, total_costs";
 
-export function SalesView({ companyId, userId }: SalesViewProps) {
+export function SalesView({ companyId }: SalesViewProps) {
   // ── Estado dos cards de estatísticas ──────────────────────────
   const [sales, setSales] = useState<SaleWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -793,7 +792,6 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
       {isFormOpen && (
         <SalesForm
           companyId={companyId}
-          userId={userId}
           sale={editingSale}
           onSuccess={handleFormSuccess}
           onCancel={() => setIsFormOpen(false)}

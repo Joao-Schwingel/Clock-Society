@@ -129,3 +129,15 @@ render em `components/ui/sidebar.tsx`), `react/no-unescaped-entities`
 não é importado por nenhum outro componente — não é alcançável pela UI.
 Não recebeu teste nesta fase por não ser exercitável; considerar remover em
 uma limpeza futura.
+
+## 6. Coluna legada `sales.salesperson_id` diverge de `sale_salespersons`
+
+**Onde:** dados de produção (revisão do backup de 28/09/2026)
+**Caracterizado em:** — (dado, não código)
+
+A coluna `sales.salesperson_id` (de `scripts/008_create_salespersons.sql`) é anterior à tabela
+`sale_salespersons`, que é a que o app usa. Está preenchida em 38 das 682 vendas; em 2 delas aponta
+para um vendedor que **não** está vinculado àquela venda em `sale_salespersons`.
+
+**Impacto:** nenhum hoje, porque nenhuma tela lê a coluna. **Decisão (Fase 5):** o escopo do
+vendedor usa só `sale_salespersons`, e a coluna legada é ignorada. Removê-la é trabalho futuro.

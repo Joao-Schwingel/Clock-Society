@@ -1,4 +1,4 @@
-import { test, expect, login, MOCK_URL } from "../test-helpers";
+import { test, expect, login } from "../test-helpers";
 
 const COMPANY_TAB_NAMES = ["Clock Society", "The Secret", "Morfeus", "Contratos"];
 
@@ -60,36 +60,5 @@ test('"Configurações" abre o modal de vendedores', async ({ page }) => {
   await expect(page.getByRole("tab", { name: "Lista de Vendedores" })).toBeVisible();
 });
 
-// C-NAV-04
-//
-// ACHADO (não corrigido nesta fase, D-5): o fluxo de auto-criação
-// (app/dashboard/page.tsx) insere as 3 empresas e, na mesma função, refaz a
-// MESMA consulta select("*").eq("user_id",...).order("code") para pegar as
-// linhas recém-criadas. O React/Next.js faz "Request Memoization" de
-// chamadas fetch idênticas dentro do mesmo render — como @supabase/supabase-js
-// não passa `cache: "no-store"`, a segunda chamada (idêntica à primeira, que
-// rodou ANTES do insert) recebe o resultado antigo memoizado (lista vazia),
-// e `DashboardLayout` quebra em `companies[0].code` (companies[0] é
-// undefined). Confirmado isolando uma 3ª consulta com filtro diferente no
-// mesmo render, que corretamente retornou os dados novos — não é um artefato
-// do mock: @supabase/supabase-js usa o `fetch` global (o mesmo que o
-// Next.js corrigiu), então o mesmo deve acontecer contra o Supabase real.
-// Registrado como bug conhecido; o teste documenta o comportamento atual
-// (quebra) com test.fail(), para acender se algum dia for corrigido.
-test.fail(
-  "primeiro acesso sem empresas cria Clock Society, The Secret e Morfeus",
-  async ({ page, request }) => {
-    const del = await request.delete(`${MOCK_URL}/rest/v1/companies?user_id=eq.u-admin`);
-    expect(del.ok()).toBeTruthy();
-
-    // Login "manual" (sem esperar por ?company=, que nunca chega neste
-    // cenário quebrado): só espera a navegação para /dashboard.
-    await page.goto("/auth/login");
-    await page.getByLabel("Email").fill("admin@t1.test");
-    await page.getByLabel("Senha").fill("senha123");
-    await page.getByRole("button", { name: "Entrar" }).click();
-    await page.waitForURL(/\/dashboard/);
-
-    await expect(companyTabs(page)).toHaveText(COMPANY_TAB_NAMES, { timeout: 5000 });
-  },
-);
+// C-NAV-04 — removido na Fase 3: substituído por A-BOOT-01 (Fase 2 §6), em
+// e2e/tests/admin-bootstrap.spec.ts. O auto-create de empresas deixou de existir (N4).

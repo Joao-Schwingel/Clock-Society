@@ -26,7 +26,7 @@
 
 | PR | Conteúdo | Planejamento | Migrations | Casos |
 |---|---|---|---|---|
-| **3.1** | Fechar brechas: RLS em `sale_items` e `sale_salespersons`; views com `security_invoker`; revogar `anon` | 1.2 | `012_fix_missing_rls.sql`, `views/*` | A-DB-04, A-DB-06 (views e `sale_items`), A-DB-09 |
+| **3.1** | Reconciliar o schema: versionar o que produção tem e os scripts não criavam. **O fechamento das brechas (planejamento 1.2) saiu do escopo da release** e virou a issue #9; é pré-requisito da Fase 6 | 1.1 | `011_reconcile_schema.sql` (no-op em produção), `views/*` (só registro da definição de produção) | A-DB-04 (linha de base) |
 | **3.2** | Identidade: `profiles`, `profile_salespersons`, `role_permissions` (só as linhas do admin), gatilho de criação de perfil, funções auxiliares, hook de token, RLS de `profiles` | 1.3 | `013_create_profiles.sql`, `014_auth_helpers.sql` | A-DB-02, A-DB-03, A-DB-12, A-DB-13, A-DB-14 |
 | **3.3** | Políticas das 10 tabelas no padrão "admin do inquilino"; `default current_tenant_id()` em `user_id`; índices; backfill do admin | 1.4 (admin), 1.6 | `015_rewrite_policies.sql`, `017_indexes.sql`, `018_backfill_admin.sql` | A-DB-01, A-DB-05 a A-DB-11, A-DB-15, A-DB-16 |
 | **3.4** | `SessionProvider`, `usePermissions`, `<Can>`, `nav-registry`; abas de `dashboard-layout.tsx` e `company-dashboard.tsx` montadas pelo registro; fim do uso do id do usuário logado em filtros e inserções (N3) | 2.1 | — | A-PERM-01 a 06, A-TEN-01, A-BOOT-02 |
@@ -36,7 +36,7 @@
 **Dependências:**
 
 ```
-3.1 ──────────────────────────────────────────► (pode ir para produção sozinho)
+3.1 ──────────────────────────────────────────► (no-op em produção; só versiona o schema)
 3.2 ──► 3.3 ──┐
   │           ├──► implantação conjunta na Fase 4
   └─► 3.4 ────┤
@@ -49,7 +49,7 @@ fatia executa esses itens à mão contra o Supabase local ou de homologação e 
 Eles não aparecem no CI. Os demais casos da coluna (`A-MW-*`, `A-PERM-*`, `A-BOOT-*`) são UNIT/E2E
 automatizados normalmente.
 
-- **3.1 é independente** e fecha brechas existentes sem mudar nada para o admin (desde que o A-DB-04 esteja OK no checklist). Recomendação: implantar assim que estiver pronto, com um mini-roteiro da Fase 4 (só §3.3 e a verificação de segurança), sem esperar o restante.
+- **3.1 é independente** e não muda nada em produção: só deixa os scripts iguais ao banco real.
 - **3.3 é o ponto de não retorno:** a partir dele o banco depende de `profiles`. `015` e `018` vão para produção na mesma janela (§5 do planejamento).
 - **3.4 e 3.5 dependem das claims** (3.2) e vão para produção junto com 3.3, com o hook já habilitado.
 
@@ -59,7 +59,6 @@ automatizados normalmente.
 
 | Tema | O que pode dar errado | Caso que pega |
 |---|---|---|
-| `security_invoker` nas views (§7.4) | Política mais restritiva do que o esperado faz a tela do admin perder linhas **sem erro** | A-DB-04, antes do merge de 3.1 |
 | Recursão em `profiles` (§7.2) | Política de `profiles` chamando função que consulta `profiles` | A-DB-12 |
 | Claims no middleware (N10) | Ler o papel via `getUser()` devolve o registro sem as claims do hook → admin cai em `/403` | A-MW-02 |
 | Token antigo após a implantação (§7.3) | Admin logado antes da janela fica preso em `/403` | A-MW-06 |
@@ -72,7 +71,7 @@ automatizados normalmente.
 
 ## 4. Artefatos de implantação (entrada da Fase 4)
 
-- [ ] **Runbook** com a ordem exata: backup → 012 → 013 → 014 → habilitar o hook no painel → 015 + 017 + 018 na mesma transação ou em sequência imediata → verificação → deploy do app (3.4–3.6) → desabilitar auto-cadastro, se ainda não tiver sido feito (ação imediata do README)
+- [ ] **Runbook** com a ordem exata: backup → 013 → 014 → habilitar o hook no painel → 015 + 017 + 018 na mesma transação ou em sequência imediata → verificação → deploy do app (3.4–3.6) → desabilitar auto-cadastro, se ainda não tiver sido feito (ação imediata do README)
 - [ ] Scripts de rollback de cada migration, testados localmente (A-DB-17), mais a linha de base de políticas salva na Fase 1
 - [ ] Rollback do app: identificar o deploy anterior na Vercel para *redeploy* imediato
 - [ ] `explain analyze` das três consultas mais pesadas do admin — vendas paginadas, estatísticas de vendas e dashboard — antes e depois das novas políticas, executado à mão (fora da suíte automatizada) num banco local com volume parecido com o de produção (antecipa parte de 5.2)

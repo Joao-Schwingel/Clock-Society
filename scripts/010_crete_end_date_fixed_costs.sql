@@ -1,3 +1,7 @@
+-- ⚠️ Num banco novo este script falha: usa fixed_costs.qtdmonths, que nenhum script anterior cria.
+-- A 011_reconcile_schema.sql cria qtdmonths e já faz o que este script faz (end_date + gatilho).
+-- Banco novo: rode 001–009, pule este e rode a 011. Mantido como histórico (já aplicado em produção).
+
 ALTER TABLE fixed_costs
 ADD COLUMN end_date DATE;
 

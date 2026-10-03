@@ -21,8 +21,9 @@ Esta fase é a etapa de *Planning* da skill, feita com o time e não por uma pes
 | Listar comportamentos, não passos de implementação | §5 |
 | Obter aprovação | §8 |
 
-**Não se escrevem asserções nesta fase.** Os casos das camadas UNIT e E2E entram no código como
-`it.todo("A-MW-01 …")`, agrupados por arquivo de teste; cada `todo` vira teste de verdade dentro do
+**Não se escrevem asserções nesta fase.** Os casos da camada UNIT entram no código como
+`it.todo("A-MW-01 …")` (Vitest) e os da camada E2E como `test.fixme("A-MW-01 …", () => {})`
+(Playwright, que não tem `it.todo`), agrupados por arquivo de teste; cada `todo` vira teste de verdade dentro do
 ciclo RED→GREEN da Fase 3. Os casos **MANUAL** (catálogo "Banco", §5) não viram `it.todo` — entram como
 linhas de um checklist (markdown ou planilha), sem execução ainda, que a Fase 3 executa à mão a cada
 fatia entregue.
@@ -35,14 +36,15 @@ fatia entregue.
 
 - Identidade: `profiles`, inquilino, papel e claims no token (planejamento 1.3)
 - Banco que nega por padrão: toda política exige ser admin do inquilino (1.4, só o ramo do admin — D-6)
-- Brechas atuais fechadas: `sale_items`, `sale_salespersons`, views com `security_invoker`, grants do `anon` (1.2)
 - Camada de permissão no front aplicada a **todas** as telas: `SessionProvider`, `usePermissions`, `<Can>`, `nav-registry` (2.1)
 - Middleware por papel, página 403, auto-cadastro fechado, redirecionamento pós-login por papel (2.2)
 - Dashboard sem auto-criação de empresas (2.4)
 - `tenant_id` no lugar do id do usuário logado em filtros e inserções (N3)
 - Backfill do admin atual (1.6)
 
-**Não inclui** (Fase 5/6): qualquer acesso do vendedor, `vendor_sales`, `commission_summary()`, gestão
+**Não inclui:** o fechamento das brechas atuais do banco (planejamento 1.2: RLS de `sale_items` e
+`sale_salespersons`, `security_invoker` nas views, grants do `anon`), que saiu do escopo da release e
+virou a issue #9; é pré-requisito da Fase 6. Também não inclui (Fase 5/6): qualquer acesso do vendedor, `vendor_sales`, `commission_summary()`, gestão
 de usuários, troca de senha obrigatória, área do vendedor.
 
 ---
@@ -96,9 +98,10 @@ negado, e não a aba. A proteção real continua sendo o RLS.
 
 ### 3.6 `user_id` nas inserções
 
-**Proposta:** coluna com `default public.current_tenant_id()` nas 10 tabelas, e política com
+**Decidido:** coluna com `default public.current_tenant_id()` nas 8 tabelas que têm `user_id`
+(`sale_items` e `sale_salespersons` não têm: derivam de `sales`), e política com
 `with check (user_id = current_tenant_id() and is_admin())`. O front deixa de enviar `user_id` nas 7
-inserções (N3). Alternativa: o front envia o `tenantId` da sessão.
+inserções (N3). *(Descartada: o front enviar o `tenantId` da sessão.)*
 
 ### 3.7 Estado vazio sem empresas
 
@@ -136,13 +139,13 @@ o CI, mas bloqueiam a saída da fatia.
 |---|---|---|
 | A-DB-01 | P1 | Após o backfill, o admin atual tem perfil `admin`, `tenant_id` igual ao próprio id e está ativo |
 | A-DB-02 | P1 | O token do admin traz `app_role = admin` e `tenant_id`; o de um usuário sem perfil não traz nenhum dos dois |
-| A-DB-03 | P1 | `current_tenant_id()`, `current_role()` e `is_admin()` dão o mesmo resultado com e sem as claims no token (queda para `profiles`) |
+| A-DB-03 | P1 | `current_tenant_id()`, `current_app_role()` e `is_admin()` dão o mesmo resultado com e sem as claims no token (queda para `profiles`) |
 | A-DB-04 | P1 | **Regressão:** o admin lê exatamente as contagens do fixture nas 10 tabelas e nas 2 views — C-DB-01 repetido com as novas políticas e o `security_invoker` (§7.4 do planejamento) |
 | A-DB-05 | P1 | O admin cria, altera e exclui em todas as tabelas que o front escreve — C-DB-02 repetido |
-| A-DB-06 | P1 | Outro inquilino: 0 linhas em todas as tabelas, nas 2 views e em `sale_items`; escrita negada. **C-DB-05 passa a valer** |
+| A-DB-06 | P1 | Outro inquilino: 0 linhas nas 8 tabelas com `user_id`; escrita negada. *(A parte das views e de `sale_items`/`sale_salespersons`, que faria o C-DB-05 passar a valer, saiu do escopo da release: issue #9.)* |
 | A-DB-07 | P1 | Usuário autenticado sem perfil: 0 linhas em tudo; escrita negada |
 | A-DB-08 | P1 | Perfil `vendedor` sem vínculo: 0 linhas em tudo; escrita negada |
-| A-DB-09 | P1 | Chave anônima: nenhuma tabela, view ou função legível. **C-DB-04 passa a valer** |
+| ~~A-DB-09~~ | — | *Fora do escopo da release (issue #9).* Chave anônima: nenhuma tabela, view ou função legível |
 | A-DB-10 | P1 | Inserção sem `user_id` recebe o inquilino; inserção ou alteração com `user_id` de outro inquilino é recusada |
 | A-DB-11 | P2 | Segundo admin do mesmo inquilino lê e escreve os mesmos dados que o primeiro |
 | A-DB-12 | P1 | `profiles`: o admin lê os perfis do inquilino; cada usuário lê o próprio; **nenhum usuário altera `role`, `tenant_id`, `is_active` ou `must_change_password` pelo cliente**; a consulta não entra em recursão (§7.2) |
@@ -195,7 +198,7 @@ o CI, mas bloqueiam a saída da fatia.
 
 | ID | Pri. | Comportamento |
 |---|---|---|
-| A-REG-01 | P1 | Toda a suíte da Fase 1 continua verde, exceto C-AUTH-05, C-NAV-04, C-DB-04 e C-DB-05, substituídos pelos casos acima |
+| A-REG-01 | P1 | Toda a suíte da Fase 1 continua verde, exceto C-AUTH-05 e C-NAV-04, substituídos pelos casos acima |
 
 ---
 
@@ -205,8 +208,6 @@ o CI, mas bloqueiam a saída da fatia.
 |---|---|
 | C-AUTH-05 | A-MW-03 |
 | C-NAV-04 | A-BOOT-01 |
-| C-DB-04 (MANUAL) | A-DB-09 (MANUAL) |
-| C-DB-05 (MANUAL) | A-DB-06 (MANUAL) |
 
 Qualquer outro teste da Fase 1 que quebrar durante a Fase 3 é regressão.
 
@@ -227,7 +228,7 @@ Qualquer outro teste da Fase 1 que quebrar durante a Fase 3 é regressão.
 - [ ] Catálogo aprovado por pelo menos um revisor além do autor
 - [ ] Decisões 3.1 a 3.7 registradas
 - [ ] Q7 respondida (ou A-DB-11/A-TEN-01 mantidos como detectores de N3)
-- [ ] `it.todo` presentes e listados no relatório do Vitest, para os casos UNIT/E2E
+- [ ] `it.todo` presentes e listados no relatório do Vitest (casos UNIT) e `test.fixme` no relatório do Playwright (casos E2E)
 - [ ] Checklist MANUAL redigido e revisado junto com o catálogo
 
 **Estimativa:** 4–6 h.

@@ -1,0 +1,6 @@
+[
+  { "id": "u-admin", "tenant_id": "u-admin", "role": "admin", "full_name": "Admin T1", "is_active": true, "must_change_password": false, "created_at": "2026-01-01T10:00:00.000Z", "updated_at": "2026-01-01T10:00:00.000Z" },
+  { "id": "u-outro", "tenant_id": "u-outro", "role": "admin", "full_name": "Admin T2", "is_active": true, "must_change_password": false, "created_at": "2026-01-01T10:00:00.000Z", "updated_at": "2026-01-01T10:00:00.000Z" },
+  { "id": "u-admin2", "tenant_id": "u-admin", "role": "admin", "full_name": "Segundo admin T1", "is_active": true, "must_change_password": false, "created_at": "2026-01-01T10:00:00.000Z", "updated_at": "2026-01-01T10:00:00.000Z" },
+  { "id": "u-vendedor-sem-vinculo", "tenant_id": "u-admin", "role": "vendedor", "full_name": "Vendedor sem vínculo", "is_active": true, "must_change_password": false, "created_at": "2026-01-01T10:00:00.000Z", "updated_at": "2026-01-01T10:00:00.000Z" }
+]

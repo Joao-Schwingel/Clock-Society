@@ -41,13 +41,11 @@ export type FixedCostFormData = z.infer<typeof fixedCostSchema>;
 
 interface FixedCostFormProps {
   companyId: string;
-  userId: string;
   onFixedCostAdded: () => void;
 }
 
 export function FixedCostForm({
   companyId,
-  userId,
   onFixedCostAdded,
 }: FixedCostFormProps) {
   const { toast } = useToast();
@@ -72,7 +70,6 @@ export function FixedCostForm({
   const onSubmit = async (data: FixedCostFormData) => {
     const { error } = await supabase.from("fixed_costs").insert({
       company_id: companyId,
-      user_id: userId,
       name: data.name,
       category: data.category,
       qtdmonths: data.months,
