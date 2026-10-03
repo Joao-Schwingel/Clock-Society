@@ -42,3 +42,15 @@ describe("catálogo de permissões", () => {
     expect(permissionsForRole("vendedor")).toEqual([]);
   });
 });
+
+// Fase 5 §5 / Fase 6 fatia 6.2. Quando estes casos virarem testes, o caso "vendedor ainda não tem
+// permissões na Fase 3" acima é substituído (docs/fase-5/README.md, "Testes da Fase 3 que mudam").
+describe("vendedor (Fase 6)", () => {
+  it.todo(
+    "V-UI-01 — o vendedor tem commissions.view, sales.view e inventory.view, e nenhuma das demais (sales.export conforme Q4, issue #13)",
+  );
+  it.todo("V-UI-04 — o vendedor não tem sales.view_costs nem sales.write");
+  it.todo("V-UI-07 — o vendedor não tem inventory.write");
+  it.todo("V-MW-03 — o vendedor não tem fixed_costs.manage, contracts.manage, salespersons.manage nem users.manage");
+  it.todo("users.manage entra no catálogo (só admin) e nas linhas de role_permissions da migration da Fase 6");
+});

@@ -28,5 +28,41 @@
     "email": "vendedor-sem-vinculo@t1.test",
     "password": "senha123",
     "note": "Fase 2 §4: perfil vendedor de T1 sem nenhuma linha em profile_salespersons — nega por padrão (A-DB-08, A-MW-04); continua valendo depois da Fase 6."
+  },
+  {
+    "id": "u-vend-a",
+    "email": "vend-a@t1.test",
+    "password": "senha123",
+    "note": "Fase 5 §4: vendedor base — vinculado a Ana (A), que tem a venda compartilhada com Bruno."
+  },
+  {
+    "id": "u-vend-b",
+    "email": "vend-b@t1.test",
+    "password": "senha123",
+    "note": "Fase 5 §4: o outro lado da venda compartilhada — vinculado a Bruno (A) (V-DB-01/17)."
+  },
+  {
+    "id": "u-vend-ab",
+    "email": "vend-ab@t1.test",
+    "password": "senha123",
+    "note": "Fase 5 §4: multiempresa — vinculado a Carla (A) e Carla (B), a mesma pessoa nas duas empresas."
+  },
+  {
+    "id": "u-vend-zero",
+    "email": "vend-zero@t1.test",
+    "password": "senha123",
+    "note": "Fase 5 §4: vinculado a Diego (A), registro sem nenhuma venda — estado vazio."
+  },
+  {
+    "id": "u-vend-inativo",
+    "email": "vend-inativo@t1.test",
+    "password": "senha123",
+    "note": "Fase 5 §4: perfil DESATIVADO, vinculado a Elis (A), vendedora inativa com venda (N12)."
+  },
+  {
+    "id": "u-vend-troca",
+    "email": "vend-troca@t1.test",
+    "password": "senha123",
+    "note": "Fase 5 §4: must_change_password = true, sem vínculo — troca de senha obrigatória."
   }
 ]

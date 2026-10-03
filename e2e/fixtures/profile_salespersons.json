@@ -1,1 +1,8 @@
-[]
+[
+  {"profile_id": "u-vend-a", "salesperson_id": "sp-ana-a", "created_at": "2026-01-01T10:00:00.000Z"},
+  {"profile_id": "u-vend-b", "salesperson_id": "sp-bruno-a", "created_at": "2026-01-01T10:00:00.000Z"},
+  {"profile_id": "u-vend-ab", "salesperson_id": "sp-carla-a", "created_at": "2026-01-01T10:00:00.000Z"},
+  {"profile_id": "u-vend-ab", "salesperson_id": "sp-carla-b", "created_at": "2026-01-01T10:00:00.000Z"},
+  {"profile_id": "u-vend-zero", "salesperson_id": "sp-diego-a", "created_at": "2026-01-01T10:00:00.000Z"},
+  {"profile_id": "u-vend-inativo", "salesperson_id": "sp-elis-a", "created_at": "2026-01-01T10:00:00.000Z"}
+]

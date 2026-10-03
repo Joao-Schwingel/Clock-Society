@@ -68,3 +68,11 @@ describe("nav-registry", () => {
     expect(canOpenSettings(["salespersons.manage"])).toBe(true);
   });
 });
+
+// Fase 5 §5 / Fase 6 fatia 6.8. Navegação do vendedor (planejamento, Anexo C).
+describe("vendedor (Fase 6)", () => {
+  it.todo("V-UI-01 — para o vendedor, as abas de cada empresa são Vendas, Comissões e Estoque, nessa ordem, sem Dashboard");
+  it.todo("V-UI-01 — o vendedor não recebe as abas Contratos nem Usuários, nem o botão Configurações");
+  it.todo("V-MW-03 — ?tab=custos-fixos e ?company=contracts resolvem para acesso negado para o vendedor");
+  it.todo("V-UI-02 — empresas do seletor = só as empresas em que o vendedor atua (vínculos)");
+});

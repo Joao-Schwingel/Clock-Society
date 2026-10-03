@@ -91,3 +91,13 @@ describe("destino pós-login", () => {
     expect(homeForRole("vendedor")).toBe("/403");
   });
 });
+
+// Fase 5 §5 "Middleware e rotas" / Fase 6 fatias 6.6 e 6.8.
+describe("vendedor (Fase 6)", () => {
+  it.todo("V-MW-01 — homeForRole('vendedor') leva à área do vendedor (decisão 3.8: /vendedor), e não mais a /403");
+  it.todo("V-MW-01 — vendedor com sessão em /vendedor → segue; admin em /vendedor → /403");
+  it.todo("V-MW-02 — claim must_change_password = true → qualquer rota leva a /auth/trocar-senha (exceto ela mesma e o logout)");
+  it.todo("V-MW-02 — sem must_change_password, /auth/trocar-senha não prende o usuário (segue para a home do papel)");
+  it.todo("V-MW-03 — vendedor em /dashboard (área do admin) → /403");
+  it.todo("V-MW-04 — perfil desativado: o token renovado vem sem claims → /403 (decisão 3.7)");
+});
