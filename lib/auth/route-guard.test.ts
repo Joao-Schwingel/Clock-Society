@@ -131,7 +131,12 @@ describe("vendedor (Fase 6)", () => {
       to: "/auth/login",
     });
   });
-  it.todo("V-MW-03 — vendedor em /dashboard (área do admin) → /403");
+  it("V-MW-03 — vendedor em /dashboard (área do admin) → /403", () => {
+    const vendedor = { appRole: "vendedor", tenantId: "t1" };
+    for (const pathname of ["/dashboard", "/dashboard/x"]) {
+      expect(decideRoute({ pathname, session: vendedor, refreshed: false })).toEqual({ action: "redirect", to: "/403" });
+    }
+  });
   it("V-MW-04 — perfil desativado com sessão aberta: o token renovado vem sem claims → /403 (decisão 3.7)", () => {
     expect(decideRoute({ pathname: "/dashboard", session: { appRole: null, tenantId: null }, refreshed: true })).toEqual({
       action: "redirect",

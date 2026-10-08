@@ -97,8 +97,8 @@ O A-DB-08 (vendedor sem vínculo lê 0 linhas no banco) continua valendo.
 
 | Fatia | Migration | Conteúdo |
 |---|---|---|
-| 6.2 | `019_fix_missing_rls.sql` | **Issue #9**: RLS em `sale_items`/`sale_salespersons`, `security_invoker` nas views, revogação do `anon` |
-| 6.2 | `020_vendor_policies.sql` | `my_salesperson_ids()` (só perfis ativos); ramo do vendedor nas políticas; leitura de `sale_salespersons` só das próprias linhas; linhas do vendedor em `role_permissions` + `users.manage`; hook com `must_change_password`; desativação nas funções auxiliares |
+| 6.2 | `019_fix_missing_rls.sql` ✅ escrita | **Issue #9**: liga o RLS de `sale_items`/`sale_salespersons` (as políticas da 015 passam a valer), `security_invoker` nas 3 views, revoga o `anon`, tira do `authenticated` TRUNCATE/TRIGGER/REFERENCES e os objetos mortos |
+| 6.2 / 6.7 | `020_vendor_policies.sql` ✅ escrita | Catálogo (`users.manage` + vendedor), admin sempre ativo, funções auxiliares negando perfil desativado, `is_vendor()`/`my_salesperson_ids()`/`my_company_ids()`/`vendor_can_see_sale()` (quebram a recursão de RLS), hook com `must_change_password`, políticas de leitura do vendedor (`sale_salespersons` só as próprias linhas), views antigas só para admin |
 | 6.3 | `016_vendor_views.sql` | `vendor_sales` (`security_invoker`) e `commission_summary()` (`security definer`, guarda interna) |
 
 Cada uma com o par em `scripts/rollback/`, testado no A-DB-17 da Fase 6.

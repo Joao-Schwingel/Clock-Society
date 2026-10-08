@@ -46,20 +46,32 @@ describe("catálogo de permissões", () => {
     expect(hasPermission(permissionsForRole(undefined), "sales.view")).toBe(false);
   });
 
-  it("vendedor ainda não tem permissões na Fase 3 (D-6)", () => {
-    expect(permissionsForRole("vendedor")).toEqual([]);
-  });
+  // Substitui o caso da Fase 3 "vendedor ainda não tem permissões (D-6)" — ver docs/fase-5/README.md.
 });
 
 // Fase 5 §5 / Fase 6 fatia 6.2. Quando estes casos virarem testes, o caso "vendedor ainda não tem
 // permissões na Fase 3" acima é substituído (docs/fase-5/README.md, "Testes da Fase 3 que mudam").
 describe("vendedor (Fase 6)", () => {
-  it.todo(
-    "V-UI-01 — o vendedor tem commissions.view, sales.view e inventory.view, e nenhuma das demais (sales.export conforme Q4, issue #13)",
-  );
-  it.todo("V-UI-04 — o vendedor não tem sales.view_costs nem sales.write");
-  it.todo("V-UI-07 — o vendedor não tem inventory.write");
-  it.todo("V-MW-03 — o vendedor não tem fixed_costs.manage, contracts.manage, salespersons.manage nem users.manage");
+  it("V-UI-01 — o vendedor tem commissions.view, sales.view e inventory.view, e nenhuma das demais (sem sales.export: padrão da Q4, #13)", () => {
+    expect([...permissionsForRole("vendedor")].sort()).toEqual(["commissions.view", "inventory.view", "sales.view"]);
+  });
+
+  it("V-UI-04 — o vendedor não tem sales.view_costs nem sales.write", () => {
+    const v = permissionsForRole("vendedor");
+    expect(hasPermission(v, "sales.view_costs")).toBe(false);
+    expect(hasPermission(v, "sales.write")).toBe(false);
+  });
+
+  it("V-UI-07 — o vendedor não tem inventory.write", () => {
+    expect(hasPermission(permissionsForRole("vendedor"), "inventory.write")).toBe(false);
+  });
+
+  it("V-MW-03 — o vendedor não tem dashboard.overview, fixed_costs.manage, contracts.manage, salespersons.manage nem users.manage", () => {
+    const v = permissionsForRole("vendedor");
+    for (const p of ["dashboard.overview", "fixed_costs.manage", "contracts.manage", "salespersons.manage", "users.manage"] as const) {
+      expect(hasPermission(v, p)).toBe(false);
+    }
+  });
   it("V-UI-09 — users.manage está no catálogo e é só do admin (seed na migration 020)", () => {
     expect(PERMISSIONS).toContain("users.manage");
     expect(permissionsForRole("admin")).toContain("users.manage");

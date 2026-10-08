@@ -110,6 +110,14 @@ Dentro de `begin … rollback`, como `vend-a`:
 - [ ] O mesmo pela API REST (`/rest/v1/sale_salespersons?sale_id=eq.…` com o token de `vend-a`)
 - [ ] O mesmo pelas views (`sales_with_salespersons`, `vendor_sales`): nenhum percentual do colega
 
+### V-DB-19 — Sem recursão de RLS (020)
+
+Rode o bloco de contagens do ensaio da Fase 3 (10 tabelas + 2 views) **duas vezes**: simulando o
+admin e simulando `vend-a`.
+
+- [ ] Nenhum erro `infinite recursion detected in policy for relation …`
+- [ ] Como admin, as contagens são **as mesmas de antes da 019/020** (A-DB-04 continua valendo)
+
 ### V-DB-18 — Admin nunca é desativado (020)
 
 Como `postgres` (que ignora RLS, como a chave de serviço), dentro de `begin … rollback`:

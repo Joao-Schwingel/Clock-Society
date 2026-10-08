@@ -92,6 +92,7 @@ por um humano, antes do merge/deploy da fatia correspondente (Fase 6 §2).
 | V-DB-15 | O vendedor não altera o próprio perfil nem `profile_salespersons` ou `role_permissions` (A-DB-12 continua valendo) |
 | V-DB-16 | Perfil `vendedor` sem vínculo continua sem acesso a nada (A-DB-08 continua valendo) |
 | V-DB-18 | Nenhum perfil `admin` pode ficar com `is_active = false`: o banco recusa (restrição `profiles_admin_always_active`, migration 020), inclusive pela chave de serviço. Vendedores continuam podendo ser desativados (decisão de 08/10/2026) |
+| V-DB-19 | Nenhuma consulta às 10 tabelas e às views falha com `infinite recursion detected in policy`, nem como admin nem como vendedor (a 020 quebra o ciclo `sales` ↔ `sale_salespersons` com funções `security definer`) |
 | V-DB-17 | Em venda compartilhada, o vendedor **não** lê a linha do colega em `sale_salespersons` (nem o `commission_percent` dele), nem pela API nem pelas views. Produção tem 37 vendas compartilhadas (revisão de 28/09/2026, item 6) |
 
 > **Notas da revisão de 28/09/2026 (dados de produção):**

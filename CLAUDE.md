@@ -27,7 +27,7 @@ Two client factories — use the right one depending on context:
 - `lib/supabase/server.ts` → `createClient()` for **Server Components** and **Server Actions** (cookie-based)
 - `lib/supabase/client.ts` → `createClient()` for **Client Components** (browser)
 
-All tables except `sale_items`/`sale_salespersons` have RLS enabled. Since release-2 Fase 3, `user_id` means the **tenant** (not the logged-in user): policies are `user_id = public.current_tenant_id() and public.is_admin()`, and `user_id` defaults to `current_tenant_id()`. **Never filter or insert by the logged-in user's id** (N3) — let RLS scope reads and the column default fill inserts. `sale_items`/`sale_salespersons` have policies inheriting from `sales`, but their RLS is still **off** in production (closing that, plus `security_invoker` on the views and the `anon` grants, is out of scope for release 2 — tracked in issue #9, prerequisite for the vendor role).
+All tables except `sale_items`/`sale_salespersons` have RLS enabled in production (migration `019`, written in Fase 6 but **not yet applied**, turns it on — issue #9). Since release-2 Fase 3, `user_id` means the **tenant** (not the logged-in user): policies are `user_id = public.current_tenant_id() and public.is_admin()`, and `user_id` defaults to `current_tenant_id()`. **Never filter or insert by the logged-in user's id** (N3) — let RLS scope reads and the column default fill inserts. `sale_items`/`sale_salespersons` have policies inheriting from `sales`, but their RLS is still **off** in production until `019` is applied (it also sets `security_invoker` on the views and revokes the `anon` grants — issue #9, prerequisite for the vendor role).
 
 Database schema lives in `scripts/*.sql` (migrations) and `scripts/views/` (DB views like `sales_with_details`).
 
@@ -43,6 +43,7 @@ Middleware (`middleware.ts` → `lib/supabase/middleware.ts`) reads `app_role`/`
 
 - `lib/auth/permissions.ts` — permission catalog, mirror of `role_permissions` (seeded by the `insert into public.role_permissions` statements of the numbered migrations — 013, 020…; the A-PERM-01 unit test parses them and compares). Admin-only `users.manage` gates the **Usuários** tab (`components/dashboard/users/`).
 - `lib/auth/session.ts` / `session-provider.tsx` — `AppSession` built from JWT claims in `app/dashboard/page.tsx`; `usePermissions()` and `<Can permission=…>` in client components.
+- **Vendor role (Fase 6, migration `020`, not yet applied):** read-only policies added next to the admin ones — the vendor sees only sales where they appear in `sale_salespersons`, only their **own** `sale_salespersons` rows (never a colleague's commission %), inventory/companies where they work, and nothing of costs/contracts; the old views are admin-only. Vendor policies must reach `sale_salespersons` through `security definer` helpers (`vendor_can_see_sale()`, `my_salesperson_ids()`), never directly — a direct `sales` ↔ `sale_salespersons` reference causes "infinite recursion detected in policy" for everyone. No admin can be deactivated (`profiles_admin_always_active`).
 - `lib/auth/nav-registry.ts` — tabs declare the permission they need; `dashboard-layout.tsx`/`company-dashboard.tsx` render tabs from it, and a forbidden `?tab=`/`?company=` renders `<AccessDenied/>`. Don't add hard-coded tab lists.
 
 ### Key Patterns

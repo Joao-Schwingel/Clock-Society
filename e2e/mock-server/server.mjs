@@ -109,6 +109,12 @@ async function handleRest(req, res, url, table, method) {
     return;
   }
 
+  // 020: o vendedor não escreve em nada (só políticas de leitura).
+  if (ctx.kind === "user" && ctx.isVendor && method !== "GET" && method !== "HEAD") {
+    sendJson(res, 403, permissionDenied(table));
+    return;
+  }
+
   // 013/014: o cliente não escreve em profiles nem em profile_salespersons (só a chave de serviço).
   if (ctx.kind === "user" && ["profiles", "profile_salespersons"].includes(table) && method !== "GET" && method !== "HEAD") {
     sendJson(res, 403, permissionDenied(table));
