@@ -28,7 +28,7 @@ como proposta. Falta a aprovação de um revisor além do autor (§7 da spec).
 | # | Decisão | Situação | Proposta |
 |---|---|---|---|
 | 3.1 | Colunas de `vendor_sales` e o que a coluna "Vendedor / Comissão" mostra | **#13** | As da §4.4 do planejamento + o percentual **do próprio vendedor**; nada do colega (V-DB-17) |
-| 3.2 | `commission_summary(p_company_id, p_year, p_months)` | Proposta; regras dependem de Q2/Q10 (**#13**) | 7 colunas fixas (§4.4); meses 1..12 (o front converte de 0..11); `security definer` com guarda interna |
+| 3.2 | `commission_summary(p_company_id, p_year, p_months)` | ✅ `016` (regras: padrões da **#13**) | 7 colunas da §4.4 **+ `is_active`**; meses 1..12 (o front converte de 0..11); `p_months` nulo = sem filtro de data; sem arredondamento; inativo com vendas incluído; `security definer` com guarda interna |
 | 3.3 | Cartão "comissão do período" do vendedor | Proposta | Linha do próprio vendedor na `commission_summary()`, nunca cálculo no navegador (N9) |
 | 3.4 | `sales_with_details` para o vendedor | Proposta | 0 linhas (condição `is_admin()` na view); o vendedor usa só `vendor_sales` |
 | 3.5 | Contrato de `/api/users` | Proposta | zod; 401 sem sessão, 403 não admin, 409 e-mail duplicado, 422 validação; mensagens em PT-BR |
@@ -99,7 +99,7 @@ O A-DB-08 (vendedor sem vínculo lê 0 linhas no banco) continua valendo.
 |---|---|---|
 | 6.2 | `019_fix_missing_rls.sql` ✅ escrita | **Issue #9**: liga o RLS de `sale_items`/`sale_salespersons` (as políticas da 015 passam a valer), `security_invoker` nas 3 views, revoga o `anon`, tira do `authenticated` TRUNCATE/TRIGGER/REFERENCES e os objetos mortos |
 | 6.2 / 6.7 | `020_vendor_policies.sql` ✅ escrita | Catálogo (`users.manage` + vendedor), admin sempre ativo, funções auxiliares negando perfil desativado, `is_vendor()`/`my_salesperson_ids()`/`my_company_ids()`/`vendor_can_see_sale()` (quebram a recursão de RLS), hook com `must_change_password`, políticas de leitura do vendedor (`sale_salespersons` só as próprias linhas), views antigas só para admin |
-| 6.3 | `016_vendor_views.sql` | `vendor_sales` (`security_invoker`) e `commission_summary()` (`security definer`, guarda interna) |
+| 6.3 | `016_vendor_views.sql` ✅ escrita | `vendor_sales` (`security_invoker`, sem custo, com `my_commission_percent` do próprio vendedor) e `commission_summary()` (`security definer`, guarda interna, 8 colunas). **Não aplicar em produção antes da #13** |
 
 Cada uma com o par em `scripts/rollback/`, testado no A-DB-17 da Fase 6.
 

@@ -21,6 +21,7 @@ import {
   adminDeleteUser,
 } from "./auth.mjs";
 import { authContext, rowAllowed, applyInsertDefaults, permissionDenied } from "./rls.mjs";
+import { commissionSummary, RpcError } from "./rpc.mjs";
 
 let users = loadUsers();
 let tables = freshTables();
@@ -82,8 +83,8 @@ function unwrapIfSingle(req, rows) {
   return rows[0] ?? null;
 }
 
-function rowsForTable(name) {
-  if (VIEW_BUILDERS[name]) return VIEW_BUILDERS[name](tables);
+function rowsForTable(name, ctx) {
+  if (VIEW_BUILDERS[name]) return VIEW_BUILDERS[name](tables, ctx);
   return tables[name];
 }
 
@@ -96,7 +97,7 @@ async function handleRest(req, res, url, table, method) {
   const isView = Boolean(VIEW_BUILDERS[table]);
   const ctx = authContext(req, tables.profiles, ANON_KEY, SERVICE_KEY);
   requestLog.push({ method, table, search: url.search, auth: ctx.kind });
-  const allRows = rowsForTable(table);
+  const allRows = rowsForTable(table, ctx);
 
   if (allRows === undefined) {
     sendJson(res, 404, { message: `Tabela/view desconhecida no mock: ${table}` });
@@ -307,6 +308,23 @@ export function createMockServer() {
 
       if (url.pathname.startsWith("/auth/v1/")) {
         await handleAuth(req, res, url, method);
+        return;
+      }
+
+      // RPCs (016)
+      if (url.pathname === "/rest/v1/rpc/commission_summary" && method === "POST") {
+        const ctx = authContext(req, tables.profiles, ANON_KEY, SERVICE_KEY);
+        requestLog.push({ method, table: "rpc/commission_summary", search: url.search, auth: ctx.kind });
+        if (ctx.kind === "anon") {
+          sendJson(res, 401, { code: "42501", message: "permission denied for function commission_summary" });
+          return;
+        }
+        try {
+          sendJson(res, 200, commissionSummary(tables, ctx, (await readJsonBody(req)) ?? {}));
+        } catch (err) {
+          if (err instanceof RpcError) sendJson(res, 403, { code: err.code, message: "acesso negado" });
+          else throw err;
+        }
         return;
       }
 

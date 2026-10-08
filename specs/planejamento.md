@@ -384,6 +384,11 @@ revoke execute on function public.commission_summary(uuid, int, int[]) from publ
 grant  execute on function public.commission_summary(uuid, int, int[]) to authenticated;
 ```
 
+> **Implementação (Fase 6, `scripts/016_vendor_views.sql`):** 8 colunas (+ `is_active`), sem
+> arredondamento (N13), vendedor inativo com vendas incluído (N12) e `p_months` nulo = sem filtro de
+> data (como o Dashboard sem mês marcado) — os padrões da #13 até ela ser respondida. Conferida
+> contra o oráculo da Fase 1 pela emulação do mock (`lib/calc/commission-summary-oracle.test.ts`).
+
 > A RPC devolve **uma linha por vendedor**, nunca uma linha por venda. É isso que permite mostrar os
 > custos agregados de todos sem abrir o detalhe das vendas dos demais.
 > O cálculo replica o comportamento atual de `dashboard-view.tsx:177-213` — inclusive o valor cheio

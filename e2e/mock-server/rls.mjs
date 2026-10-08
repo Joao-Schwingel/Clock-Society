@@ -43,7 +43,7 @@ function saleVisible(tables, ctx, saleId) {
 }
 
 // my_salesperson_ids() / my_company_ids() da 020.
-function vendorScope(tables, ctx) {
+export function vendorScope(tables, ctx) {
   const me = tables.profiles.find((p) => p.id === ctx.userId);
   const mine = new Set(
     me?.is_active && me.role === "vendedor"
@@ -71,6 +71,8 @@ function vendorRowAllowed(tables, ctx, table, row) {
       return row.user_id === ctx.tenantId && mine.has(row.id);
     case "inventory":
       return row.user_id === ctx.tenantId && companies.has(row.company_id);
+    case "vendor_sales": // security_invoker: vale a política de sales do vendedor
+      return row.user_id === ctx.tenantId && canSeeSale(row.id);
     default:
       return false; // sale_costs, fixed_costs, contracts, costs e as views antigas (só admin)
   }
@@ -92,7 +94,9 @@ export function rowAllowed(tables, ctx, table, row) {
   if (TENANT_TABLES.has(table)) return row.user_id === ctx.tenantId;
   if (CHILD_OF_SALE.has(table)) return saleVisible(tables, ctx, row.sale_id);
   // Views: security_invoker (019) + só admin (020).
-  if (table === "sales_with_details" || table === "sales_with_salespersons") return saleVisible(tables, ctx, row.id);
+  if (table === "sales_with_details" || table === "sales_with_salespersons" || table === "vendor_sales") {
+    return saleVisible(tables, ctx, row.id);
+  }
   return false;
 }
 

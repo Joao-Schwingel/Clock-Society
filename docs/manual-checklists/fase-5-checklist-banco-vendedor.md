@@ -147,7 +147,7 @@ rollback;
 
 - [ ] Mesmo resultado que o admin recebe, linha por linha
 - [ ] Uma linha por vendedor da empresa
-- [ ] Exatamente as 7 colunas da §4.4 do planejamento (sem id de venda, cliente ou produto)
+- [ ] Exatamente 8 colunas: as 7 da §4.4 do planejamento + `is_active` (sem id de venda, cliente ou produto)
 
 ### V-DB-11 — `commission_summary` fora do escopo
 
@@ -158,6 +158,9 @@ rollback;
 
 - [ ] Reproduz os números do Dashboard de hoje (C-DASH-04) em cada período testado, com as regras
       de Q2 e Q10 decididas na #13. Comparar com o retrato tirado antes da Fase 6.
+- [ ] Com `p_months` nulo, soma todos os anos (como o Dashboard sem mês marcado, até a #13)
+- [ ] Vendedor inativo com venda no período: aparece com `is_active = false` e entra no total (N12)
+- [ ] Sem arredondamento: um percentual que gera 3+ casas devolve as 3+ casas (N13)
 
 ---
 

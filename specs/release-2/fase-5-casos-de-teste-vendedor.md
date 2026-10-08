@@ -84,7 +84,7 @@ por um humano, antes do merge/deploy da fatia correspondente (Fase 6 §2).
 | V-DB-07 | Escrita negada (insert, update, delete) em todas as tabelas, inclusive nas próprias vendas e no estoque |
 | V-DB-08 | `sales_with_details` / `sales_with_salespersons`: conforme a decisão 3.4 — em nenhum caso com custo |
 | V-DB-09 | `vendor_sales`: só as vendas dele; o conjunto de colunas é **exatamente** o combinado em 3.1 |
-| V-DB-10 | `commission_summary` numa empresa em que atua: o mesmo resultado que o admin recebe; uma linha por vendedor; colunas exatamente as 7 da §4.4 (sem id de venda, cliente ou produto) |
+| V-DB-10 | `commission_summary` numa empresa em que atua: o mesmo resultado que o admin recebe; uma linha por vendedor; colunas exatamente as 7 da §4.4 **mais `is_active`** (sem id de venda, cliente ou produto). A 8ª coluna existe porque o vendedor não lê os registros dos colegas e precisa saber quais cartões mostrar (inativo entra no total, sem cartão — N12) para ver o mesmo que o admin (V-UI-06) |
 | V-DB-11 | `commission_summary` numa empresa em que não atua → erro `42501`; admin de outro inquilino → `42501` |
 | V-DB-12 | `commission_summary` reproduz os números da Fase 1 (C-DASH-04) em cada período do fixture, com as regras de Q2 e Q10 |
 | V-DB-13 | O token do vendedor traz `app_role = vendedor`, o `tenant_id` do admin e `must_change_password` |
