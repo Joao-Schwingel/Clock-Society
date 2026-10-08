@@ -110,6 +110,22 @@ Dentro de `begin … rollback`, como `vend-a`:
 - [ ] O mesmo pela API REST (`/rest/v1/sale_salespersons?sale_id=eq.…` com o token de `vend-a`)
 - [ ] O mesmo pelas views (`sales_with_salespersons`, `vendor_sales`): nenhum percentual do colega
 
+### V-DB-18 — Admin nunca é desativado (020)
+
+Como `postgres` (que ignora RLS, como a chave de serviço), dentro de `begin … rollback`:
+
+```sql
+begin;
+update public.profiles set is_active = false where id = '<id do admin>';   -- esperado: ERRO 23514
+rollback;
+begin;
+update public.profiles set is_active = false where id = '<profile_id de vend-a>'; -- esperado: OK
+rollback;
+```
+
+- [ ] Admin: erro `23514` (`profiles_admin_always_active`)
+- [ ] Vendedor: atualização aceita
+
 ---
 
 ## Fatia 6.3 — `vendor_sales` e `commission_summary()` (`016_vendor_views.sql`)

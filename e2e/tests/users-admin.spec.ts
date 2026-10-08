@@ -154,6 +154,25 @@ test("V-UI-09 — editar o nome, resetar a senha e desativar; o desativado não 
   await expect(row()).toContainText("Ativo");
 });
 
+test("administradores não têm a ação Desativar; vendedores têm", async ({ page }) => {
+  await goToUsuarios(page);
+  for (const email of ["admin@t1.test", "admin2@t1.test"]) {
+    const row = page.getByRole("row").filter({ hasText: email });
+    await expect(row).toBeVisible();
+    await expect(row.getByRole("button", { name: "Desativar" })).toHaveCount(0);
+  }
+  await expect(
+    page.getByRole("row").filter({ hasText: "vend-a@t1.test" }).getByRole("button", { name: "Desativar" }),
+  ).toBeVisible();
+});
+
+test("a API recusa desativar um admin, mesmo chamada direto", async ({ page }) => {
+  await goToUsuarios(page);
+  const res = await page.request.patch("/api/users/u-admin2", { data: { is_active: false } });
+  expect(res.status()).toBe(422);
+  expect((await res.json()).fields.is_active).toBe("Usuários administradores não podem ser desativados.");
+});
+
 test("V-UI-09 — vincular um registro sem vendas mostra aviso", async ({ page }) => {
   await goToUsuarios(page);
   await page.getByRole("button", { name: "Novo usuário" }).click();

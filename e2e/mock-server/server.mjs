@@ -161,6 +161,14 @@ async function handleRest(req, res, url, table, method) {
       sendJson(res, 403, permissionDenied(table));
       return;
     }
+    // 020: profiles_admin_always_active — admin nunca fica inativo (vale até para a chave de serviço).
+    if (table === "profiles" && matches.some((row) => ({ ...row, ...body }).role === "admin" && ({ ...row, ...body }).is_active === false)) {
+      sendJson(res, 400, {
+        code: "23514",
+        message: 'new row for relation "profiles" violates check constraint "profiles_admin_always_active"',
+      });
+      return;
+    }
     const updated = [];
     tables[table] = tables[table].map((row) => {
       if (!matchIds.has(row.id)) return row;

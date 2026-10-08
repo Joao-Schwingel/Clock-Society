@@ -84,8 +84,10 @@ export async function updateUser(
   if (!profile || profile.tenant_id !== tenantId) {
     return { status: 404, body: { error: "Usuário não encontrado." } };
   }
-  if (data.is_active === false && userId === requesterId) {
-    return invalid({ is_active: "Você não pode desativar o próprio usuário." });
+  // Nenhum administrador pode ser desativado — nem o próprio, nem outro. O gatilho da migration 020
+  // garante o mesmo no banco.
+  if (data.is_active === false && profile.role === "admin") {
+    return invalid({ is_active: "Usuários administradores não podem ser desativados." });
   }
 
   try {

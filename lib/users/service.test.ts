@@ -170,10 +170,24 @@ describe("updateUser", () => {
     expect(res).toEqual({ status: 500, body: { error: "Não foi possível salvar as alterações." } });
   });
 
-  it("o admin não desativa o próprio usuário (422)", async () => {
+  it("nenhum admin pode ser desativado — nem o próprio, nem outro (422, nada muda, login não é bloqueado)", async () => {
     f.state.profiles.set("admin-id", { id: "admin-id", tenant_id: TENANT, role: "admin", is_active: true, must_change_password: false, full_name: "Admin" });
-    const res = await updateUser(f.repo, TENANT, "admin-id", "admin-id", { is_active: false });
-    expect(res.status).toBe(422);
-    expect(f.state.profiles.get("admin-id")!.is_active).toBe(true);
+    f.state.profiles.set("admin-2", { id: "admin-2", tenant_id: TENANT, role: "admin", is_active: true, must_change_password: false, full_name: "Admin 2" });
+
+    for (const target of ["admin-id", "admin-2"]) {
+      const res = await updateUser(f.repo, TENANT, "admin-id", target, { is_active: false });
+      expect(res).toEqual({
+        status: 422,
+        body: { error: "Dados inválidos.", fields: { is_active: "Usuários administradores não podem ser desativados." } },
+      });
+      expect(f.state.profiles.get(target)!.is_active).toBe(true);
+      expect(f.state.blocked.has(target)).toBe(false);
+    }
+  });
+
+  it("um admin ainda pode ter o nome editado e a senha resetada", async () => {
+    f.state.profiles.set("admin-2", { id: "admin-2", tenant_id: TENANT, role: "admin", is_active: true, must_change_password: false, full_name: "Admin 2" });
+    expect((await updateUser(f.repo, TENANT, "admin-id", "admin-2", { full_name: "Novo nome" })).status).toBe(200);
+    expect((await updateUser(f.repo, TENANT, "admin-id", "admin-2", { reset_password: "novaSenha123" })).status).toBe(200);
   });
 });

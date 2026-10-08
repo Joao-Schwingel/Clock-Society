@@ -167,9 +167,12 @@ export function UsersView({ companies }: { companies: Company[] }) {
                     >
                       Resetar senha
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => void toggleActive(user)}>
-                      {user.is_active ? "Desativar" : "Reativar"}
-                    </Button>
+                    {/* Vendedores podem ser desativados; administradores, não (API e banco também recusam). */}
+                    {user.role !== "admin" && (
+                      <Button size="sm" variant="outline" onClick={() => void toggleActive(user)}>
+                        {user.is_active ? "Desativar" : "Reativar"}
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
