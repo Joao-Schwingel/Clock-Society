@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { permissionsForRole, type Permission } from "./permissions";
 import {
+  ALL_SUBTABS,
   COMPANY_SUBTABS,
+  vendorSubTabs,
   canOpenSettings,
   companySubTabs,
   resolveTab,
@@ -79,8 +81,33 @@ describe("nav-registry", () => {
 
 // Fase 5 §5 / Fase 6 fatia 6.8. Navegação do vendedor (planejamento, Anexo C).
 describe("vendedor (Fase 6)", () => {
-  it.todo("V-UI-01 — para o vendedor, as abas de cada empresa são Vendas, Comissões e Estoque, nessa ordem, sem Dashboard");
-  it.todo("V-UI-01 — o vendedor não recebe as abas Contratos nem Usuários, nem o botão Configurações");
-  it.todo("V-MW-03 — ?tab=custos-fixos e ?company=contracts resolvem para acesso negado para o vendedor");
-  it.todo("V-UI-02 — empresas do seletor = só as empresas em que o vendedor atua (vínculos)");
+  const vendedor = permissionsForRole("vendedor");
+
+  it("V-UI-01 — para o vendedor, as abas de cada empresa são Vendas, Comissões e Estoque, nessa ordem, sem Dashboard", () => {
+    expect(vendorSubTabs(vendedor).map((t) => [t.value, t.label])).toEqual([
+      ["vendas", "Vendas"],
+      ["comissoes", "Comissões"],
+      ["estoque", "Estoque"],
+    ]);
+    // o admin continua com as subabas de hoje (A-PERM-04)
+    expect(companySubTabs(admin).map((t) => t.value)).not.toContain("comissoes");
+  });
+
+  it("V-UI-01 — o vendedor não recebe as abas Contratos nem Usuários, nem o botão Configurações", () => {
+    expect(topLevelTabs(companies, vendedor).map((t) => t.value)).toEqual(["A", "B", "C"]);
+    expect(canOpenSettings(vendedor)).toBe(false);
+  });
+
+  it("V-MW-03 — ?tab=custos-fixos e ?company=contracts resolvem para acesso negado para o vendedor", () => {
+    expect(resolveTab("custos-fixos", ALL_SUBTABS, vendedor)).toEqual({ kind: "denied" });
+    expect(resolveTab("dashboard", ALL_SUBTABS, vendedor)).toEqual({ kind: "denied" });
+    expect(resolveTab("comissoes", ALL_SUBTABS, vendedor)).toEqual({ kind: "tab", value: "comissoes" });
+    expect(resolveTab("contracts", topLevelTabs(companies, admin), vendedor)).toEqual({ kind: "denied" });
+    expect(resolveTab("users", topLevelTabs(companies, admin), vendedor)).toEqual({ kind: "denied" });
+  });
+
+  it("V-UI-02 — o seletor mostra exatamente as empresas recebidas (o RLS já devolve só as do vendedor)", () => {
+    const minhas = [companies[0], companies[1]];
+    expect(topLevelTabs(minhas, vendedor).map((t) => t.label)).toEqual(["Clock Society", "The Secret"]);
+  });
 });

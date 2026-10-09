@@ -111,7 +111,8 @@ export interface FixedCost {
 type SaleSalesperson = {
   id: string;
   name: string;
-  commission_percent: number;
+  // Nulo na vendor_sales para os colegas do vendedor logado (#13, 3.1).
+  commission_percent: number | null;
 };
 
 export type SaleWithDetails = Sale & {

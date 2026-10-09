@@ -91,4 +91,14 @@ test("V-REG-01 — o Dashboard do admin usa commission_summary() e não busca ma
   expect(log.some((r) => r.table === "rpc/commission_summary" && r.auth === "user")).toBe(true);
   expect(log.filter((r) => r.table === "sale_costs" && r.auth === "user")).toEqual([]);
 });
-test.fixme("V-REG-03 — o vendedor Site continua selecionável e somando vendas sem ter login", () => {});
+test("V-REG-03 — o vendedor Site continua selecionável e somando vendas sem ter login", async ({ page }) => {
+  await login(page);
+  // aparece nos cartões de comissão (ativo, sem login)
+  await expect(page.locator('[data-slot="card-title"]', { hasText: /^Site$/ })).toBeVisible();
+
+  // continua selecionável numa venda nova
+  await page.getByRole("tab", { name: "Vendas" }).click();
+  await page.getByRole("button", { name: "Nova Venda" }).click();
+  await page.locator('[role="combobox"]').filter({ hasText: "Selecione um vendedor" }).click();
+  await expect(page.getByRole("option", { name: "Site" })).toBeVisible();
+});

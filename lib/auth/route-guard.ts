@@ -10,9 +10,12 @@ export const CHANGE_PASSWORD_ROUTE = "/auth/trocar-senha"
 // /auth/sign-up e /auth/sign-up-success deixaram de ser públicas (A-MW-03): o auto-cadastro está fechado.
 export const PUBLIC_ROUTES: ReadonlySet<string> = new Set(["/", LOGIN_ROUTE, "/auth/error"])
 
-// Áreas protegidas por permissão. Rota autenticada fora daqui só exige ter um papel.
-const PROTECTED_AREAS: ReadonlyArray<{ prefix: string; permission: Permission }> = [
+// Áreas protegidas por permissão ou por papel. Rota autenticada fora daqui só exige ter um papel.
+const PROTECTED_AREAS: ReadonlyArray<{ prefix: string; permission?: Permission; role?: string }> = [
   { prefix: "/dashboard", permission: "dashboard.overview" },
+  // Área do vendedor (decisão 3.8): só o papel vendedor — o admin tem as mesmas permissões de
+  // leitura, mas a área dele é o /dashboard.
+  { prefix: "/vendedor", role: "vendedor" },
 ]
 
 export interface SessionClaims {
@@ -67,12 +70,18 @@ export function decideRoute({
   if (permissions.length === 0) return { action: "redirect", to: FORBIDDEN_ROUTE }
 
   const area = PROTECTED_AREAS.find((a) => pathname === a.prefix || pathname.startsWith(`${a.prefix}/`))
-  if (area && !hasPermission(permissions, area.permission)) return { action: "redirect", to: FORBIDDEN_ROUTE }
+  if (area) {
+    const denied =
+      (area.permission && !hasPermission(permissions, area.permission)) || (area.role && area.role !== session.appRole)
+    if (denied) return { action: "redirect", to: FORBIDDEN_ROUTE }
+  }
 
   return { action: "next" }
 }
 
 // Destino depois do login, por papel — único lugar com essa regra (A-MW-05).
 export function homeForRole(role: string | null | undefined): string {
-  return role === "admin" ? "/dashboard" : FORBIDDEN_ROUTE
+  if (role === "admin") return "/dashboard"
+  if (role === "vendedor") return "/vendedor"
+  return FORBIDDEN_ROUTE
 }
