@@ -61,9 +61,30 @@ describe("commission_summary × oráculo da Fase 1", () => {
     expect(() => commissionSummary(freshTables(), outro, { p_company_id: "comp-a", p_year: 2026, p_months: null })).toThrow("42501");
   });
 
-  it("V-DB-10 — o vendedor recebe exatamente o mesmo resultado que o admin, inclusive os outros vendedores", () => {
+  // #13, respostas de 08/10/2026 (3.1 e Q10): o vendedor vê vendas, custo e lucro líquido dos
+  // colegas, mas NÃO a comissão deles; e não vê o cartão do vendedor inativo (o admin vê).
+  it("V-DB-10 — vendedor: os colegas ativos aparecem com vendas, custo e lucro, mas comissão nula; a própria comissão aparece", () => {
     const vendA = { kind: "user", userId: "u-vend-a", tenantId: "u-admin", isAdmin: false, isVendor: true };
     const args = { p_company_id: "comp-a", p_year: 2026, p_months: [9] };
-    expect(commissionSummary(freshTables(), vendA, args)).toEqual(commissionSummary(freshTables(), admin, args));
+    const asAdmin = commissionSummary(freshTables(), admin, args) as Row[] & { salesperson_id: string }[];
+    const asVendor = commissionSummary(freshTables(), vendA, args) as Array<Row & Record<string, unknown>>;
+
+    // sem o inativo (Elis); os ativos são os mesmos do admin
+    expect(asVendor.map((r) => r.salesperson_name)).toEqual(asAdmin.filter((r) => r.is_active).map((r) => r.salesperson_name));
+    for (const row of asVendor) {
+      const same = (asAdmin as Array<Row & Record<string, unknown>>).find((r) => r.salesperson_name === row.salesperson_name)!;
+      expect([row.sales_count, row.total_sales, row.total_costs, row.net_profit]).toEqual([
+        same.sales_count,
+        same.total_sales,
+        same.total_costs,
+        same.net_profit,
+      ]);
+      expect(row.total_commission).toBe(row.salesperson_name === "Ana" ? same.total_commission : null);
+    }
+  });
+
+  it("Q10 — o admin recebe o vendedor inativo com is_active = false (o cartão aparece com a etiqueta INATIVO)", () => {
+    const rows = commissionSummary(freshTables(), admin, { p_company_id: "comp-a", p_year: 2026, p_months: [9] }) as Row[];
+    expect(rows.find((r) => r.salesperson_name === "Elis")).toMatchObject({ is_active: false, total_commission: 20 });
   });
 });

@@ -20,6 +20,17 @@ Os ciclos RED→GREEN acontecem na Fase 6.
 
 ## 2. Respostas necessárias antes de fechar o catálogo
 
+> **Respondidas na issue #13 (08/10/2026):**
+> - **Q2:** valor cheio da venda para cada vendedor, cada um com o seu %; a soma por vendedor pode
+>   passar o total da empresa.
+> - **Q4:** só o admin exporta CSV.
+> - **Q6:** só o "Site" fica sem login; os logins dos vendedores são criados à mão (tela de Usuários).
+> - **Q10:** como hoje — comissão sobre venda concluída, inativo entra no total, arredondamento e
+>   demais valores iguais. **Muda:** o cartão do vendedor inativo aparece **para o admin, com a
+>   etiqueta INATIVO**; para os vendedores, não aparece.
+> - **3.1:** o vendedor vê as informações dos colegas (vendas, custo, lucro líquido), **menos a comissão**.
+> - **3.9:** a única ação do vendedor na tabela é o "olho", que abre o detalhe da venda.
+
 | Questão | Por que bloqueia |
 |---|---|
 | Q2 — venda compartilhada | Define os números esperados de V-DB-12 e V-UI-06 |
@@ -84,7 +95,7 @@ por um humano, antes do merge/deploy da fatia correspondente (Fase 6 §2).
 | V-DB-07 | Escrita negada (insert, update, delete) em todas as tabelas, inclusive nas próprias vendas e no estoque |
 | V-DB-08 | `sales_with_details` / `sales_with_salespersons`: conforme a decisão 3.4 — em nenhum caso com custo |
 | V-DB-09 | `vendor_sales`: só as vendas dele; o conjunto de colunas é **exatamente** o combinado em 3.1 |
-| V-DB-10 | `commission_summary` numa empresa em que atua: o mesmo resultado que o admin recebe; uma linha por vendedor; colunas exatamente as 7 da §4.4 **mais `is_active`** (sem id de venda, cliente ou produto). A 8ª coluna existe porque o vendedor não lê os registros dos colegas e precisa saber quais cartões mostrar (inativo entra no total, sem cartão — N12) para ver o mesmo que o admin (V-UI-06) |
+| V-DB-10 | `commission_summary` numa empresa em que atua: os mesmos números do admin para vendas, custo e lucro líquido, **mas a comissão dos colegas vem nula** e o vendedor inativo não vem (#13: 3.1 e Q10); uma linha por vendedor; colunas exatamente as 7 da §4.4 **mais `is_active`** (sem id de venda, cliente ou produto). A 8ª coluna existe porque o vendedor não lê os registros dos colegas e precisa saber quais cartões mostrar (inativo entra no total, sem cartão — N12) para ver o mesmo que o admin (V-UI-06) |
 | V-DB-11 | `commission_summary` numa empresa em que não atua → erro `42501`; admin de outro inquilino → `42501` |
 | V-DB-12 | `commission_summary` reproduz os números da Fase 1 (C-DASH-04) em cada período do fixture, com as regras de Q2 e Q10 |
 | V-DB-13 | O token do vendedor traz `app_role = vendedor`, o `tenant_id` do admin e `must_change_password` |
@@ -136,7 +147,7 @@ por um humano, antes do merge/deploy da fatia correspondente (Fase 6 §2).
 | V-UI-03 | Sem vínculo, ou vínculo sem vendas: estado vazio, sem erro |
 | V-UI-04 | Vendas: só as dele; sem "Custo Total", sem a coluna líquida (N7), sem coluna de ações; filtros, busca e paginação funcionam no subconjunto; exportação conforme Q4 |
 | V-UI-05 | Cartões da aba Vendas: nº de vendas, valor vendido e comissão do período (3.3) |
-| V-UI-06 | Comissões: os mesmos cartões e números que o admin vê para a mesma empresa e período (duas sessões no mesmo teste) |
+| V-UI-06 | Comissões: os mesmos cartões e números que o admin vê para a mesma empresa e período (duas sessões no mesmo teste), **exceto** a comissão dos colegas (oculta) e o cartão do inativo (só o admin vê, com a etiqueta INATIVO) — #13 |
 | V-UI-07 | Estoque: todas as colunas, inclusive custo; cartões de resumo; sem "Novo Item", sem ações e sem formulário |
 | V-UI-08 | Troca de senha: regras mínimas e mensagens em PT-BR |
 | V-UI-09 | *(Admin)* Usuários: listar, criar, editar, desativar e resetar senha; aviso ao vincular registro sem vendas; Configurações indica quais vendedores têm login |

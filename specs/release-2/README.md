@@ -204,9 +204,9 @@ Os dois reduzem a exposição dos achados 1–3 enquanto a Fase 3 não chega.
 |---|---|---|---|
 | Q2 | Venda compartilhada conta integralmente para os dois vendedores? (planejamento) | Fase 5 (números esperados de comissão) | Manter o comportamento atual |
 | Q3 | Existe um segundo projeto Supabase para homologação? (planejamento) | **Fase 4** | Sem homologação, não implantar a Fase 3. +1 h para criar |
-| Q4 | Vendedor exporta CSV? (planejamento) | Fase 5 | Não exporta |
+| Q4 | Vendedor exporta CSV? (planejamento) | Fase 5 | **Respondida (#13):** não; só o admin |
 | Q5 | Quantos vendedores no primeiro ano? (planejamento) | Fase 6 (6.9) | Até 20 |
-| Q6 | Algum vendedor atual fica sem login? (planejamento) | Fase 5 | `Site` fica; confirmar os demais |
+| Q6 | Algum vendedor atual fica sem login? (planejamento) | Fase 5 | **Respondida (#13):** só o `Site`; logins criados à mão |
 | Q7 | Haverá mais de um admin? | Fase 2 (A-DB-11, A-TEN-01) | Testar mesmo assim: é o único detector de N3 |
 | Q8 | Quem tem acesso à string de conexão de produção para o dump da Fase 1? | Fase 1 | — |
 | Q9 | Docker disponível nas máquinas de quem for executar o checklist MANUAL? Não é mais necessário no CI (nenhuma etapa do pipeline sobe banco de dados) | Fase 1 | Levantar por pessoa, conforme for executar o checklist |

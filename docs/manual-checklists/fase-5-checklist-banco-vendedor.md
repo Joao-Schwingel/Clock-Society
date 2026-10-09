@@ -145,7 +145,9 @@ rollback;
 
 ### V-DB-10 — `commission_summary` numa empresa em que atua
 
-- [ ] Mesmo resultado que o admin recebe, linha por linha
+- [ ] Como vendedor: vendas, custo e lucro líquido iguais aos do admin; **comissão dos colegas nula**,
+      a própria preenchida; o vendedor inativo **não** aparece (#13)
+- [ ] Como admin: o vendedor inativo com venda no período aparece, com `is_active = false`
 - [ ] Uma linha por vendedor da empresa
 - [ ] Exatamente 8 colunas: as 7 da §4.4 do planejamento + `is_active` (sem id de venda, cliente ou produto)
 

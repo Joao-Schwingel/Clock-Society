@@ -11,12 +11,13 @@ export class RpcError extends Error {
   }
 }
 
-// Padrões da #13 enquanto não houver resposta (comportamento atual do Dashboard):
-// - Q2: venda compartilhada conta com o valor cheio para cada vendedor;
-// - Q10a: só vendas concluídas (pagas ou não);
-// - Q10b / N12: vendedor inativo com vendas entra no resultado (e no total), marcado is_active=false;
-// - N13: sem arredondamento;
-// - p_months nulo: nenhum filtro de data (todos os anos), como o Dashboard sem mês marcado.
+// Regras (issue #13, respondida em 08/10/2026 — comportamento atual do Dashboard mantido):
+// - Q2: venda compartilhada conta com o valor cheio para cada vendedor, cada um com o seu %;
+// - Q10: só vendas concluídas; inativo com vendas entra no total; sem arredondamento (N13);
+// - p_months nulo: nenhum filtro de data (todos os anos), como o Dashboard sem mês marcado;
+// - admin: recebe todos, inclusive o inativo (is_active=false → cartão com a etiqueta INATIVO);
+// - vendedor (3.1/Q10): só os ativos, com vendas, custo e lucro dos colegas, mas a comissão de
+//   cada colega vem NULA — só a própria aparece. A máscara é aqui, não na tela (senão vazaria pela API).
 export function commissionSummary(tables, ctx, { p_company_id, p_year, p_months }) {
   const company = tables.companies.find((c) => c.id === p_company_id);
   const allowed =
@@ -51,11 +52,16 @@ export function commissionSummary(tables, ctx, { p_company_id, p_year, p_months 
     }
   }
 
+  const isAdmin = ctx.kind === "service" || ctx.isAdmin;
+  const mine = isAdmin ? new Set() : vendorScope(tables, ctx).mine;
+
   return tables.salespersons
     .filter((sp) => (sp.company_id === p_company_id && sp.is_active) || agg.has(sp.id))
+    .filter((sp) => isAdmin || sp.is_active)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((sp) => {
       const a = agg.get(sp.id) ?? { sales_count: 0, total_sales: 0, total_costs: 0, net_profit: 0, total_commission: 0 };
-      return { salesperson_id: sp.id, salesperson_name: sp.name, is_active: sp.is_active, ...a };
+      const total_commission = isAdmin || mine.has(sp.id) ? a.total_commission : null;
+      return { salesperson_id: sp.id, salesperson_name: sp.name, is_active: sp.is_active, ...a, total_commission };
     });
 }

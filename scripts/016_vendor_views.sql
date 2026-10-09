@@ -3,8 +3,7 @@
 -- NUNCA aplicada por CI nem por agente de IA. Pré-requisitos: 019 e 020 (usa is_vendor(),
 -- my_salesperson_ids(), my_company_ids()). Verificação: checklist MANUAL V-DB-09 a 12.
 --
--- NÃO aplicar em produção antes de a issue #13 (Q2/Q10) ser respondida: depois de publicada,
--- mudar a regra exige migration nova e muda os números do admin.
+-- Regras fechadas na issue #13 (respondida em 08/10/2026).
 
 begin;
 
@@ -45,15 +44,17 @@ revoke all on public.vendor_sales from anon;
 --    linha a linha (§7.1). Por isso verifica o acesso aqui dentro e devolve SÓ totais por vendedor
 --    — nunca acrescentar coluna por venda.
 --
---    Regras = comportamento atual do Dashboard (padrões da #13; conferidas contra o oráculo da
---    Fase 1 em lib/calc/commission-summary-oracle.test.ts, pela emulação do mock):
---    - Q2: venda compartilhada conta com o valor cheio para cada vendedor (achado 9);
---    - Q10a: só vendas concluídas;
---    - Q10b / N12: vendedor inativo com vendas aparece (is_active = false) e entra no total;
+--    Regras (issue #13, respondida em 08/10/2026 — comportamento atual do Dashboard mantido;
+--    conferidas contra o oráculo da Fase 1 em lib/calc/commission-summary-oracle.test.ts):
+--    - Q2: venda compartilhada conta com o valor cheio para cada vendedor, cada um com o seu %;
+--    - Q10: só vendas concluídas; inativo com vendas entra no total; sem arredondamento (N13);
 --      vendedor ativo sem vendas aparece zerado (cartão "Sem comissão no período");
---    - N13: sem arredondamento (a tela formata);
 --    - p_months nulo: nenhum filtro de data — todos os anos, como o Dashboard sem mês marcado
---      (bug conhecido, mantido até a #13). p_months em 1..12; o front converte de 0..11.
+--      ("demais valores mantém igual"). p_months em 1..12; o front converte de 0..11;
+--    - ADMIN recebe todos, inclusive o inativo (is_active = false → cartão com a etiqueta INATIVO);
+--    - VENDEDOR (3.1 e Q10) recebe só os ativos, com vendas, custo e lucro líquido dos colegas, mas
+--      a comissão de cada colega vem NULA — só a própria aparece. A máscara fica AQUI, não na tela:
+--      senão a comissão dos colegas vazaria pela chamada direta à API.
 create or replace function public.commission_summary(
   p_company_id uuid,
   p_year int,
@@ -116,11 +117,14 @@ begin
     coalesce(p.total_sales, 0),
     coalesce(p.total_costs, 0),
     coalesce(p.net_profit, 0),
-    coalesce(p.total_commission, 0)
+    case
+      when public.is_admin() or sp.id in (select public.my_salesperson_ids()) then coalesce(p.total_commission, 0)
+      else null
+    end
   from public.salespersons sp
     left join per_salesperson p on p.salesperson_id = sp.id
-  where (sp.company_id = p_company_id and sp.is_active)
-     or p.salesperson_id is not null
+  where ((sp.company_id = p_company_id and sp.is_active) or p.salesperson_id is not null)
+    and (public.is_admin() or sp.is_active)
   order by sp.name;
 end;
 $$;

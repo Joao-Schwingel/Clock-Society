@@ -4,12 +4,12 @@ Spec: [`specs/release-2/fase-5-casos-de-teste-vendedor.md`](../../specs/release-
 Esta fase **não implementa nada**: registra os casos como `it.todo`/`test.fixme`, monta os fixtures e
 redige o checklist MANUAL. Código de produção e banco não mudam.
 
-**Status:** rascunho. As decisões de negócio estão pendentes na **issue #13**; as técnicas estão
-como proposta. Falta a aprovação de um revisor além do autor (§7 da spec).
+**Status:** rascunho. As decisões de negócio foram respondidas na **issue #13** (08/10/2026); as
+técnicas estão como proposta. Falta a aprovação de um revisor além do autor (§7 da spec).
 
 | Entregável (§7 da spec) | Onde |
 |---|---|
-| Q2, Q4, Q6 e Q10 respondidas | **Pendente:** issue #13 |
+| Q2, Q4, Q6 e Q10 respondidas | ✅ issue #13 (08/10/2026) — resumo na §2 da spec |
 | Decisões 3.1 a 3.10 | §1 deste documento (3.1 e 3.9 pendentes na #13) |
 | Fixture da §4 | `e2e/fixtures/users.json`, `profiles.json`, `profile_salespersons.json`; o seed manual lista os vínculos |
 | `it.todo` dos casos UNIT/E2E | §2 deste documento |
@@ -35,7 +35,7 @@ como proposta. Falta a aprovação de um revisor além do autor (§7 da spec).
 | 3.6 | `must_change_password` | Proposta | Vai para as claims pelo hook; a troca é uma rota de servidor que limpa a flag e renova a sessão |
 | 3.7 | Desativação | Proposta | `is_active = false` → hook sem claims e funções auxiliares negando; login bloqueado no Auth (`ban_duration`) |
 | 3.8 | Área do vendedor | Proposta | Rota própria `/vendedor`: abas Vendas, Comissões e Estoque; seletor de empresa |
-| 3.9 | Detalhe da venda para o vendedor (N8) | **#13** | Sem detalhe (coerente com "sem coluna de ações") |
+| 3.9 | Detalhe da venda para o vendedor (N8) | ✅ #13 | A única ação do vendedor é o "olho", que abre o detalhe da venda (6.8) |
 | 3.10 | Modo leitura | Proposta | `SalesTable` com colunas e ações configuráveis; `InventoryTable` com `readOnly` |
 
 ### Fixture: diferenças em relação à §4 da spec
