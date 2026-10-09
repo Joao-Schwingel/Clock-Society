@@ -295,7 +295,7 @@ venda-mãe. Numa venda compartilhada, isso exporia o `commission_percent` do col
 só as próprias linhas (`salesperson_id in (select public.my_salesperson_ids())`); o admin lê todas
 do inquilino.
 
-`sale_costs` é a exceção: **vendedor nunca lê**, mesmo das próprias vendas.
+`sale_costs` é a exceção: **vendedor nunca lê**, mesmo das próprias vendas. *(Mudou em 08/10/2026, issue #13, 3.9: o vendedor lê os custos das vendas em que consta, só leitura, para o detalhe da venda.)*
 
 ```sql
 create policy "sale_costs_select" on public.sale_costs for select using (

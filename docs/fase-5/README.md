@@ -27,7 +27,7 @@ técnicas estão como proposta. Falta a aprovação de um revisor além do autor
 
 | # | Decisão | Situação | Proposta |
 |---|---|---|---|
-| 3.1 | Colunas de `vendor_sales` e o que a coluna "Vendedor / Comissão" mostra | **#13** | As da §4.4 do planejamento + o percentual **do próprio vendedor**; nada do colega (V-DB-17) |
+| 3.1 | Colunas de `vendor_sales` e o que a coluna "Vendedor / Comissão" mostra | ✅ #13 | As da §4.4 + `salespersons`: nomes de todos os vendedores da venda, % só do próprio. Na comissão por vendedor, o vendedor vê vendas, custo e lucro dos colegas, não a comissão |
 | 3.2 | `commission_summary(p_company_id, p_year, p_months)` | ✅ `016` (regras: padrões da **#13**) | 7 colunas da §4.4 **+ `is_active`**; meses 1..12 (o front converte de 0..11); `p_months` nulo = sem filtro de data; sem arredondamento; inativo com vendas incluído; `security definer` com guarda interna |
 | 3.3 | Cartão "comissão do período" do vendedor | Proposta | Linha do próprio vendedor na `commission_summary()`, nunca cálculo no navegador (N9) |
 | 3.4 | `sales_with_details` para o vendedor | Proposta | 0 linhas (condição `is_admin()` na view); o vendedor usa só `vendor_sales` |
@@ -35,7 +35,7 @@ técnicas estão como proposta. Falta a aprovação de um revisor além do autor
 | 3.6 | `must_change_password` | Proposta | Vai para as claims pelo hook; a troca é uma rota de servidor que limpa a flag e renova a sessão |
 | 3.7 | Desativação | Proposta | `is_active = false` → hook sem claims e funções auxiliares negando; login bloqueado no Auth (`ban_duration`) |
 | 3.8 | Área do vendedor | Proposta | Rota própria `/vendedor`: abas Vendas, Comissões e Estoque; seletor de empresa |
-| 3.9 | Detalhe da venda para o vendedor (N8) | ✅ #13 | A única ação do vendedor é o "olho", que abre o detalhe da venda (6.8) |
+| 3.9 | Detalhe da venda para o vendedor (N8) | ✅ #13 | A única ação do vendedor é o "olho": detalhe **com custos e lucro, só leitura** (o vendedor lê `sale_costs` das vendas em que consta) |
 | 3.10 | Modo leitura | Proposta | `SalesTable` com colunas e ações configuráveis; `InventoryTable` com `readOnly` |
 
 ### Fixture: diferenças em relação à §4 da spec

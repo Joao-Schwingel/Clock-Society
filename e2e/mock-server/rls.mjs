@@ -71,10 +71,12 @@ function vendorRowAllowed(tables, ctx, table, row) {
       return row.user_id === ctx.tenantId && mine.has(row.id);
     case "inventory":
       return row.user_id === ctx.tenantId && companies.has(row.company_id);
+    case "sale_costs": // #13 (3.9): custos das vendas em que consta, só leitura (detalhe da venda)
+      return row.user_id === ctx.tenantId && canSeeSale(row.sale_id);
     case "vendor_sales": // security_invoker: vale a política de sales do vendedor
       return row.user_id === ctx.tenantId && canSeeSale(row.id);
     default:
-      return false; // sale_costs, fixed_costs, contracts, costs e as views antigas (só admin)
+      return false; // fixed_costs, contracts, costs e as views antigas (só admin)
   }
 }
 

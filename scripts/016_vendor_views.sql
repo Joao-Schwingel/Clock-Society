@@ -7,10 +7,37 @@
 
 begin;
 
--- 1. Vendas do vendedor. security_invoker: o RLS de sales (020) filtra — o vendedor vê só as vendas
---    em que consta; o admin vê as do inquilino. Nenhuma coluna de custo, margem ou líquido.
---    my_commission_percent: o percentual do PRÓPRIO vendedor na venda (decisão 3.1, padrão da #13);
---    nunca o do colega (V-DB-17). Para o admin vem nulo.
+-- 1. Vendedores de uma venda, para a tabela do vendedor (#13, 3.1): os nomes de todos, com o
+--    percentual só do próprio — o do colega vem nulo (V-DB-17). security definer porque o RLS de
+--    sale_salespersons e de salespersons (020) não deixa o vendedor ler as linhas dos colegas.
+create or replace function public.sale_salespersons_for_vendor(p_sale_id uuid)
+returns jsonb
+language sql stable security definer set search_path = ''
+as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', sp.id,
+        'name', sp.name,
+        'commission_percent',
+        case when public.is_admin() or sp.id in (select public.my_salesperson_ids()) then ss.commission_percent end
+      )
+      order by ss.created_at
+    ),
+    '[]'::jsonb
+  )
+  from public.sale_salespersons ss
+    join public.salespersons sp on sp.id = ss.salesperson_id
+  where ss.sale_id = p_sale_id
+    and (public.is_admin() or public.vendor_can_see_sale(p_sale_id))
+$$;
+
+revoke execute on function public.sale_salespersons_for_vendor(uuid) from public, anon;
+grant execute on function public.sale_salespersons_for_vendor(uuid) to authenticated;
+
+-- 2. Vendas do vendedor. security_invoker: o RLS de sales (020) filtra — o vendedor vê só as vendas
+--    em que consta; o admin vê as do inquilino. Nenhuma coluna de custo, margem ou líquido (os
+--    custos aparecem só no detalhe da venda, lidos de sale_costs — #13, 3.9).
 create view public.vendor_sales with (security_invoker = on) as
 select
   s.id,
@@ -27,19 +54,13 @@ select
   s.entry_value,
   s.notes,
   s.created_at,
-  (
-    select ss.commission_percent
-    from public.sale_salespersons ss
-    where ss.sale_id = s.id
-      and ss.salesperson_id in (select public.my_salesperson_ids())
-    limit 1
-  ) as my_commission_percent
+  public.sale_salespersons_for_vendor(s.id) as salespersons
 from public.sales s;
 
 grant select on public.vendor_sales to authenticated;
 revoke all on public.vendor_sales from anon;
 
--- 2. Resumo de comissões por vendedor — IDÊNTICO para admin e vendedor (V-DB-10, V-UI-06).
+-- 3. Resumo de comissões por vendedor — IDÊNTICO para admin e vendedor (V-DB-10, V-UI-06).
 --    security definer: agrega vendas e custos de todos os vendedores, que o vendedor não alcança
 --    linha a linha (§7.1). Por isso verifica o acesso aqui dentro e devolve SÓ totais por vendedor
 --    — nunca acrescentar coluna por venda.

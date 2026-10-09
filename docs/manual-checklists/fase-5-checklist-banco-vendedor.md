@@ -53,9 +53,11 @@ Para o caminho real (PostgREST + token do hook): `node scripts/manual/fase-2/log
 - [ ] `sale_items`: só itens das vendas do vendedor
 - [ ] `sale_salespersons`: só as **próprias linhas** (ver V-DB-17)
 
-### V-DB-03 — `sale_costs`
+### V-DB-03 — `sale_costs` (#13, 3.9)
 
-- [ ] 0 linhas, inclusive das vendas do próprio vendedor
+- [ ] Lê os custos **só** das vendas em que consta (para o detalhe da venda)
+- [ ] 0 linhas das vendas em que não consta
+- [ ] `insert`/`update`/`delete` negados
 
 ### V-DB-04 — `companies` e `salespersons`
 
@@ -108,7 +110,7 @@ Dentro de `begin … rollback`, como `vend-a`:
 - [ ] Como `vend-a`, `select * from sale_salespersons where sale_id = 'VENDA_COMP'` → **só a linha
       de `vend-a`**; a linha de `vend-b` e o `commission_percent` dele não aparecem
 - [ ] O mesmo pela API REST (`/rest/v1/sale_salespersons?sale_id=eq.…` com o token de `vend-a`)
-- [ ] O mesmo pelas views (`sales_with_salespersons`, `vendor_sales`): nenhum percentual do colega
+- [ ] O mesmo pelas views e pela RPC: nenhum percentual do colega (na `vendor_sales` aparece só o nome)
 
 ### V-DB-19 — Sem recursão de RLS (020)
 
@@ -141,7 +143,8 @@ rollback;
 ### V-DB-09 — `vendor_sales`
 
 - [ ] Só as vendas do vendedor
-- [ ] Colunas **exatamente** as combinadas na decisão 3.1 (#13), sem custo
+- [ ] Sem custo, margem ou líquido
+- [ ] `salespersons` de `VENDA_COMP`: nomes de `vend-a` e `vend-b`; o % só do próprio, o do colega nulo (#13, 3.1)
 
 ### V-DB-10 — `commission_summary` numa empresa em que atua
 

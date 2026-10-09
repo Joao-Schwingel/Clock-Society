@@ -136,8 +136,9 @@ begin
 end;
 $$;
 
--- 5. Políticas de LEITURA do vendedor (Anexo B do planejamento). sale_costs, fixed_costs,
---    contracts e costs não ganham política: o vendedor lê 0 linhas (V-DB-03/06).
+-- 5. Políticas de LEITURA do vendedor (Anexo B do planejamento, ajustado pela #13). fixed_costs,
+--    contracts e costs não ganham política: o vendedor lê 0 linhas (V-DB-06). sale_costs: só das
+--    vendas em que consta, para o detalhe da venda (#13, 3.9 — decisão de 08/10/2026).
 create policy "companies_vendor_select" on public.companies
   for select to authenticated
   using (user_id = public.current_tenant_id() and public.is_vendor() and id in (select public.my_company_ids()));
@@ -167,6 +168,12 @@ create policy "salespersons_vendor_select" on public.salespersons
   using (user_id = public.current_tenant_id() and public.is_vendor() and id in (select public.my_salesperson_ids()));
 comment on policy "salespersons_vendor_select" on public.salespersons is
   'Fase 6: o vendedor lê só os próprios registros de vendedor (V-DB-04).';
+
+create policy "sale_costs_vendor_select" on public.sale_costs
+  for select to authenticated
+  using (user_id = public.current_tenant_id() and public.is_vendor() and public.vendor_can_see_sale(sale_id));
+comment on policy "sale_costs_vendor_select" on public.sale_costs is
+  'Fase 6 (#13, 3.9): o vendedor lê os custos só das vendas em que consta, para o detalhe da venda; não escreve (V-DB-03).';
 
 create policy "inventory_vendor_select" on public.inventory
   for select to authenticated

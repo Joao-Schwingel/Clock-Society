@@ -43,6 +43,7 @@ drop policy if exists "sale_items_vendor_select" on public.sale_items;
 drop policy if exists "sale_salespersons_vendor_select" on public.sale_salespersons;
 drop policy if exists "salespersons_vendor_select" on public.salespersons;
 drop policy if exists "inventory_vendor_select" on public.inventory;
+drop policy if exists "sale_costs_vendor_select" on public.sale_costs;
 
 -- 4. Hook como na 014 (sem must_change_password)
 create or replace function public.custom_access_token_hook(event jsonb)
