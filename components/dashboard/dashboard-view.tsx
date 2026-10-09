@@ -18,28 +18,15 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@radix-ui/themes";
 import { DashboardFilters } from "./dashboards-filters";
-import {
-  sumFixedCostsForPeriod,
-  summarizeCommissionsBySalesperson,
-  type CommissionSummary,
-} from "@/lib/calc/dashboard";
+import { sumFixedCostsForPeriod } from "@/lib/calc/dashboard";
 import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
+import { totalCommission } from "@/lib/calc/commissions";
+import { useCommissionSummary } from "@/hooks/use-commission-summary";
+import { CommissionsBySalesperson } from "./commissions-by-salesperson";
 
 interface DashboardViewProps {
   companyId: string;
 }
-
-type SalespersonEntry = {
-  id: string;
-  name: string;
-  commission_percent: number;
-};
-
-type SaleRow = {
-  id: string;
-  total_price: number;
-  salespersons: SalespersonEntry[];
-};
 
 export function DashboardView({ companyId }: DashboardViewProps) {
   const [months, setMonths] = useState<number[]>([]);
@@ -50,15 +37,12 @@ export function DashboardView({ companyId }: DashboardViewProps) {
   const [totalSaleCosts, setTotalSaleCosts] = useState(0);
   const [netRevenue, setNetRevenue] = useState(0);
   const [totalFixedCosts, setTotalFixedCosts] = useState(0);
-  const [totalCommissions, setTotalCommissions] = useState(0);
-  const [netProfit, setNetProfit] = useState(0);
 
-  const [commissionSummaries, setCommissionSummaries] = useState<
-    CommissionSummary[]
-  >([]);
-  const [salePeople, setSalePeople] = useState<
-    { id: string; name: string }[]
-  >([]);
+  // Comissões por vendedor vêm de commission_summary() (Fase 6, fatia 6.4); o total soma todas as
+  // linhas, inclusive a do inativo (N12).
+  const { rows: commissionRows, isLoading: isLoadingCommissions } = useCommissionSummary(companyId, months, year);
+  const totalCommissions = totalCommission(commissionRows);
+  const netProfit = netRevenue - totalFixedCosts - totalCommissions;
 
   useEffect(() => {
     void loadData();
@@ -74,25 +58,17 @@ export function DashboardView({ companyId }: DashboardViewProps) {
       const dateOr = buildSaleDateRangeFilter(months, year);
 
       // ── Queries paralelas ─────────────────────────────────────
+      // Receita e custos das vendas vêm de sales_with_details (total_costs já agregado); o cálculo
+      // de comissões saiu do navegador para a RPC.
       let salesQ = supabase
-        .from("sales_with_salespersons")
-        .select("id, total_price, salespersons")
+        .from("sales_with_details")
+        .select("id, total_price, total_costs")
         .eq("company_id", companyId)
         .eq("status", "concluída");
 
       if (dateOr) salesQ = salesQ.or(dateOr);
 
-      const [
-        { data: salespersonsData },
-        { data: salesRaw, error: salesError },
-        { data: fixedCostsData },
-      ] = await Promise.all([
-        supabase
-          .from("salespersons")
-          .select("id, name")
-          .eq("company_id", companyId)
-          .eq("is_active", true)
-          .order("name"),
+      const [{ data: salesRaw, error: salesError }, { data: fixedCostsData }] = await Promise.all([
         salesQ,
         supabase
           .from("fixed_costs")
@@ -102,49 +78,21 @@ export function DashboardView({ companyId }: DashboardViewProps) {
 
       if (salesError) throw salesError;
 
-      setSalePeople(salespersonsData ?? []);
-
-      const sales: SaleRow[] = (salesRaw ?? []).map((s: any) => ({
-        id: String(s.id),
-        total_price: Number(s.total_price ?? 0),
-        salespersons: Array.isArray(s.salespersons) ? (s.salespersons as SalespersonEntry[]) : [],
-      }));
-
-      // ── Custos de vendas ──────────────────────────────────────
-      const costsBySaleId: Record<string, number> = {};
-      const saleIds = sales.map((s) => s.id);
-
-      if (saleIds.length > 0) {
-        const { data: costsRaw } = await supabase
-          .from("sale_costs")
-          .select("sale_id, amount")
-          .in("sale_id", saleIds);
-
-        for (const c of (costsRaw ?? []) as { sale_id: string; amount: number }[]) {
-          costsBySaleId[c.sale_id] = (costsBySaleId[c.sale_id] ?? 0) + Number(c.amount);
-        }
-      }
+      const sales = (salesRaw ?? []) as { total_price: number; total_costs: number }[];
 
       // ── Totais ────────────────────────────────────────────────
-      const revenue = sales.reduce((sum, s) => sum + s.total_price, 0);
-      const saleCostsTotal = Object.values(costsBySaleId).reduce((sum, v) => sum + v, 0);
+      const revenue = sales.reduce((sum, s) => sum + Number(s.total_price ?? 0), 0);
+      const saleCostsTotal = sales.reduce((sum, s) => sum + Number(s.total_costs ?? 0), 0);
       const fixedCostsTotal = sumFixedCostsForPeriod(
         (fixedCostsData ?? []) as { monthly_value: number; start_date: string; qtdmonths: number }[],
         months,
         year,
       );
 
-      // ── Comissões por vendedor ────────────────────────────────
-      const { summaries, totalCommission: totalComm } =
-        summarizeCommissionsBySalesperson(sales, costsBySaleId);
-
       setTotalRevenue(revenue);
       setTotalSaleCosts(saleCostsTotal);
       setNetRevenue(revenue - saleCostsTotal);
       setTotalFixedCosts(fixedCostsTotal);
-      setTotalCommissions(totalComm);
-      setNetProfit(revenue - saleCostsTotal - fixedCostsTotal - totalComm);
-      setCommissionSummaries(summaries);
     } catch (err) {
       console.error("Erro ao carregar dashboard:", err);
     } finally {
@@ -201,7 +149,7 @@ export function DashboardView({ companyId }: DashboardViewProps) {
           </Card>
         </Skeleton>
 
-        <Skeleton loading={isLoading}>
+        <Skeleton loading={isLoading || isLoadingCommissions}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Comissões</CardTitle>
@@ -256,7 +204,7 @@ export function DashboardView({ companyId }: DashboardViewProps) {
           </Card>
         </Skeleton>
 
-        <Skeleton loading={isLoading}>
+        <Skeleton loading={isLoading || isLoadingCommissions}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Lucro</CardTitle>
@@ -278,72 +226,8 @@ export function DashboardView({ companyId }: DashboardViewProps) {
         </Skeleton>
       </div>
 
-      {/* ── Comissões por vendedor ────────────────────────────── */}
-      <div>
-        <h4 className="text-lg font-semibold mb-3">Comissões por Vendedor</h4>
-        <div className="grid gap-4 md:grid-cols-2">
-          {salePeople.length === 0 && !isLoading && (
-            <p className="text-muted-foreground col-span-2">
-              Nenhum vendedor ativo cadastrado.
-            </p>
-          )}
-          {salePeople.map((person) => {
-            const s = commissionSummaries.find((c) => c.id === person.id);
-            const totalSales = s?.totalSales ?? 0;
-            const totalCosts = s?.totalCosts ?? 0;
-            const personNet = s?.netProfit ?? 0;
-            const totalCommission = s?.totalCommission ?? 0;
-            const salesCount = s?.salesCount ?? 0;
-
-            return (
-              <Skeleton key={person.id} loading={isLoading}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{person.name}</CardTitle>
-                    <CardDescription>
-                      {salesCount} venda{salesCount !== 1 ? "s" : ""}{" "}
-                      concluída{salesCount !== 1 ? "s" : ""}
-                      {salesCount === 0 && " • Sem comissão no período"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Total de Vendas:
-                      </span>
-                      <span className="font-medium">R$ {fmt(totalSales)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Custos das Vendas:
-                      </span>
-                      <span className="font-medium text-orange-600">
-                        − R$ {fmt(totalCosts)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Lucro Líquido:
-                      </span>
-                      <span className="font-medium text-primary">
-                        R$ {fmt(personNet)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm border-t pt-2">
-                      <span className="text-muted-foreground">
-                        Comissão Total:
-                      </span>
-                      <span className="font-medium text-green-600">
-                        R$ {fmt(totalCommission)}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Skeleton>
-            );
-          })}
-        </div>
-      </div>
+      {/* ── Comissões por vendedor (componente compartilhado com a área do vendedor) ── */}
+      <CommissionsBySalesperson rows={commissionRows} isLoading={isLoading || isLoadingCommissions} />
     </div>
   );
 }

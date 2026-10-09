@@ -111,7 +111,7 @@ export function SalesForm({
   const [sellers, setSellers] = useState<SellerInput[]>(
     sale?.salespersons?.map((sp) => ({
       salespersonId: sp.id,
-      commission: sp.commission_percent,
+      commission: sp.commission_percent ?? 0, // nunca nulo para o admin (sales_with_details)
     })) ?? [
       {
         salespersonId: "",

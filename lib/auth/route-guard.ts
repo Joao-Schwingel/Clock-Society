@@ -5,18 +5,23 @@ import { hasPermission, permissionsForRole, type Permission } from "./permission
 
 export const LOGIN_ROUTE = "/auth/login"
 export const FORBIDDEN_ROUTE = "/403"
+export const CHANGE_PASSWORD_ROUTE = "/auth/trocar-senha"
 
 // /auth/sign-up e /auth/sign-up-success deixaram de ser públicas (A-MW-03): o auto-cadastro está fechado.
 export const PUBLIC_ROUTES: ReadonlySet<string> = new Set(["/", LOGIN_ROUTE, "/auth/error"])
 
-// Áreas protegidas por permissão. Rota autenticada fora daqui só exige ter um papel.
-const PROTECTED_AREAS: ReadonlyArray<{ prefix: string; permission: Permission }> = [
+// Áreas protegidas por permissão ou por papel. Rota autenticada fora daqui só exige ter um papel.
+const PROTECTED_AREAS: ReadonlyArray<{ prefix: string; permission?: Permission; role?: string }> = [
   { prefix: "/dashboard", permission: "dashboard.overview" },
+  // Área do vendedor (decisão 3.8): só o papel vendedor — o admin tem as mesmas permissões de
+  // leitura, mas a área dele é o /dashboard.
+  { prefix: "/vendedor", role: "vendedor" },
 ]
 
 export interface SessionClaims {
   appRole: string | null
   tenantId: string | null
+  mustChangePassword?: boolean
 }
 
 export type RouteDecision =
@@ -35,6 +40,9 @@ export function decideRoute({
   refreshed: boolean
 }): RouteDecision {
   if (PUBLIC_ROUTES.has(pathname)) return { action: "next" }
+  // As rotas de API fazem a própria autorização e respondem 401/403 (lib/users/auth.ts); redirecionar
+  // para a página de login quebraria quem chama a API (V-API-02).
+  if (pathname === "/api" || pathname.startsWith("/api/")) return { action: "next" }
   if (!session) return { action: "redirect", to: LOGIN_ROUTE }
 
   // Token emitido antes do hook (sem claims): renova uma vez; se continuar sem papel, é usuário
@@ -43,6 +51,13 @@ export function decideRoute({
     if (!refreshed) return { action: "refresh" }
     return pathname === FORBIDDEN_ROUTE ? { action: "next" } : { action: "redirect", to: FORBIDDEN_ROUTE }
   }
+
+  // Troca de senha obrigatória (V-MW-02): enquanto a marca estiver no token, toda rota leva à troca,
+  // sem escapatória por URL. Sem a marca, a página de troca manda para a home do papel.
+  if (session.mustChangePassword) {
+    return pathname === CHANGE_PASSWORD_ROUTE ? { action: "next" } : { action: "redirect", to: CHANGE_PASSWORD_ROUTE }
+  }
+  if (pathname === CHANGE_PASSWORD_ROUTE) return { action: "redirect", to: homeForRole(session.appRole) }
 
   // Na /403, quem tem papel com uma home de verdade não fica preso ali (A-MW-06: o login com
   // token antigo cai na /403, a sessão é renovada e ganha o papel).
@@ -55,12 +70,18 @@ export function decideRoute({
   if (permissions.length === 0) return { action: "redirect", to: FORBIDDEN_ROUTE }
 
   const area = PROTECTED_AREAS.find((a) => pathname === a.prefix || pathname.startsWith(`${a.prefix}/`))
-  if (area && !hasPermission(permissions, area.permission)) return { action: "redirect", to: FORBIDDEN_ROUTE }
+  if (area) {
+    const denied =
+      (area.permission && !hasPermission(permissions, area.permission)) || (area.role && area.role !== session.appRole)
+    if (denied) return { action: "redirect", to: FORBIDDEN_ROUTE }
+  }
 
   return { action: "next" }
 }
 
 // Destino depois do login, por papel — único lugar com essa regra (A-MW-05).
 export function homeForRole(role: string | null | undefined): string {
-  return role === "admin" ? "/dashboard" : FORBIDDEN_ROUTE
+  if (role === "admin") return "/dashboard"
+  if (role === "vendedor") return "/vendedor"
+  return FORBIDDEN_ROUTE
 }

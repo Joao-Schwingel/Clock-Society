@@ -14,6 +14,8 @@ export const PERMISSIONS = [
   "fixed_costs.manage",
   "contracts.manage",
   "salespersons.manage",
+  // Fase 6 (6.7): gestão de usuários — só admin (seed na migration 020)
+  "users.manage",
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]
@@ -21,10 +23,11 @@ export type Permission = (typeof PERMISSIONS)[number]
 export const APP_ROLES = ["admin", "vendedor"] as const
 export type AppRole = (typeof APP_ROLES)[number]
 
-// Fase 3 (D-6): só o admin é funcional. As permissões do vendedor entram na Fase 6.
+// Vendedor (Fase 6, migration 020): Vendas, Comissões e Estoque, só leitura. Sem sales.export
+// enquanto a Q4 (#13) não for respondida — padrão do planejamento.
 export const ROLE_PERMISSIONS: Record<AppRole, readonly Permission[]> = {
   admin: PERMISSIONS,
-  vendedor: [],
+  vendedor: ["sales.view", "commissions.view", "inventory.view"],
 }
 
 function isAppRole(role: string): role is AppRole {

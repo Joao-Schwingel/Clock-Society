@@ -62,8 +62,9 @@ describe("tabela de decisão (§3.4)", () => {
 
   it("A-MW-04 — a /403 é acessível para quem não tem papel válido (sem laço de redirecionamento)", () => {
     expect(decideRoute({ pathname: "/403", session: noClaims, refreshed: true })).toEqual({ action: "next" });
-    const vendedor = { appRole: "vendedor", tenantId: "t1" };
-    expect(decideRoute({ pathname: "/403", session: vendedor, refreshed: false })).toEqual({ action: "next" });
+    // Fase 6: o vendedor deixou de ter a /403 como home (vai para /vendedor); fica o papel desconhecido.
+    const desconhecido = { appRole: "gerente", tenantId: "t1" };
+    expect(decideRoute({ pathname: "/403", session: desconhecido, refreshed: false })).toEqual({ action: "next" });
   });
 
   it("A-MW-06 — na /403, sessão sem claims renova uma vez; se ganhar papel válido, vai para a home dele", () => {
@@ -84,10 +85,75 @@ describe("tabela de decisão (§3.4)", () => {
   });
 });
 
+describe("rotas de API", () => {
+  it("V-API-02 — /api/* não é redirecionada: a própria API responde 401/403 (sem página de login no meio)", () => {
+    for (const session of [null, noClaims, { appRole: "vendedor", tenantId: "t1" }]) {
+      expect(decideRoute({ pathname: "/api/users", session, refreshed: false })).toEqual({ action: "next" });
+      expect(decideRoute({ pathname: "/api/users/abc", session, refreshed: true })).toEqual({ action: "next" });
+    }
+  });
+});
+
 describe("destino pós-login", () => {
   it("A-MW-05 — o destino por papel vem de uma única função; admin → /dashboard", () => {
     expect(homeForRole("admin")).toBe("/dashboard");
     expect(homeForRole(null)).toBe("/403");
-    expect(homeForRole("vendedor")).toBe("/403");
+    expect(homeForRole("gerente")).toBe("/403");
+  });
+});
+
+// Fase 5 §5 "Middleware e rotas" / Fase 6 fatias 6.6 e 6.8.
+describe("vendedor (Fase 6)", () => {
+  it("V-MW-01 — homeForRole('vendedor') leva à área do vendedor (decisão 3.8: /vendedor), e não mais a /403", () => {
+    expect(homeForRole("vendedor")).toBe("/vendedor");
+    // quem cai na /403 com papel de vendedor é mandado para a área dele
+    expect(decideRoute({ pathname: "/403", session: { appRole: "vendedor", tenantId: "t1" }, refreshed: false })).toEqual({
+      action: "redirect",
+      to: "/vendedor",
+    });
+  });
+
+  it("V-MW-01 — vendedor com sessão em /vendedor → segue; admin em /vendedor → /403", () => {
+    const vendedor = { appRole: "vendedor", tenantId: "t1" };
+    expect(decideRoute({ pathname: "/vendedor", session: vendedor, refreshed: false })).toEqual({ action: "next" });
+    expect(decideRoute({ pathname: "/vendedor", session: admin, refreshed: false })).toEqual({ action: "redirect", to: "/403" });
+  });
+  it("V-MW-02 — claim must_change_password = true → qualquer rota leva a /auth/trocar-senha", () => {
+    const pendente = { appRole: "admin", tenantId: "t1", mustChangePassword: true };
+    for (const pathname of ["/dashboard", "/vendedor", "/403", "/qualquer"]) {
+      expect(decideRoute({ pathname, session: pendente, refreshed: false })).toEqual({
+        action: "redirect",
+        to: "/auth/trocar-senha",
+      });
+    }
+    expect(decideRoute({ pathname: "/auth/trocar-senha", session: pendente, refreshed: false })).toEqual({ action: "next" });
+    // a API responde sozinha (a própria troca é uma rota de API)
+    expect(decideRoute({ pathname: "/api/me/password", session: pendente, refreshed: false })).toEqual({ action: "next" });
+  });
+
+  it("V-MW-02 — sem must_change_password, /auth/trocar-senha não prende o usuário (segue para a home do papel)", () => {
+    expect(decideRoute({ pathname: "/auth/trocar-senha", session: admin, refreshed: false })).toEqual({
+      action: "redirect",
+      to: "/dashboard",
+    });
+  });
+
+  it("V-MW-02 — /auth/trocar-senha sem sessão → /auth/login", () => {
+    expect(decideRoute({ pathname: "/auth/trocar-senha", session: null, refreshed: false })).toEqual({
+      action: "redirect",
+      to: "/auth/login",
+    });
+  });
+  it("V-MW-03 — vendedor em /dashboard (área do admin) → /403", () => {
+    const vendedor = { appRole: "vendedor", tenantId: "t1" };
+    for (const pathname of ["/dashboard", "/dashboard/x"]) {
+      expect(decideRoute({ pathname, session: vendedor, refreshed: false })).toEqual({ action: "redirect", to: "/403" });
+    }
+  });
+  it("V-MW-04 — perfil desativado com sessão aberta: o token renovado vem sem claims → /403 (decisão 3.7)", () => {
+    expect(decideRoute({ pathname: "/dashboard", session: { appRole: null, tenantId: null }, refreshed: true })).toEqual({
+      action: "redirect",
+      to: "/403",
+    });
   });
 });

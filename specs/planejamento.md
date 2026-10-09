@@ -295,7 +295,7 @@ venda-mãe. Numa venda compartilhada, isso exporia o `commission_percent` do col
 só as próprias linhas (`salesperson_id in (select public.my_salesperson_ids())`); o admin lê todas
 do inquilino.
 
-`sale_costs` é a exceção: **vendedor nunca lê**, mesmo das próprias vendas.
+`sale_costs` é a exceção: **vendedor nunca lê**, mesmo das próprias vendas. *(Mudou em 08/10/2026, issue #13, 3.9: o vendedor lê os custos das vendas em que consta, só leitura, para o detalhe da venda.)*
 
 ```sql
 create policy "sale_costs_select" on public.sale_costs for select using (
@@ -383,6 +383,11 @@ $$;
 revoke execute on function public.commission_summary(uuid, int, int[]) from public, anon;
 grant  execute on function public.commission_summary(uuid, int, int[]) to authenticated;
 ```
+
+> **Implementação (Fase 6, `scripts/016_vendor_views.sql`):** 8 colunas (+ `is_active`), sem
+> arredondamento (N13), vendedor inativo com vendas incluído (N12) e `p_months` nulo = sem filtro de
+> data (como o Dashboard sem mês marcado) — os padrões da #13 até ela ser respondida. Conferida
+> contra o oráculo da Fase 1 pela emulação do mock (`lib/calc/commission-summary-oracle.test.ts`).
 
 > A RPC devolve **uma linha por vendedor**, nunca uma linha por venda. É isso que permite mostrar os
 > custos agregados de todos sem abrir o detalhe das vendas dos demais.

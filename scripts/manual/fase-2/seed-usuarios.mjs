@@ -94,4 +94,16 @@ for (const u of withoutProfile) {
   }
 }
 
+// Vínculos login ↔ vendedor (Fase 5 §4). Os ids de salespersons do fixture não existem num banco
+// real; quem executa o checklist liga cada login ao registro equivalente, à mão, pelo SQL Editor.
+const links = readFixture("profile_salespersons.json");
+const spNames = Object.fromEntries(readFixture("salespersons.json").map((sp) => [sp.id, `${sp.name} (${sp.company_id})`]));
+if (links.length > 0) {
+  console.log("\nVínculos esperados (fazer à mão, com os ids reais de salespersons):");
+  for (const l of links) {
+    const email = users.find((u) => u.id === l.profile_id)?.email;
+    console.log(`  ${email} → ${spNames[l.salesperson_id] ?? l.salesperson_id}   (profile_id = ${realIds.get(l.profile_id)})`);
+  }
+}
+
 console.log("\nPronto. Confira as claims com scripts/manual/fase-2/login-as.mjs <email>.");

@@ -41,6 +41,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
 
+      - name: Chave de serviço fora do navegador (V-API-06)
+        run: node scripts/check-service-role-leak.mjs
+
       - name: Instala o Chromium do Playwright
         run: pnpm exec playwright install --with-deps chromium
 

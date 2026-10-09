@@ -48,6 +48,11 @@ import type { Sale, SaleWithDetails } from "@/lib/types";
 import { formatBR } from "@/lib/utils";
 
 interface SalesTableProps {
+  /**
+   * "vendor" (Fase 6, fatia 6.8; #13): sem Custo Total, sem a coluna líquida, sem exportar e com
+   * o "olho" como única ação; o percentual dos colegas (nulo) não aparece. Padrão: "admin".
+   */
+  mode?: "admin" | "vendor";
   sales: SaleWithDetails[];
   onEdit: (sale: SaleWithDetails) => void;
   onDelete: (id: string) => void;
@@ -81,6 +86,7 @@ interface SalesTableProps {
 type PaymentStatus = "pendente" | "pago";
 
 export function SalesTable({
+  mode = "admin",
   sales,
   onEdit,
   onDelete,
@@ -108,6 +114,7 @@ export function SalesTable({
   pageSize,
   onPageChange,
 }: SalesTableProps) {
+  const isVendor = mode === "vendor";
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
 
@@ -173,7 +180,7 @@ export function SalesTable({
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   const totalSaleCost = (sale: SaleWithDetails): number =>
-    Number(sale.costs.reduce((sum, c) => sum + Number(c.amount || 0), 0));
+    Number((sale.costs ?? []).reduce((sum, c) => sum + Number(c.amount || 0), 0));
 
   const paymentStatusOf = (sale: SaleWithDetails): PaymentStatus =>
     ((sale as any).payment_status as PaymentStatus) ?? "pendente";
@@ -317,10 +324,12 @@ export function SalesTable({
           Somente com valor faltante
         </label>
 
-        <Button variant="outline" onClick={onExport} disabled={isExporting}>
-          <Download className="h-4 w-4 mr-2" />
-          {isExporting ? "Exportando\u2026" : "Exportar"}
-        </Button>
+        {!isVendor && (
+          <Button variant="outline" onClick={onExport} disabled={isExporting}>
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? "Exportando\u2026" : "Exportar"}
+          </Button>
+        )}
       </div>
 
       {/* ── Tabela ───────────────────────────────────────────── */}
@@ -342,8 +351,8 @@ export function SalesTable({
                 <TableHead>Vendedor / Comissão</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Quantidade</TableHead>
-                <TableHead>Custo Total</TableHead>
-                <TableHead>Total</TableHead>
+                {!isVendor && <TableHead>Custo Total</TableHead>}
+                {!isVendor && <TableHead>Total</TableHead>}
                 <TableHead>Entrada</TableHead>
                 <TableHead>Faltante</TableHead>
                 <TableHead className="text-right sticky right-0 bg-background rounded-md">
@@ -363,8 +372,8 @@ export function SalesTable({
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      {!isVendor && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
+                      {!isVendor && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell className="text-right sticky right-0 bg-background">
@@ -415,9 +424,11 @@ export function SalesTable({
                         {sale.salespersons.map((person) => (
                           <span key={person.id} className="text-sm whitespace-nowrap">
                             {person.name}{" "}
-                            <span className="text-muted-foreground">
-                              ({person.commission_percent}%)
-                            </span>
+                            {person.commission_percent !== null && (
+                              <span className="text-muted-foreground">
+                                ({person.commission_percent}%)
+                              </span>
+                            )}
                           </span>
                         ))}
                       </div>
@@ -432,8 +443,8 @@ export function SalesTable({
                       </Badge>
                     </TableCell>
                     <TableCell>{qtySum}</TableCell>
-                    <TableCell>R$ {formatMoneyBR(cost)}</TableCell>
-                    <TableCell>R$ {formatMoneyBR(total - cost)}</TableCell>
+                    {!isVendor && <TableCell>R$ {formatMoneyBR(cost)}</TableCell>}
+                    {!isVendor && <TableCell>R$ {formatMoneyBR(total - cost)}</TableCell>}
                     <TableCell>
                       {entryDisplay === null
                         ? "-"
@@ -441,6 +452,18 @@ export function SalesTable({
                     </TableCell>
                     <TableCell>R$ {formatMoneyBR(remaining)}</TableCell>
                     <TableCell className="text-right sticky right-0 bg-background rounded-md">
+                      {isVendor ? (
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Ver detalhes"
+                            onClick={() => onViewDetails(sale)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
                       <div className="flex justify-end gap-2">
                         {showConfirmPayment && (
                           <Button
@@ -514,6 +537,7 @@ export function SalesTable({
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

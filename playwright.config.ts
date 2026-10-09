@@ -46,6 +46,8 @@ export default defineConfig({
       env: {
         NEXT_PUBLIC_SUPABASE_URL: MOCK_URL,
         NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key",
+        // Chave de serviço do MOCK (nunca uma chave real): usada pela troca de senha (6.6).
+        SUPABASE_SERVICE_ROLE_KEY: "mock-service-role-key",
         TZ: "America/Sao_Paulo",
       },
     },

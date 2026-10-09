@@ -1,3 +1,5 @@
+import { vendorScope } from "./rls.mjs";
+
 // Reconstrói as views sales_with_details / sales_with_salespersons a partir das
 // tabelas base, espelhando scripts/views/*.sql (= definição de produção,
 // docs/baseline/) — em vez de duplicar os mesmos dados em duas formas no fixture.
@@ -55,7 +57,39 @@ export function salesWithSalespersons(tables) {
   }));
 }
 
+// vendor_sales (016): sem custos; `salespersons` traz os nomes de todos os vendedores da venda,
+// com o percentual só do próprio (#13, 3.1) — o do colega vem nulo.
+export function vendorSales(tables, ctx) {
+  const isAdmin = !ctx || ctx.kind === "service" || ctx.isAdmin;
+  const mine = ctx?.isVendor ? vendorScope(tables, ctx).mine : new Set();
+  return tables.sales.map((s) => ({
+    id: s.id,
+    company_id: s.company_id,
+    user_id: s.user_id, // não é coluna da view; usado só pelo RLS emulado (security_invoker)
+    order_number: s.order_number,
+    product_name: s.product_name,
+    customer_name: s.customer_name,
+    sale_date: s.sale_date,
+    quantity: s.quantity,
+    unit_price: s.unit_price,
+    total_price: s.total_price,
+    status: s.status,
+    payment_status: s.payment_status,
+    entry_value: s.entry_value,
+    notes: s.notes,
+    created_at: s.created_at,
+    salespersons: tables.sale_salespersons
+      .filter((ss) => ss.sale_id === s.id)
+      .map((ss) => ({
+        id: ss.salesperson_id,
+        name: tables.salespersons.find((sp) => sp.id === ss.salesperson_id)?.name,
+        commission_percent: isAdmin || mine.has(ss.salesperson_id) ? ss.commission_percent : null,
+      })),
+  }));
+}
+
 export const VIEW_BUILDERS = {
   sales_with_details: salesWithDetails,
   sales_with_salespersons: salesWithSalespersons,
+  vendor_sales: vendorSales,
 };

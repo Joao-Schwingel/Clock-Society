@@ -22,6 +22,8 @@ export function claimsFromJwt(claims: JwtClaims | null | undefined): SessionClai
   return {
     appRole: typeof meta?.app_role === "string" && meta.app_role ? meta.app_role : null,
     tenantId: typeof meta?.tenant_id === "string" && meta.tenant_id ? meta.tenant_id : null,
+    // Decisão 3.6: o hook põe a marca no token, e o middleware força a troca sem consultar o banco.
+    mustChangePassword: meta?.must_change_password === true,
   }
 }
 

@@ -31,8 +31,29 @@ function compareValues(a, b) {
   return a < b ? -1 : 1;
 }
 
+// Semântica do operador jsonb `@>` do Postgres (PostgREST `cs`): objeto contém as chaves/valores
+// pedidos; array contém cada elemento pedido em algum dos seus elementos.
+function jsonContains(haystack, needle) {
+  if (Array.isArray(needle)) {
+    return Array.isArray(haystack) && needle.every((n) => haystack.some((h) => jsonContains(h, n)));
+  }
+  if (needle !== null && typeof needle === "object") {
+    return (
+      haystack !== null &&
+      typeof haystack === "object" &&
+      !Array.isArray(haystack) &&
+      Object.entries(needle).every(([k, v]) => jsonContains(haystack[k], v))
+    );
+  }
+  return haystack === needle;
+}
+
 function applyOp(rawValue, op, rawFilterValue) {
   const value = rawValue ?? null;
+
+  if (op === "cs") {
+    return jsonContains(value, JSON.parse(rawFilterValue));
+  }
 
   if (op === "is") {
     if (rawFilterValue === "null") return value === null || value === undefined;

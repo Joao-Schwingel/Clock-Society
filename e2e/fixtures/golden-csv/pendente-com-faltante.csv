@@ -1,0 +1,3 @@
+﻿Data,Nº Pedido,Produtos,Cliente,Vendedor,Status,Quantidade,Valor do Produto,Custo Total,Valor Líquido,Valor Líquido após Comissão,Entrada,Faltante,Status Pagamento
+05/09/2026,1009,Squeeze,Cliente Sem Entrada,Bruno,Pendente,2,"250,00","0,00","250,00","230,00",-,"250,00",Pendente
+15/09/2026,1003,"Caneca Azul, Camiseta Preta",Maria Costa,"Ana, Bruno",Pendente,3,"400,00","40,00","360,00","306,00","100,00","300,00",Pendente
