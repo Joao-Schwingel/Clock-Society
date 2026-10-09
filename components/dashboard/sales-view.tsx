@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import {
   Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { SaleWithDetails } from "@/lib/types";
 import { SalesForm } from "./sales-form";
 import { SalesTable } from "./sales-table";
@@ -37,6 +38,17 @@ const TABLE_PAGE_SIZE = 10;
 // Campos mínimos para os cards de estatísticas
 const STATS_SELECT =
   "id, status, total_price, total_costs, quantity, payment_status, entry_value";
+
+type SaleStatsRow = Pick<
+  SaleWithDetails,
+  | "id"
+  | "status"
+  | "total_price"
+  | "total_costs"
+  | "quantity"
+  | "payment_status"
+  | "entry_value"
+>;
 
 // Todos os campos necessários para renderizar a tabela
 const TABLE_SELECT =
@@ -76,27 +88,50 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
   const [editingSale, setEditingSale] = useState<SaleWithDetails | null>(null);
   const [viewingSale, setViewingSale] = useState<SaleWithDetails | null>(null);
 
-  // ── Query de estatísticas (sem paginação) ──────────────────────
+  // Cada clique de mês dispara uma busca nova; só a resposta da requisição mais
+  // recente pode atualizar a tela, senão uma resposta antiga sobrescreve a nova.
+  const statsRequestId = useRef(0);
+  const tableRequestId = useRef(0);
+
+  // ── Query de estatísticas (todas as linhas, paginadas só para contornar o
+  // limite de 1000 linhas por resposta do Supabase) ───────────────────────
   const fetchSales = async () => {
+    const currentRequest = ++statsRequestId.current;
+    const isStale = () => currentRequest !== statsRequestId.current;
+
     setIsLoading(true);
     const supabase = createClient();
-    let query = supabase
-      .from("sales_with_details")
-      .select(STATS_SELECT)
-      .eq("company_id", companyId);
 
-    if (months.length > 0) {
-      const ranges = months.map((m) => {
-        const start = new Date(Number(year), m, 1);
-        const end = new Date(Number(year), m + 1, 1);
-        return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
+    try {
+      const data = await fetchAllRows<SaleStatsRow>((from, to) => {
+        let query = supabase
+          .from("sales_with_details")
+          .select(STATS_SELECT)
+          .eq("company_id", companyId);
+
+        if (months.length > 0) {
+          const ranges = months.map((m) => {
+            const start = new Date(Number(year), m, 1);
+            const end = new Date(Number(year), m + 1, 1);
+            return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
+          });
+          query = query.or(ranges.join(","));
+        }
+
+        return query.order("id").range(from, to);
       });
-      query = query.or(ranges.join(","));
-    }
 
-    const { data, error } = await query;
-    if (!error && data) setSales(data as SaleWithDetails[]);
-    setIsLoading(false);
+      if (!isStale()) setSales(data as SaleWithDetails[]);
+    } catch (error) {
+      console.error("Erro ao carregar estatísticas de vendas:", error);
+      if (!isStale()) {
+        toast.error("Erro ao carregar os totais de vendas. Tente novamente.", {
+          position: "top-center",
+        });
+      }
+    } finally {
+      if (!isStale()) setIsLoading(false);
+    }
   };
 
   // ── Carregar vendedores para o filtro ──────────────────────────
@@ -125,6 +160,9 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
 
   // ── Query da tabela (com paginação + filtros server-side) ──────
   const fetchTableData = async () => {
+    const currentRequest = ++tableRequestId.current;
+    const isStale = () => currentRequest !== tableRequestId.current;
+
     setIsTableLoading(true);
     const supabase = createClient();
 
@@ -177,6 +215,7 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     // Filtro de vendedor
     if (salespersonFilter) {
       const saleIds = await getSaleIdsBySalesperson(salespersonFilter);
+      if (isStale()) return;
       if (saleIds.length === 0) {
         setTableSales([]);
         setTableTotal(0);
@@ -193,6 +232,8 @@ export function SalesView({ companyId, userId }: SalesViewProps) {
     const { data, count, error } = await query
       .order("order_number", { ascending: false })
       .range(from, to);
+
+    if (isStale()) return;
 
     if (!error && data) {
       setTableSales(data as SaleWithDetails[]);

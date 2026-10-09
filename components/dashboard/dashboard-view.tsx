@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { toast } from "sonner";
 import {
   DollarSign,
   TrendingUp,
@@ -30,10 +32,19 @@ type SalespersonEntry = {
   commission_percent: number;
 };
 
+// Linha de `sales_with_details`: uma por venda, com o custo já somado no banco.
 type SaleRow = {
   id: string;
   total_price: number;
+  total_costs: number;
   salespersons: SalespersonEntry[];
+};
+
+type SaleRawRow = {
+  id: string;
+  total_price: number | string | null;
+  total_costs: number | string | null;
+  salespersons: SalespersonEntry[] | null;
 };
 
 type CommissionSummary = {
@@ -64,6 +75,10 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
   const [salePeople, setSalePeople] = useState<
     { id: string; name: string }[]
   >([]);
+
+  // Cada clique de mês dispara um loadData novo; só a resposta da requisição mais
+  // recente pode atualizar a tela, senão uma resposta antiga sobrescreve a nova.
+  const requestId = useRef(0);
 
   useEffect(() => {
     void loadData();
@@ -99,6 +114,9 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
   }
 
   const loadData = async () => {
+    const currentRequest = ++requestId.current;
+    const isStale = () => currentRequest !== requestId.current;
+
     setIsLoading(true);
     const supabase = createClient();
 
@@ -115,18 +133,14 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
       }
 
       // ── Queries paralelas ─────────────────────────────────────
-      let salesQ = supabase
-        .from("sales_with_salespersons")
-        .select("id, total_price, salespersons")
-        .eq("company_id", companyId)
-        .eq("status", "concluída");
-
-      if (dateOr) salesQ = salesQ.or(dateOr);
-
+      // Mesma view da aba Vendas (`sales_with_details`): o custo de cada venda já
+      // vem somado pelo banco em `total_costs`, então o Dashboard e a aba Vendas
+      // não têm como divergir. Antes o custo vinha de uma 2ª consulta em
+      // `sale_costs` (1 linha por custo), que o Supabase truncava em 1000 linhas.
       const [
-        { data: salespersonsData },
-        { data: salesRaw, error: salesError },
-        { data: fixedCostsData },
+        { data: salespersonsData, error: salespersonsError },
+        salesRaw,
+        { data: fixedCostsData, error: fixedCostsError },
       ] = await Promise.all([
         supabase
           .from("salespersons")
@@ -134,7 +148,17 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
           .eq("company_id", companyId)
           .eq("is_active", true)
           .order("name"),
-        salesQ,
+        fetchAllRows<SaleRawRow>((from, to) => {
+          let salesQ = supabase
+            .from("sales_with_details")
+            .select("id, total_price, total_costs, salespersons")
+            .eq("company_id", companyId)
+            .eq("status", "concluída");
+
+          if (dateOr) salesQ = salesQ.or(dateOr);
+
+          return salesQ.order("id").range(from, to);
+        }),
         supabase
           .from("fixed_costs")
           .select("monthly_value, start_date, qtdmonths")
@@ -142,34 +166,24 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
           .eq("user_id", userId),
       ]);
 
-      if (salesError) throw salesError;
+      if (salespersonsError) throw salespersonsError;
+      if (fixedCostsError) throw fixedCostsError;
+
+      // Uma seleção de meses mais nova já disparou outro loadData: descarta este.
+      if (isStale()) return;
 
       setSalePeople(salespersonsData ?? []);
 
-      const sales: SaleRow[] = (salesRaw ?? []).map((s: any) => ({
+      const sales: SaleRow[] = salesRaw.map((s) => ({
         id: String(s.id),
         total_price: Number(s.total_price ?? 0),
-        salespersons: Array.isArray(s.salespersons) ? (s.salespersons as SalespersonEntry[]) : [],
+        total_costs: Number(s.total_costs ?? 0),
+        salespersons: Array.isArray(s.salespersons) ? s.salespersons : [],
       }));
-
-      // ── Custos de vendas ──────────────────────────────────────
-      const costsBySaleId: Record<string, number> = {};
-      const saleIds = sales.map((s) => s.id);
-
-      if (saleIds.length > 0) {
-        const { data: costsRaw } = await supabase
-          .from("sale_costs")
-          .select("sale_id, amount")
-          .in("sale_id", saleIds);
-
-        for (const c of (costsRaw ?? []) as { sale_id: string; amount: number }[]) {
-          costsBySaleId[c.sale_id] = (costsBySaleId[c.sale_id] ?? 0) + Number(c.amount);
-        }
-      }
 
       // ── Totais ────────────────────────────────────────────────
       const revenue = sales.reduce((sum, s) => sum + s.total_price, 0);
-      const saleCostsTotal = Object.values(costsBySaleId).reduce((sum, v) => sum + v, 0);
+      const saleCostsTotal = sales.reduce((sum, s) => sum + s.total_costs, 0);
       const fixedCostsTotal = sumFixedCostsForPeriod(
         (fixedCostsData ?? []) as { monthly_value: number; start_date: string; qtdmonths: number }[],
       );
@@ -178,7 +192,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
       const commMap: Record<string, CommissionSummary> = {};
 
       for (const sale of sales) {
-        const saleCost = costsBySaleId[sale.id] ?? 0;
+        const saleCost = sale.total_costs;
         const saleNet = sale.total_price - saleCost;
 
         for (const sp of sale.salespersons) {
@@ -213,8 +227,14 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
       setCommissionSummaries(summaries);
     } catch (err) {
       console.error("Erro ao carregar dashboard:", err);
+      // Sem isso a tela continuaria mostrando os números do filtro anterior como se fossem atuais.
+      if (!isStale()) {
+        toast.error("Erro ao carregar o dashboard. Tente novamente.", {
+          position: "top-center",
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (!isStale()) setIsLoading(false);
     }
   };
 
