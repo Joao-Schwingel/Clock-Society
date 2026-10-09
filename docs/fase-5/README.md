@@ -72,7 +72,7 @@ por isso o seed manual só **lista** os vínculos esperados; quem executa o chec
 | V-UI-03 … V-UI-07 | E2E | `e2e/tests/vendor-ui.spec.ts` | 6.4, 6.8 |
 | V-UI-08 | UNIT + E2E | `lib/auth/password-rules.test.ts`, `app/api/me/password/route.test.ts`, `e2e/tests/users-admin.spec.ts` | 6.6 ✅ |
 | V-UI-09 | UNIT + E2E | `lib/auth/permissions.test.ts`, `lib/auth/nav-registry.test.ts`, `e2e/tests/users-admin.spec.ts` | 6.7 ✅ |
-| V-REG-01 … V-REG-03 | E2E | `e2e/tests/vendor-regression.spec.ts` (V-REG-02 ✅, fotos em `e2e/fixtures/golden-csv/`) | 6.1, 6.4 |
+| V-REG-01 … V-REG-03 | E2E | `e2e/tests/vendor-regression.spec.ts` (V-REG-01 ✅ + C-DASH-03/04; V-REG-02 ✅, fotos em `e2e/fixtures/golden-csv/`) | 6.1, 6.4 |
 
 Casos que dependem da #13: V-DB-08 (3.4), V-DB-09 (3.1), V-DB-12, V-UI-04 (exportação e coluna de
 comissão), V-UI-06 e V-REG-01. Estão como `it.todo`/`test.fixme` com a marca "#13".
@@ -86,6 +86,7 @@ Mudam de propósito, porque o vendedor passa a ser um papel funcional:
 | `permissions.test.ts`: "vendedor ainda não tem permissões na Fase 3 (D-6)" | sem permissões | permissões do vendedor (V-UI-01) |
 | `route-guard.test.ts`: `homeForRole("vendedor")` → `/403` (A-MW-05) e vendedor em `/dashboard` → `/403` (A-MW-04) | `/403` | área do vendedor (V-MW-01); `/dashboard` continua `/403` (V-MW-03) |
 | `admin-middleware.spec.ts`: `vendedor-sem-vinculo@t1` cai em `/403` (A-MW-04) | `/403` | estado vazio na área do vendedor (V-UI-03) |
+| `dashboard.spec.ts` (Fase 1): C-DASH-04 — a inativa (Elis) não tem cartão | sem cartão | o **admin** vê o cartão com a etiqueta INATIVO (#13, Q10; 6.4, feito). Números iguais |
 | `permissions.test.ts`: A-PERM-02 (catálogo com 11 permissões) | 11 | 12 — entra `users.manage` (6.7, feito) |
 | `nav-registry.test.ts`: A-PERM-04 (abas do admin) | empresas + Contratos | + **Usuários** depois de Contratos (planejamento, Anexo C; 6.7, feito) |
 

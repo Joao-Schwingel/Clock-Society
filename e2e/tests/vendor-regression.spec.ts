@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { test, expect, login } from "../test-helpers";
+import { test, expect, login, MOCK_URL } from "../test-helpers";
 
 // Fase 5 §5 "Regressão do admin" / Fase 6 fatias 6.1 e 6.4.
 
@@ -80,5 +80,15 @@ test.describe("V-REG-02 — CSV idêntico byte a byte depois da extração do mo
   });
 });
 
-test.fixme("V-REG-01 — dashboard do admin alimentado pela RPC mostra os números da Fase 1 (C-DASH-03/04), com as regras de Q2/Q10 (#13)", () => {});
+// V-REG-01: os NÚMEROS são conferidos pelos testes C-DASH-03/04 (dashboard.spec.ts), que continuam
+// sem alteração de valores. Aqui se prova que eles agora vêm da RPC, e não do cálculo no navegador.
+test("V-REG-01 — o Dashboard do admin usa commission_summary() e não busca mais sale_costs em lote", async ({ page, request }) => {
+  await login(page);
+  await expect(page.locator('[data-slot="card-title"]', { hasText: /^Comissões$/ })).toBeVisible();
+  await expect(page.locator('[data-slot="card-title"]', { hasText: /^Ana$/ })).toBeVisible();
+
+  const log = (await (await request.get(`${MOCK_URL}/__test__/requests`)).json()) as Array<{ method: string; table: string; auth: string }>;
+  expect(log.some((r) => r.table === "rpc/commission_summary" && r.auth === "user")).toBe(true);
+  expect(log.filter((r) => r.table === "sale_costs" && r.auth === "user")).toEqual([]);
+});
 test.fixme("V-REG-03 — o vendedor Site continua selecionável e somando vendas sem ter login", () => {});
