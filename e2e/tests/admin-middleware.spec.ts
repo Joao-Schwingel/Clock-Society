@@ -53,14 +53,15 @@ test("A-MW-04 — usuário sem perfil vai para /403, com mensagem em PT-BR e bot
   await expectForbidden(page);
 });
 
-test("A-MW-04 — perfil sem permissão para a área vai para /403, com mensagem em PT-BR e botão 'Sair'", async ({
-  page,
-}) => {
+// MUDANÇA (Fase 6, documentada em docs/fase-5/README.md): o vendedor ganhou a própria área, então
+// vendedor-sem-vinculo não cai mais na /403 ao entrar (vê o estado vazio — V-UI-03). O caso
+// "papel sem permissão para a área" continua valendo: ele não entra no /dashboard do admin.
+test("A-MW-04 — perfil sem permissão para a área não entra no /dashboard do admin", async ({ page }) => {
   await signIn(page, "vendedor-sem-vinculo@t1.test");
-  await expectForbidden(page);
+  await expect(page).toHaveURL(/\/vendedor/);
 
   await page.goto("/dashboard?company=contracts");
-  await expectForbidden(page);
+  await expect(page).not.toHaveURL(/\/dashboard/);
 });
 
 test("A-MW-04 — 'Sair' na /403 encerra a sessão e volta ao login", async ({ page }) => {

@@ -6,15 +6,25 @@
 // app/page.tsx) — que o Playwright não tem como interceptar.
 
 import { createServer } from "node:http";
+import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
-import { loadUsers, loadProfiles, freshTables } from "./db.mjs";
+import { loadUsers, freshTables } from "./db.mjs";
 import { filterRows, orderRows, paginate, selectColumns } from "./postgrest-filter.mjs";
 import { VIEW_BUILDERS } from "./views.mjs";
-import { signInWithPassword, refreshSession, getUserFromToken } from "./auth.mjs";
+import {
+  signInWithPassword,
+  refreshSession,
+  getUserFromToken,
+  updateUserPassword,
+  adminListUsers,
+  adminCreateUser,
+  adminUpdateUser,
+  adminDeleteUser,
+} from "./auth.mjs";
 import { authContext, rowAllowed, applyInsertDefaults, permissionDenied } from "./rls.mjs";
+import { commissionSummary, RpcError } from "./rpc.mjs";
 
 let users = loadUsers();
-let profiles = loadProfiles();
 let tables = freshTables();
 // Quando true, o próximo login devolve um token sem as claims do hook (sessão aberta antes da
 // implantação — A-MW-06). Volta a false no reset.
@@ -24,6 +34,8 @@ let legacyTokens = false;
 let requestLog = [];
 
 const ANON_KEY = process.env.MOCK_ANON_KEY ?? "mock-anon-key";
+// Chave de serviço do mock (o app a recebe em SUPABASE_SERVICE_ROLE_KEY): ignora o RLS emulado.
+const SERVICE_KEY = process.env.MOCK_SERVICE_KEY ?? "mock-service-role-key";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -72,8 +84,8 @@ function unwrapIfSingle(req, rows) {
   return rows[0] ?? null;
 }
 
-function rowsForTable(name) {
-  if (VIEW_BUILDERS[name]) return VIEW_BUILDERS[name](tables);
+function rowsForTable(name, ctx) {
+  if (VIEW_BUILDERS[name]) return VIEW_BUILDERS[name](tables, ctx);
   return tables[name];
 }
 
@@ -84,9 +96,9 @@ function contentRangeHeader(offset, pageLength, total) {
 
 async function handleRest(req, res, url, table, method) {
   const isView = Boolean(VIEW_BUILDERS[table]);
-  const ctx = authContext(req, profiles, ANON_KEY);
+  const ctx = authContext(req, tables.profiles, ANON_KEY, SERVICE_KEY);
   requestLog.push({ method, table, search: url.search, auth: ctx.kind });
-  const allRows = rowsForTable(table);
+  const allRows = rowsForTable(table, ctx);
 
   if (allRows === undefined) {
     sendJson(res, 404, { message: `Tabela/view desconhecida no mock: ${table}` });
@@ -96,6 +108,18 @@ async function handleRest(req, res, url, table, method) {
   // Simplificação: o anon não acessa nada (ver e2e/mock-server/rls.mjs).
   if (ctx.kind === "anon") {
     sendJson(res, 401, { code: "42501", message: `permission denied for ${isView ? "view" : "table"} ${table}` });
+    return;
+  }
+
+  // 020: o vendedor não escreve em nada (só políticas de leitura).
+  if (ctx.kind === "user" && ctx.isVendor && method !== "GET" && method !== "HEAD") {
+    sendJson(res, 403, permissionDenied(table));
+    return;
+  }
+
+  // 013/014: o cliente não escreve em profiles (só a chave de serviço).
+  if (ctx.kind === "user" && ["profiles"].includes(table) && method !== "GET" && method !== "HEAD") {
+    sendJson(res, 403, permissionDenied(table));
     return;
   }
 
@@ -129,7 +153,15 @@ async function handleRest(req, res, url, table, method) {
       sendJson(res, 403, permissionDenied(table));
       return;
     }
-    tables[table].push(...rowsToInsert);
+    // upsert do PostgREST: Prefer: resolution=merge-duplicates. Sem isto o mock gravava uma
+    // SEGUNDA linha com o mesmo id, e a tela passava a mostrar o usuário duplicado — foi assim
+    // que o E2E pegou a diferença entre o mock e o PostgREST de verdade.
+    const upsert = (req.headers["prefer"] ?? "").includes("resolution=merge-duplicates");
+    for (const row of rowsToInsert) {
+      const existente = upsert ? tables[table].findIndex((r) => r.id === row.id) : -1;
+      if (existente >= 0) tables[table][existente] = { ...tables[table][existente], ...row };
+      else tables[table].push(row);
+    }
     const body2 = wantsRepresentation(req)
       ? unwrapIfSingle(req, selectColumns(rowsToInsert, url.searchParams))
       : undefined;
@@ -143,6 +175,14 @@ async function handleRest(req, res, url, table, method) {
     const matchIds = new Set(matches.map((r) => r.id));
     if (!matches.map((row) => ({ ...row, ...body })).every(visible)) {
       sendJson(res, 403, permissionDenied(table));
+      return;
+    }
+    // 020: profiles_admin_always_active — admin nunca fica inativo (vale até para a chave de serviço).
+    if (table === "profiles" && matches.some((row) => ({ ...row, ...body }).role === "admin" && ({ ...row, ...body }).is_active === false)) {
+      sendJson(res, 400, {
+        code: "23514",
+        message: 'new row for relation "profiles" violates check constraint "profiles_admin_always_active"',
+      });
       return;
     }
     const updated = [];
@@ -179,7 +219,7 @@ async function handleAuth(req, res, url, method) {
     const body = (await readJsonBody(req)) ?? {};
 
     if (grantType === "password") {
-      const { status, body: respBody } = signInWithPassword(users, profiles, body.email, body.password, {
+      const { status, body: respBody } = signInWithPassword(users, tables.profiles, body.email, body.password, {
         legacyTokens,
       });
       sendJson(res, status, respBody);
@@ -187,12 +227,39 @@ async function handleAuth(req, res, url, method) {
     }
 
     if (grantType === "refresh_token") {
-      const { status, body: respBody } = refreshSession(users, profiles, body.refresh_token);
+      const { status, body: respBody } = refreshSession(users, tables.profiles, body.refresh_token);
       sendJson(res, status, respBody);
       return;
     }
 
     sendJson(res, 400, { error: "unsupported_grant_type", error_description: grantType });
+    return;
+  }
+
+  // API administrativa (só com a chave de serviço do mock)
+  if (url.pathname.startsWith("/auth/v1/admin/users")) {
+    const token = (req.headers["authorization"] ?? "").replace(/^Bearer\s+/i, "");
+    if (token !== SERVICE_KEY) {
+      sendJson(res, 403, { msg: "User not allowed" });
+      return;
+    }
+    const id = url.pathname.split("/")[5];
+    const body = (await readJsonBody(req)) ?? {};
+    let result;
+    if (!id && method === "GET") result = adminListUsers(users);
+    else if (!id && method === "POST") result = adminCreateUser(users, tables, body);
+    else if (id && method === "PUT") result = adminUpdateUser(users, id, body);
+    else if (id && method === "DELETE") result = adminDeleteUser(users, tables, id);
+    else result = { status: 405, body: { msg: "Método não suportado no mock" } };
+    sendJson(res, result.status, result.body);
+    return;
+  }
+
+  // updateUser({ password }) — troca de senha da Fase 6 (6.6)
+  if (method === "PUT" && url.pathname === "/auth/v1/user") {
+    const body = (await readJsonBody(req)) ?? {};
+    const { status, body: respBody } = updateUserPassword(users, req.headers["authorization"], body.password);
+    sendJson(res, status, respBody);
     return;
   }
 
@@ -230,7 +297,6 @@ export function createMockServer() {
 
       if (url.pathname === "/__test__/reset" && method === "POST") {
         users = loadUsers();
-        profiles = loadProfiles();
         tables = freshTables();
         legacyTokens = false;
         requestLog = [];
@@ -254,6 +320,23 @@ export function createMockServer() {
         return;
       }
 
+      // RPCs (016)
+      if (url.pathname === "/rest/v1/rpc/commission_summary" && method === "POST") {
+        const ctx = authContext(req, tables.profiles, ANON_KEY, SERVICE_KEY);
+        requestLog.push({ method, table: "rpc/commission_summary", search: url.search, auth: ctx.kind });
+        if (ctx.kind === "anon") {
+          sendJson(res, 401, { code: "42501", message: "permission denied for function commission_summary" });
+          return;
+        }
+        try {
+          sendJson(res, 200, commissionSummary(tables, ctx, (await readJsonBody(req)) ?? {}));
+        } catch (err) {
+          if (err instanceof RpcError) sendJson(res, 403, { code: err.code, message: "acesso negado" });
+          else throw err;
+        }
+        return;
+      }
+
       if (url.pathname.startsWith("/rest/v1/")) {
         const table = url.pathname.replace("/rest/v1/", "");
         await handleRest(req, res, url, table, method);
@@ -268,7 +351,10 @@ export function createMockServer() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// pathToFileURL, e não `file://${argv[1]}`: no Windows o caminho vem como C:\... e a comparação
+// crua nunca casa — o processo subia, não escutava nada e saía, e o Playwright só dizia
+// "Process from config.webServer exited early".
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.MOCK_PORT ?? 3101);
   createMockServer().listen(port, () => {
     console.log(`[mock-server] escutando em http://127.0.0.1:${port} (sem banco de dados)`);

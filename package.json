@@ -11,7 +11,17 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:local": "supabase start",
+    "db:local:status": "supabase status",
+    "db:local:parar": "supabase stop",
+    "db:local:apagar": "supabase stop --no-backup",
+    "db:clone": "node scripts/local/clonar-producao.mjs",
+    "db:sql": "node scripts/local/psql.mjs",
+    "db:sql:homolog": "node scripts/local/psql-homolog.mjs",
+    "db:clone:rest": "node scripts/local/clonar-producao-rest.mjs",
+    "db:test:vinculo": "node scripts/local/testes-banco/vinculo-usuario-vendedor.mjs",
+    "db:enviar-homolog": "node scripts/local/enviar-homolog.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -63,6 +73,7 @@
     "react-hook-form": "^7.60.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.4",
+    "server-only": "^0.0.1",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
@@ -78,9 +89,15 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.6",
     "postcss": "^8.5",
+    "supabase": "^2.120.0",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
     "typescript": "^5",
     "vitest": "^5.0.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "supabase"
+    ]
   }
 }

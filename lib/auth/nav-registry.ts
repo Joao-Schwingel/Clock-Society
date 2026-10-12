@@ -19,9 +19,24 @@ export const COMPANY_SUBTABS: NavEntry[] = [
   { value: "custos-fixos", label: "Custos", permission: "fixed_costs.manage" },
 ]
 
+// Subabas da área do vendedor (planejamento, Anexo C; Fase 6, fatia 6.8), na ordem de exibição.
+export const VENDOR_SUBTABS: NavEntry[] = [
+  { value: "vendas", label: "Vendas", permission: "sales.view" },
+  { value: "comissoes", label: "Comissões", permission: "commissions.view" },
+  { value: "estoque", label: "Estoque", permission: "inventory.view" },
+]
+
+// Todas as subabas conhecidas (admin + vendedor): a área do vendedor resolve ?tab= contra elas para
+// mostrar "acesso negado" a uma aba do admin, em vez de cair silenciosamente em outra (V-MW-03).
+export const ALL_SUBTABS: NavEntry[] = [
+  ...VENDOR_SUBTABS,
+  ...COMPANY_SUBTABS.filter((t) => !VENDOR_SUBTABS.some((v) => v.value === t.value)),
+]
+
 // Abas de nível superior que não são empresas, exibidas depois delas.
 export const TOP_LEVEL_PAGES: NavEntry[] = [
   { value: "contracts", label: "Contratos", permission: "contracts.manage" },
+  { value: "users", label: "Usuários", permission: "users.manage" },
 ]
 
 export const SETTINGS_PERMISSION: Permission = "salespersons.manage"
@@ -32,6 +47,10 @@ function isAllowed(entry: NavEntry, permissions: readonly Permission[]) {
 
 export function companySubTabs(permissions: readonly Permission[]): NavEntry[] {
   return COMPANY_SUBTABS.filter((t) => isAllowed(t, permissions))
+}
+
+export function vendorSubTabs(permissions: readonly Permission[]): NavEntry[] {
+  return VENDOR_SUBTABS.filter((t) => isAllowed(t, permissions))
 }
 
 // Empresas (na ordem recebida — o servidor já ordena por code) seguidas das páginas permitidas.
