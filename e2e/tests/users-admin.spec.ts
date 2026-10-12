@@ -84,6 +84,8 @@ test("V-UI-09 — admin cria vendedor com um registro novo; o vendedor entra e �
   await dialog.getByLabel("Senha temporária *").fill("temporaria123");
   await dialog.getByText("Criar um novo registro de vendedor").click();
   await dialog.getByLabel("Nome do novo vendedor *").fill("Fulano E2E");
+  // 022: a pessoa nasce com os acessos marcados — nenhum por padrão
+  await dialog.getByRole("checkbox", { name: "Clock Society" }).click();
   await dialog.getByRole("button", { name: "Criar usuário" }).click();
 
   const row = page.getByRole("row").filter({ hasText: "novo.e2e@t1.test" });
@@ -105,11 +107,12 @@ test("V-UI-09 — e-mail duplicado e vendedor que já tem login aparecem como er
   await dialog.getByLabel("Nome *", { exact: true }).fill("Repetido");
   await dialog.getByLabel("E-mail *").fill("vend-a@t1.test");
   await dialog.getByLabel("Senha temporária *").fill("temporaria123");
-  await dialog.getByText("Site (Clock Society)").click();
+  await dialog.getByText(/^Site \(/).click();
   await dialog.getByRole("button", { name: "Criar usuário" }).click();
   await expect(dialog.getByText("Já existe um usuário com este e-mail.")).toBeVisible();
   // registros que já têm login nem aparecem como opção
-  await expect(dialog.getByText("Ana (Clock Society)")).toHaveCount(0);
+  // quem já tem login nem aparece como opção (022: o vínculo é 1:1)
+  await expect(dialog.getByText(/^Ana/)).toHaveCount(0);
 });
 
 test("V-UI-09 — editar o nome, resetar a senha e desativar; o desativado não entra", async ({ page, browser }) => {
@@ -121,7 +124,7 @@ test("V-UI-09 — editar o nome, resetar a senha e desativar; o desativado não 
       email: "temp.e2e@t1.test",
       password: "senhaInicial1",
       role: "vendedor",
-      new_salesperson: { name: "Temp E2E", company_id: "comp-a" },
+      new_salesperson: { name: "Temp E2E", company_ids: ["comp-a"] },
     },
   });
   expect(created.status()).toBe(201);
@@ -177,7 +180,7 @@ test("V-UI-09 — vincular um registro sem vendas mostra aviso", async ({ page }
   await goToUsuarios(page);
   await page.getByRole("button", { name: "Novo usuário" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByText("Site (Clock Society)").click();
+  await dialog.getByText(/^Site \(/).click();
   await expect(dialog.getByRole("status")).toContainText("ainda não tem vendas registradas");
 });
 

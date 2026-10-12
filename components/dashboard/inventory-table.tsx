@@ -11,8 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, Search } from "lucide-react";
+import { Pencil, Trash2, Search, Download } from "lucide-react";
 import type { InventoryItem } from "@/lib/types";
+import { buildInventoryCsvContent } from "@/lib/calc/inventory-csv";
+import { toast } from "sonner";
 import { formatBR } from "@/lib/utils";
 
 interface InventoryTableProps {
@@ -61,6 +63,25 @@ export function InventoryTable({
     );
   }
 
+  // Exporta o que está na tela (os mesmos filtros), como o CSV de vendas. Os dados já estão em
+  // memória: a tela do estoque carrega a empresa inteira de uma vez, sem paginação.
+  const handleExport = () => {
+    if (filteredInventory.length === 0) {
+      toast.error("Nenhum dado para exportar", { position: "top-center" });
+      return;
+    }
+    const blob = new Blob([buildInventoryCsvContent(filteredInventory)], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `estoque-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filteredInventory.length} itens exportados`, { position: "top-center" });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-4">
@@ -88,6 +109,13 @@ export function InventoryTable({
             }}
           >
             Limpar
+          </Button>
+        )}
+
+        {!readOnly && (
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportar
           </Button>
         )}
       </div>

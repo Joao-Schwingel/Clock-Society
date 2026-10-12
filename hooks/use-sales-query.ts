@@ -85,10 +85,22 @@ export function useSalesQuery({
   // ── Carregar vendedores para o filtro ──────────────────────────
   const fetchSalespersons = async () => {
     const supabase = createClient();
+    // 022: quem atende a empresa vem dos acessos, não mais de salespersons.company_id.
+    // Duas consultas simples em vez de embed: o mock server dos E2E não emula `!inner`.
+    const { data: acessos } = await supabase
+      .from("salesperson_companies")
+      .select("salesperson_id")
+      .eq("company_id", companyId)
+      .eq("is_active", true);
+    const ids = (acessos ?? []).map((a) => a.salesperson_id as string);
+    if (ids.length === 0) {
+      setSalespersonsList([]);
+      return;
+    }
     const { data } = await supabase
       .from("salespersons")
       .select("id, name")
-      .eq("company_id", companyId)
+      .in("id", ids)
       .eq("is_active", true)
       .order("name");
     if (data) setSalespersonsList(data);

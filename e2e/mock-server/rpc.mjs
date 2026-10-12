@@ -55,8 +55,14 @@ export function commissionSummary(tables, ctx, { p_company_id, p_year, p_months 
   const isAdmin = ctx.kind === "service" || ctx.isAdmin;
   const mine = isAdmin ? new Set() : vendorScope(tables, ctx).mine;
 
+  // 022: a pessoa entra no recorte da empresa pelo ACESSO, não por salespersons.company_id
+  const atendeEmpresa = (id) =>
+    tables.salesperson_companies.some(
+      (sc) => sc.salesperson_id === id && sc.company_id === p_company_id && sc.is_active !== false,
+    );
+
   return tables.salespersons
-    .filter((sp) => (sp.company_id === p_company_id && sp.is_active) || agg.has(sp.id))
+    .filter((sp) => (atendeEmpresa(sp.id) && sp.is_active) || agg.has(sp.id))
     .filter((sp) => isAdmin || sp.is_active)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((sp) => {

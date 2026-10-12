@@ -145,5 +145,7 @@ test("V-UI-07 — Estoque: todas as colunas, inclusive custo; cartões de resumo
   await expect(page.getByRole("columnheader", { name: "Custo Unit." })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Ações" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Novo Item" })).toHaveCount(0);
+  // exportar é do admin, como em Vendas (Q4)
+  await expect(page.getByRole("button", { name: "Exportar" })).toHaveCount(0);
   await expect(card(page, "Valor Total")).toContainText(`R$ ${formatBRL(1450)}`);
 });

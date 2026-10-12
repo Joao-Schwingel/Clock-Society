@@ -15,6 +15,8 @@ import type { Company } from "@/lib/types"
 import type { UserSummary } from "@/lib/users/repo"
 import { UserForm, type SalespersonOption } from "./user-form"
 
+type SalespersonRow = { id: string; name: string; profile_id: string | null }
+
 const ROLE_LABEL: Record<string, string> = { admin: "Administrador", vendedor: "Vendedor" }
 
 // Tela de Usuários do admin (planejamento 3.2/3.3; Fase 6, fatia 6.7; V-UI-09).
@@ -41,12 +43,24 @@ export function UsersView({ companies }: { companies: Company[] }) {
     let cancelled = false
     Promise.all([
       fetch("/api/users").then(async (res) => (res.ok ? ((await res.json()).users as UserSummary[]) : null)),
-      createClient().from("salespersons").select("id, name, company_id").order("name"),
-    ]).then(([loaded, { data: sps }]) => {
+      createClient().from("salespersons").select("id, name, profile_id").order("name"),
+      createClient().from("salesperson_companies").select("salesperson_id, company_id"),
+    ]).then(([loaded, { data: sps }, { data: acessos }]) => {
       if (cancelled) return
       if (loaded) setUsers(loaded)
       else toast.error("Não foi possível carregar os usuários.", { position: "top-center" })
-      setSalespersons(sps ?? [])
+      const porPessoa: Record<string, string[]> = {}
+      for (const a of (acessos ?? []) as { salesperson_id: string; company_id: string }[]) {
+        ;(porPessoa[a.salesperson_id] ??= []).push(a.company_id)
+      }
+      setSalespersons(
+        ((sps ?? []) as SalespersonRow[]).map((sp) => ({
+          id: sp.id,
+          name: sp.name,
+          hasLogin: Boolean(sp.profile_id),
+          company_ids: porPessoa[sp.id] ?? [],
+        })),
+      )
       setIsLoading(false)
     })
     return () => {
@@ -98,7 +112,8 @@ export function UsersView({ companies }: { companies: Company[] }) {
   }
 
   const companyName = (companyId: string) => companies.find((c) => c.id === companyId)?.name ?? ""
-  const linkedIds = new Set(users.flatMap((u) => u.salespersons.map((sp) => sp.id)))
+  // 022: o vínculo é 1:1 e a própria pessoa guarda o login
+  const linkedIds = new Set(salespersons.filter((sp) => sp.hasLogin).map((sp) => sp.id))
 
   return (
     <Card>
@@ -134,9 +149,13 @@ export function UsersView({ companies }: { companies: Company[] }) {
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{ROLE_LABEL[user.role] ?? user.role}</TableCell>
                   <TableCell>
-                    {user.salespersons.length === 0
+                    {user.salesperson === null
                       ? "—"
-                      : user.salespersons.map((sp) => `${sp.name} (${companyName(sp.company_id)})`).join(", ")}
+                      : `${user.salesperson.name}${
+                          user.salesperson.company_ids.length > 0
+                            ? ` (${user.salesperson.company_ids.map(companyName).filter(Boolean).join(", ")})`
+                            : ""
+                        }`}
                   </TableCell>
                   <TableCell className="space-x-1">
                     <Badge variant={user.is_active ? "default" : "secondary"}>

@@ -199,6 +199,7 @@ export function adminDeleteUser(users, tables, id) {
   users.splice(i, 1);
   // on delete cascade de profiles → auth.users
   tables.profiles = tables.profiles.filter((p) => p.id !== id);
-  tables.profile_salespersons = tables.profile_salespersons.filter((l) => l.profile_id !== id);
+  // 022: salespersons.profile_id é on delete set null — a pessoa fica, sem login
+  for (const sp of tables.salespersons) if (sp.profile_id === id) sp.profile_id = null;
   return { status: 200, body: {} };
 }

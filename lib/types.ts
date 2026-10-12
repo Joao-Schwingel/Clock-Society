@@ -9,12 +9,19 @@ export interface Company {
 export interface Salesperson {
   id: string;
   user_id: string;
-  company_id: string;
   name: string;
-  commission_percentage: number;
   is_active: boolean;
+  /** Login desta pessoa, 1:1 (022). Null = vendedor sem acesso ao sistema. */
+  profile_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Em quais empresas a pessoa atende (022). */
+export interface SalespersonCompany {
+  salesperson_id: string;
+  company_id: string;
+  is_active: boolean;
 }
 
 export interface Sale {

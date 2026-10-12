@@ -24,18 +24,22 @@ export async function createUser(repo: UsersRepo, tenantId: string, input: unkno
   }
 
   const isVendor = data.role === "vendedor";
-  const ids = isVendor ? [...new Set(data.salesperson_ids)] : [];
-  if (ids.length > 0) {
-    const inTenant = await repo.salespersonIdsInTenant(ids, tenantId);
-    if (inTenant.length !== ids.length) return invalid({ salesperson_ids: "Vendedor inválido." });
-    const linked = await repo.linkedSalespersonIds(ids);
-    if (linked.length > 0) {
+  // 022: o login é de UMA pessoa. Quem atende várias empresas é a pessoa, pelos seus acessos.
+  const salespersonId = isVendor ? data.salesperson_id : undefined;
+  if (salespersonId) {
+    if (!(await repo.salespersonInTenant(salespersonId, tenantId))) {
+      return invalid({ salesperson_id: "Vendedor inválido." });
+    }
+    if (await repo.salespersonHasLogin(salespersonId)) {
       return { status: 409, body: { error: "Este vendedor já está vinculado a outro login." } };
     }
   }
+
   const newSalesperson = isVendor ? data.new_salesperson : undefined;
-  if (newSalesperson && !(await repo.companyInTenant(newSalesperson.company_id, tenantId))) {
-    return invalid({ new_salesperson: "Empresa inválida." });
+  if (newSalesperson) {
+    const companyIds = [...new Set(newSalesperson.company_ids)];
+    const inTenant = await repo.companiesInTenant(companyIds, tenantId);
+    if (inTenant.length !== companyIds.length) return invalid({ new_salesperson: "Empresa inválida." });
   }
 
   let userId: string;
@@ -47,20 +51,34 @@ export async function createUser(repo: UsersRepo, tenantId: string, input: unkno
       tenantId,
       fullName: data.full_name,
     });
-  } catch {
+  } catch (error) {
+    console.error("[api/users] falha ao criar o login no Auth:", error);
     return { status: 500, body: { error: "Não foi possível criar o usuário." } };
   }
 
   try {
-    await repo.updateProfile(userId, { must_change_password: true, full_name: data.full_name });
-    const toLink = [...ids];
-    if (newSalesperson) {
-      toLink.push(
-        await repo.createSalesperson({ name: newSalesperson.name, companyId: newSalesperson.company_id, tenantId }),
-      );
-    }
-    if (toLink.length > 0) await repo.linkSalespersons(userId, toLink);
-  } catch {
+    // O perfil é criado aqui, e não deixado a cargo do gatilho: ver repo.ts, ensureProfile().
+    await repo.ensureProfile({
+      id: userId,
+      tenantId,
+      role: data.role,
+      fullName: data.full_name,
+      mustChangePassword: true,
+    });
+    const pessoaId =
+      salespersonId ??
+      (newSalesperson
+        ? await repo.createSalesperson({
+            name: newSalesperson.name,
+            companyIds: [...new Set(newSalesperson.company_ids)],
+            tenantId,
+          })
+        : undefined);
+    if (pessoaId) await repo.linkSalesperson(userId, pessoaId);
+  } catch (error) {
+    // A mensagem ao usuário é genérica de propósito, mas o motivo precisa aparecer no servidor:
+    // sem isto, a falha do perfil/vínculo era invisível (o login criado some na compensação).
+    console.error("[api/users] falha após criar o login; desfazendo:", error);
     // Compensação: sem isso sobraria um login sem perfil completo ou sem vínculo.
     await repo.deleteAuthUser(userId).catch(() => undefined);
     return { status: 500, body: { error: "Não foi possível criar o usuário." } };
@@ -100,7 +118,8 @@ export async function updateUser(
       await repo.setPassword(userId, data.reset_password);
       await repo.updateProfile(userId, { must_change_password: true });
     }
-  } catch {
+  } catch (error) {
+    console.error("[api/users] falha ao salvar as alterações:", error);
     return { status: 500, body: { error: "Não foi possível salvar as alterações." } };
   }
 

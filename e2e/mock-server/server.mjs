@@ -6,6 +6,7 @@
 // app/page.tsx) — que o Playwright não tem como interceptar.
 
 import { createServer } from "node:http";
+import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import { loadUsers, freshTables } from "./db.mjs";
 import { filterRows, orderRows, paginate, selectColumns } from "./postgrest-filter.mjs";
@@ -116,8 +117,8 @@ async function handleRest(req, res, url, table, method) {
     return;
   }
 
-  // 013/014: o cliente não escreve em profiles nem em profile_salespersons (só a chave de serviço).
-  if (ctx.kind === "user" && ["profiles", "profile_salespersons"].includes(table) && method !== "GET" && method !== "HEAD") {
+  // 013/014: o cliente não escreve em profiles (só a chave de serviço).
+  if (ctx.kind === "user" && ["profiles"].includes(table) && method !== "GET" && method !== "HEAD") {
     sendJson(res, 403, permissionDenied(table));
     return;
   }
@@ -342,7 +343,10 @@ export function createMockServer() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// pathToFileURL, e não `file://${argv[1]}`: no Windows o caminho vem como C:\... e a comparação
+// crua nunca casa — o processo subia, não escutava nada e saía, e o Playwright só dizia
+// "Process from config.webServer exited early".
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.MOCK_PORT ?? 3101);
   createMockServer().listen(port, () => {
     console.log(`[mock-server] escutando em http://127.0.0.1:${port} (sem banco de dados)`);

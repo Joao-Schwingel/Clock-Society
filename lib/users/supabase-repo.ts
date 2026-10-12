@@ -24,41 +24,71 @@ export function createSupabaseUsersRepo(): UsersRepo {
     async emailExists(email) {
       return (await allAuthUsers()).some((u) => u.email?.toLowerCase() === email.toLowerCase());
     },
-    async linkedSalespersonIds(ids) {
-      const { data, error } = await db.from("profile_salespersons").select("salesperson_id").in("salesperson_id", ids);
+    async salespersonHasLogin(id) {
+      const { data, error } = await db.from("salespersons").select("profile_id").eq("id", id).maybeSingle();
       fail(error);
-      return (data ?? []).map((r) => r.salesperson_id as string);
+      return Boolean(data?.profile_id);
     },
-    async salespersonIdsInTenant(ids, tenantId) {
-      const { data, error } = await db.from("salespersons").select("id").in("id", ids).eq("user_id", tenantId);
+    async salespersonInTenant(id, tenantId) {
+      const { data, error } = await db
+        .from("salespersons")
+        .select("id")
+        .eq("id", id)
+        .eq("user_id", tenantId)
+        .maybeSingle();
+      fail(error);
+      return Boolean(data);
+    },
+    async companiesInTenant(companyIds, tenantId) {
+      if (companyIds.length === 0) return [];
+      const { data, error } = await db.from("companies").select("id").in("id", companyIds).eq("user_id", tenantId);
       fail(error);
       return (data ?? []).map((r) => r.id as string);
     },
-    async companyInTenant(companyId, tenantId) {
-      const { data, error } = await db.from("companies").select("id").eq("id", companyId).eq("user_id", tenantId);
-      fail(error);
-      return (data ?? []).length > 0;
-    },
-    async createSalesperson({ name, companyId, tenantId }) {
+    async createSalesperson({ name, companyIds, tenantId }) {
       const { data, error } = await db
         .from("salespersons")
-        .insert({ name, company_id: companyId, user_id: tenantId, commission_percentage: 0, is_active: true })
+        .insert({ name, user_id: tenantId, is_active: true })
         .select("id")
         .single();
       fail(error);
-      return data!.id as string;
+      const id = data!.id as string;
+      if (companyIds.length > 0) {
+        // 022: os acessos por empresa vivem em salesperson_companies.
+        const { error: acessoError } = await db
+          .from("salesperson_companies")
+          .insert(companyIds.map((company_id) => ({ salesperson_id: id, company_id })));
+        fail(acessoError);
+      }
+      return id;
     },
     async createAuthUser({ email, password, appRole, tenantId, fullName }) {
       const { data, error } = await db.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
-        // lido pelo gatilho on_auth_user_created (013) para criar o perfil
+        // vai para as claims pelo hook (014) e alimenta o gatilho on_auth_user_created (013+021).
+        // O perfil, porém, é criado por ensureProfile(): o GoTrue aplica este app_metadata num
+        // UPDATE depois do INSERT, então não dá para contar com o gatilho aqui.
         app_metadata: { app_role: appRole, tenant_id: tenantId },
         user_metadata: { full_name: fullName },
       });
       fail(error);
       return data.user!.id;
+    },
+    async ensureProfile({ id, tenantId, role, fullName, mustChangePassword }) {
+      const { error } = await db.from("profiles").upsert(
+        {
+          id,
+          tenant_id: tenantId,
+          role,
+          full_name: fullName,
+          must_change_password: mustChangePassword,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+      fail(error);
     },
     async deleteAuthUser(id) {
       const { error } = await db.auth.admin.deleteUser(id);
@@ -68,11 +98,20 @@ export function createSupabaseUsersRepo(): UsersRepo {
       const { error } = await db.from("profiles").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
       fail(error);
     },
-    async linkSalespersons(profileId, salespersonIds) {
+    async linkSalesperson(profileId, salespersonId) {
       const { error } = await db
-        .from("profile_salespersons")
-        .insert(salespersonIds.map((salesperson_id) => ({ profile_id: profileId, salesperson_id })));
+        .from("salespersons")
+        .update({ profile_id: profileId })
+        .eq("id", salespersonId)
+        .is("profile_id", null); // corrida: não rouba a pessoa de outro login
       fail(error);
+      const { data, error: conferirError } = await db
+        .from("salespersons")
+        .select("profile_id")
+        .eq("id", salespersonId)
+        .maybeSingle();
+      fail(conferirError);
+      if (data?.profile_id !== profileId) throw new Error("vendedor já vinculado a outro login");
     },
     async setLoginBlocked(id, blocked) {
       const { error } = await db.auth.admin.updateUserById(id, { ban_duration: blocked ? BAN_FOREVER : "none" });
@@ -99,16 +138,34 @@ export function createSupabaseUsersRepo(): UsersRepo {
         .order("full_name");
       fail(error);
       const ids = (profiles ?? []).map((p) => p.id as string);
-      const { data: links, error: linksError } = ids.length
-        ? await db.from("profile_salespersons").select("profile_id, salesperson_id").in("profile_id", ids)
+
+      // 022: a pessoa aponta para o login (1:1), e os acessos vêm de salesperson_companies.
+      const { data: pessoas, error: pessoasError } = ids.length
+        ? await db.from("salespersons").select("id, name, profile_id").in("profile_id", ids)
         : { data: [], error: null };
-      fail(linksError);
-      const spIds = [...new Set((links ?? []).map((l) => l.salesperson_id as string))];
-      const { data: sps, error: spError } = spIds.length
-        ? await db.from("salespersons").select("id, name, company_id").in("id", spIds)
+      fail(pessoasError);
+
+      // Duas consultas em vez de embed: o mock server dos E2E não emula `!inner`/embeds.
+      const pessoaIds = (pessoas ?? []).map((sp) => sp.id as string);
+      const { data: acessos, error: acessosError } = pessoaIds.length
+        ? await db.from("salesperson_companies").select("salesperson_id, company_id").in("salesperson_id", pessoaIds)
         : { data: [], error: null };
-      fail(spError);
-      const spById = new Map((sps ?? []).map((sp) => [sp.id as string, sp as UserSummary["salespersons"][number]]));
+      fail(acessosError);
+      const porPessoa = new Map<string, string[]>();
+      for (const a of (acessos ?? []) as { salesperson_id: string; company_id: string }[]) {
+        porPessoa.set(a.salesperson_id, [...(porPessoa.get(a.salesperson_id) ?? []), a.company_id]);
+      }
+
+      const porLogin = new Map(
+        (pessoas ?? []).map((sp) => [
+          sp.profile_id as string,
+          {
+            id: sp.id as string,
+            name: sp.name as string,
+            company_ids: porPessoa.get(sp.id as string) ?? [],
+          },
+        ]),
+      );
       const emails = new Map((await allAuthUsers()).map((u) => [u.id, u.email ?? ""]));
       return (profiles ?? []).map(
         (p): UserSummary => ({
@@ -118,9 +175,7 @@ export function createSupabaseUsersRepo(): UsersRepo {
           role: p.role,
           is_active: p.is_active,
           must_change_password: p.must_change_password,
-          salespersons: (links ?? [])
-            .filter((l) => l.profile_id === p.id)
-            .flatMap((l) => (spById.has(l.salesperson_id) ? [spById.get(l.salesperson_id)!] : [])),
+          salesperson: porLogin.get(p.id) ?? null,
         }),
       );
     },

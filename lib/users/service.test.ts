@@ -10,13 +10,16 @@ const TENANT = "t1";
 function fakeRepo() {
   const state = {
     emails: new Set<string>(["ja@existe.com"]),
+    // 022: a pessoa é um cadastro só, com acesso a N empresas
     salespersons: [
-      { id: "sp-ana", tenantId: TENANT, companyId: "comp-a" },
-      { id: "sp-bruno", tenantId: TENANT, companyId: "comp-a" },
-      { id: "sp-outro", tenantId: "t2", companyId: "comp-x" },
+      { id: "sp-ana", tenantId: TENANT, companyIds: ["comp-a", "comp-b"], profileId: null as string | null },
+      { id: "sp-bruno", tenantId: TENANT, companyIds: ["comp-a"], profileId: "p-bruno" as string | null },
+      { id: "sp-outro", tenantId: "t2", companyIds: ["comp-x"], profileId: null as string | null },
     ],
-    companies: [{ id: "comp-a", tenantId: TENANT }],
-    links: [{ profileId: "p-bruno", salespersonId: "sp-bruno" }],
+    companies: [
+      { id: "comp-a", tenantId: TENANT },
+      { id: "comp-b", tenantId: TENANT },
+    ],
     profiles: new Map<string, { id: string; tenant_id: string; role: string; is_active: boolean; must_change_password: boolean; full_name: string | null }>([
       ["p-bruno", { id: "p-bruno", tenant_id: TENANT, role: "vendedor", is_active: true, must_change_password: false, full_name: "Bruno" }],
       ["p-outro", { id: "p-outro", tenant_id: "t2", role: "vendedor", is_active: true, must_change_password: false, full_name: "X" }],
@@ -28,23 +31,49 @@ function fakeRepo() {
   let seq = 0;
   const repo: UsersRepo = {
     async emailExists(email) { return state.emails.has(email.toLowerCase()); },
-    async linkedSalespersonIds(ids) { return state.links.filter((l) => ids.includes(l.salespersonId)).map((l) => l.salespersonId); },
-    async salespersonIdsInTenant(ids, tenantId) { return state.salespersons.filter((s) => ids.includes(s.id) && s.tenantId === tenantId).map((s) => s.id); },
-    async companyInTenant(companyId, tenantId) { return state.companies.some((c) => c.id === companyId && c.tenantId === tenantId); },
-    async createSalesperson({ name, companyId, tenantId }) { const id = `sp-new-${++seq}`; state.salespersons.push({ id, tenantId, companyId }); state.calls.push(`createSalesperson:${name}`); return id; },
-    async createAuthUser({ email, appRole, tenantId, fullName }) {
+    async salespersonHasLogin(id) { return Boolean(state.salespersons.find((s) => s.id === id)?.profileId); },
+    async salespersonInTenant(id, tenantId) { return state.salespersons.some((s) => s.id === id && s.tenantId === tenantId); },
+    async companiesInTenant(companyIds, tenantId) { return state.companies.filter((c) => companyIds.includes(c.id) && c.tenantId === tenantId).map((c) => c.id); },
+    async createSalesperson({ name, companyIds, tenantId }) {
+      const id = `sp-new-${++seq}`;
+      state.salespersons.push({ id, tenantId, companyIds, profileId: null });
+      state.calls.push(`createSalesperson:${name}`);
+      return id;
+    },
+    async createAuthUser({ email }) {
       const id = `p-new-${++seq}`;
       state.emails.add(email.toLowerCase());
-      // o gatilho on_auth_user_created cria o perfil a partir de app_metadata
-      state.profiles.set(id, { id, tenant_id: tenantId, role: appRole, is_active: true, must_change_password: false, full_name: fullName });
+      // Cria SÓ o login, como o GoTrue: o app_metadata é aplicado num UPDATE posterior, então o
+      // gatilho on_auth_user_created não tinha criado o perfil aqui. Quem cria é ensureProfile().
       state.calls.push("createAuthUser");
       return id;
     },
+    async ensureProfile({ id, tenantId, role, fullName, mustChangePassword }) {
+      state.profiles.set(id, {
+        id,
+        tenant_id: tenantId,
+        role,
+        is_active: true,
+        must_change_password: mustChangePassword,
+        full_name: fullName,
+      });
+      state.calls.push("ensureProfile");
+    },
     async deleteAuthUser(id) { state.profiles.delete(id); state.calls.push(`deleteAuthUser:${id}`); },
     async updateProfile(id, patch) { Object.assign(state.profiles.get(id)!, patch); },
-    async linkSalespersons(profileId, ids) {
-      if (ids.includes("sp-falha")) throw new Error("falha simulada");
-      for (const salespersonId of ids) state.links.push({ profileId, salespersonId });
+    async linkSalesperson(profileId, salespersonId) {
+      if (salespersonId === "sp-falha") throw new Error("falha simulada");
+      // espelha a FK de salespersons.profile_id: sem perfil, o update é recusado (23503). Era
+      // assim que o fluxo quebrava antes da 021 — o fake não reproduzia e os testes passavam
+      // com o produto quebrado.
+      if (!state.profiles.has(profileId)) {
+        throw new Error(`violates foreign key constraint: perfil ${profileId} não existe`);
+      }
+      const pessoa = state.salespersons.find((s) => s.id === salespersonId);
+      if (!pessoa) throw new Error("vendedor inexistente");
+      // espelha o índice único de profile_id: uma pessoa, um login
+      if (pessoa.profileId && pessoa.profileId !== profileId) throw new Error("vendedor já vinculado");
+      pessoa.profileId = profileId;
     },
     async setLoginBlocked(id, blocked) { if (blocked) state.blocked.add(id); else state.blocked.delete(id); },
     async setPassword(id, password) { state.passwords.set(id, password); },
@@ -59,7 +88,7 @@ const valid = {
   email: "ana@loja.com",
   password: "temporaria123",
   role: "vendedor",
-  salesperson_ids: ["sp-ana"],
+  salesperson_id: "sp-ana",
 };
 
 let f: ReturnType<typeof fakeRepo>;
@@ -73,19 +102,19 @@ describe("createUser", () => {
     expect(res.status).toBe(201);
     const id = (res.body as { id: string }).id;
     expect(f.state.profiles.get(id)).toMatchObject({ role: "vendedor", tenant_id: TENANT, must_change_password: true, full_name: "Ana Souza" });
-    expect(f.state.links).toContainEqual({ profileId: id, salespersonId: "sp-ana" });
+    expect(f.state.salespersons.find((sp) => sp.id === "sp-ana")?.profileId).toBe(id);
   });
 
   it("V-API-01 — cria também um registro novo em salespersons e vincula", async () => {
     const res = await createUser(f.repo, TENANT, {
       ...valid,
-      salesperson_ids: [],
-      new_salesperson: { name: "Carla", company_id: "comp-a" },
+      salesperson_id: undefined,
+      new_salesperson: { name: "Carla", company_ids: ["comp-a"] },
     });
     expect(res.status).toBe(201);
     const id = (res.body as { id: string }).id;
     expect(f.state.calls).toContain("createSalesperson:Carla");
-    expect(f.state.links.some((l) => l.profileId === id && l.salespersonId.startsWith("sp-new-"))).toBe(true);
+    expect(f.state.salespersons.find((sp) => sp.id.startsWith("sp-new-"))?.profileId).toBe(id);
   });
 
   it("V-API-03 — e-mail duplicado → 409, em PT-BR, sem criar nada", async () => {
@@ -107,27 +136,115 @@ describe("createUser", () => {
   });
 
   it("V-API-04 — registro de vendedor que já tem login → 409 antes de criar o usuário", async () => {
-    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_ids: ["sp-bruno"] });
+    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_id: "sp-bruno" });
     expect(res.status).toBe(409);
     expect(res.body).toEqual({ error: "Este vendedor já está vinculado a outro login." });
     expect(f.state.calls).not.toContain("createAuthUser");
   });
 
   it("registro de vendedor de outro inquilino → 422", async () => {
-    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_ids: ["sp-outro"] });
+    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_id: "sp-outro" });
     expect(res.status).toBe(422);
     expect(f.state.calls).not.toContain("createAuthUser");
   });
 
   it("vendedor sem nenhum vínculo é recusado (422)", async () => {
-    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_ids: [] });
+    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_id: undefined });
     expect(res.status).toBe(422);
-    expect((res.body as { fields: Record<string, string> }).fields.salesperson_ids).toBe("Vincule o vendedor a pelo menos um registro.");
+    expect((res.body as { fields: Record<string, string> }).fields.salesperson_id).toBe("Escolha um vendedor ou cadastre um novo.");
+  });
+
+  it("cria o perfil explicitamente, antes de vincular — não espera o gatilho", async () => {
+    // Regressão: o GoTrue aplica o app_metadata num UPDATE depois do INSERT, então o gatilho
+    // on_auth_user_created não tinha criado o perfil a tempo e o vínculo quebrava na FK (23503),
+    // derrubando a criação de qualquer usuário. docs/fase-6/vinculo-login-vendedor.md §3.
+    const res = await createUser(f.repo, TENANT, valid);
+    expect(res.status).toBe(201);
+    expect(f.state.calls.indexOf("ensureProfile")).toBeGreaterThan(f.state.calls.indexOf("createAuthUser"));
+    const perfil = f.state.profiles.get((res.body as { id: string }).id);
+    expect(perfil).toMatchObject({ tenant_id: TENANT, role: "vendedor", must_change_password: true });
+  });
+
+  // ── Uma pessoa, N empresas, UM login (022) ────────────────────────────────────────────────
+  // O cadastro é da PESSOA; as empresas em que ela atende são acessos. O login aponta para a
+  // pessoa, 1:1 — garantido no banco pelo índice único de salespersons.profile_id.
+
+  it("vincula uma pessoa que atende duas empresas: um login, um cadastro", async () => {
+    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_id: "sp-ana" });
+    expect(res.status).toBe(201);
+    const pessoa = f.state.salespersons.find((sp) => sp.id === "sp-ana");
+    expect(pessoa?.profileId).toBe((res.body as { id: string }).id);
+    expect(pessoa?.companyIds).toEqual(["comp-a", "comp-b"]);
+  });
+
+  it("pessoa de outro inquilino → 422, sem criar login", async () => {
+    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_id: "sp-outro" });
+    expect(res.status).toBe(422);
+    expect(f.state.calls).not.toContain("createAuthUser");
+    expect(f.state.salespersons.find((sp) => sp.id === "sp-outro")?.profileId).toBeNull();
+  });
+
+  it("pessoa que já tem login → 409, sem criar nada", async () => {
+    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_id: "sp-bruno" });
+    expect(res.status).toBe(409);
+    expect(f.state.calls).not.toContain("createAuthUser");
+  });
+
+  it("cadastra a pessoa nova já com acesso a várias empresas", async () => {
+    const res = await createUser(f.repo, TENANT, {
+      ...valid,
+      salesperson_id: undefined,
+      new_salesperson: { name: "Carla", company_ids: ["comp-a", "comp-b"] },
+    });
+    expect(res.status).toBe(201);
+    const nova = f.state.salespersons.find((sp) => sp.id.startsWith("sp-new-"));
+    expect(nova?.companyIds).toEqual(["comp-a", "comp-b"]);
+    expect(nova?.profileId).toBe((res.body as { id: string }).id);
+  });
+
+  it("empresas repetidas no cadastro novo viram um acesso só", async () => {
+    const res = await createUser(f.repo, TENANT, {
+      ...valid,
+      salesperson_id: undefined,
+      new_salesperson: { name: "Carla", company_ids: ["comp-a", "comp-a"] },
+    });
+    expect(res.status).toBe(201);
+    expect(f.state.salespersons.find((sp) => sp.id.startsWith("sp-new-"))?.companyIds).toEqual(["comp-a"]);
+  });
+
+  it("escolher uma pessoa E cadastrar outra ao mesmo tempo → 422", async () => {
+    const res = await createUser(f.repo, TENANT, {
+      ...valid,
+      salesperson_id: "sp-ana",
+      new_salesperson: { name: "Carla", company_ids: ["comp-a"] },
+    });
+    expect(res.status).toBe(422);
+    expect(f.state.calls).not.toContain("createAuthUser");
+  });
+
+  it("empresa de outro inquilino no cadastro novo → 422", async () => {
+    const res = await createUser(f.repo, TENANT, {
+      ...valid,
+      salesperson_id: undefined,
+      new_salesperson: { name: "Carla", company_ids: ["comp-a", "comp-x"] },
+    });
+    expect(res.status).toBe(422);
+    expect(res.body).toMatchObject({ fields: { new_salesperson: "Empresa inválida." } });
+    expect(f.state.calls).not.toContain("createAuthUser");
+  });
+
+  it("cadastro novo sem nenhuma empresa → 422", async () => {
+    const res = await createUser(f.repo, TENANT, {
+      ...valid,
+      salesperson_id: undefined,
+      new_salesperson: { name: "Carla", company_ids: [] },
+    });
+    expect(res.status).toBe(422);
   });
 
   it("falha depois de criar o login → desfaz o login (compensação) e devolve 500", async () => {
-    f.state.salespersons.push({ id: "sp-falha", tenantId: TENANT, companyId: "comp-a" });
-    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_ids: ["sp-falha"] });
+    f.state.salespersons.push({ id: "sp-falha", tenantId: TENANT, companyIds: ["comp-a"], profileId: null });
+    const res = await createUser(f.repo, TENANT, { ...valid, salesperson_id: "sp-falha" });
     expect(res.status).toBe(500);
     expect(f.state.calls.some((c) => c.startsWith("deleteAuthUser:"))).toBe(true);
   });
@@ -183,6 +300,15 @@ describe("updateUser", () => {
       expect(f.state.profiles.get(target)!.is_active).toBe(true);
       expect(f.state.blocked.has(target)).toBe(false);
     }
+  });
+
+  // LACUNA conhecida: o contrato de edição não mexe em vínculo. Com a 022 isso dói menos — as
+  // empresas da pessoa se editam em Configurações → Vendedores, sem passar por aqui —, mas trocar
+  // o login de uma pessoa ainda exige banco.
+  it("a edição de usuário não mexe no vínculo: o campo é ignorado e vira 422", async () => {
+    const res = await updateUser(f.repo, TENANT, "admin-id", "p-bruno", { salesperson_id: "sp-ana" });
+    expect(res.status).toBe(422);
+    expect(f.state.salespersons.find((sp) => sp.id === "sp-ana")?.profileId).toBeNull();
   });
 
   it("um admin ainda pode ter o nome editado e a senha resetada", async () => {

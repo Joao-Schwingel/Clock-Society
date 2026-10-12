@@ -14,7 +14,10 @@ import type { Company } from "@/lib/types"
 export interface SalespersonOption {
   id: string
   name: string
-  company_id: string
+  /** 022: a pessoa atende N empresas */
+  company_ids: string[]
+  /** 022: o vínculo é 1:1 — quem já tem login não pode ser escolhido de novo */
+  hasLogin: boolean
 }
 
 interface UserFormProps {
@@ -33,17 +36,18 @@ export function UserForm({ companies, salespersons, linkedIds, onClose, onCreate
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [role, setRole] = useState<"vendedor" | "admin">("vendedor")
-  const [selected, setSelected] = useState<string[]>([])
+  // 022: UMA pessoa por login
+  const [selected, setSelected] = useState<string>("")
   const [createNew, setCreateNew] = useState(false)
   const [newName, setNewName] = useState("")
-  const [newCompany, setNewCompany] = useState(companies[0]?.id ?? "")
+  const [newCompanies, setNewCompanies] = useState<string[]>([])
   const [withoutSales, setWithoutSales] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   const companyName = (companyId: string) => companies.find((c) => c.id === companyId)?.name ?? ""
-  const available = salespersons.filter((sp) => !linkedIds.has(sp.id))
+  const available = salespersons.filter((sp) => !linkedIds.has(sp.id) && !sp.hasLogin)
 
   // Aviso ao vincular registro sem vendas (V-UI-09): o vendedor entraria e veria a área vazia.
   useEffect(() => {
@@ -51,12 +55,12 @@ export function UserForm({ companies, salespersons, linkedIds, onClose, onCreate
     const check = async () => {
       const supabase = createClient()
       const empty: string[] = []
-      for (const spId of selected) {
+      if (selected) {
         const { count } = await supabase
           .from("sale_salespersons")
           .select("id", { count: "exact", head: true })
-          .eq("salesperson_id", spId)
-        if ((count ?? 0) === 0) empty.push(spId)
+          .eq("salesperson_id", selected)
+        if ((count ?? 0) === 0) empty.push(selected)
       }
       if (!cancelled) setWithoutSales(empty)
     }
@@ -66,8 +70,10 @@ export function UserForm({ companies, salespersons, linkedIds, onClose, onCreate
     }
   }, [selected])
 
-  const toggle = (spId: string) =>
-    setSelected((prev) => (prev.includes(spId) ? prev.filter((x) => x !== spId) : [...prev, spId]))
+  const escolher = (spId: string) => {
+    setSelected((prev) => (prev === spId ? "" : spId))
+    setCreateNew(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,8 +89,9 @@ export function UserForm({ companies, salespersons, linkedIds, onClose, onCreate
           email,
           password,
           role,
-          salesperson_ids: role === "vendedor" ? selected : [],
-          new_salesperson: role === "vendedor" && createNew ? { name: newName, company_id: newCompany } : undefined,
+          salesperson_id: role === "vendedor" && !createNew && selected ? selected : undefined,
+          new_salesperson:
+            role === "vendedor" && createNew ? { name: newName, company_ids: newCompanies } : undefined,
         }),
       })
       const body = await res.json()
@@ -147,31 +154,43 @@ export function UserForm({ companies, salespersons, linkedIds, onClose, onCreate
               )}
               {available.map((sp) => (
                 <label key={sp.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={selected.includes(sp.id)} onCheckedChange={() => toggle(sp.id)} />
-                  {sp.name} ({companyName(sp.company_id)})
+                  <Checkbox checked={selected === sp.id} onCheckedChange={() => escolher(sp.id)} />
+                  {sp.name}
+                  {sp.company_ids.length > 0 &&
+                    ` (${sp.company_ids.map(companyName).filter(Boolean).join(", ")})`}
                 </label>
               ))}
               <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={createNew} onCheckedChange={(v) => setCreateNew(v === true)} />
+                <Checkbox
+                  checked={createNew}
+                  onCheckedChange={(v) => {
+                    setCreateNew(v === true)
+                    if (v === true) setSelected("")
+                  }}
+                />
                 Criar um novo registro de vendedor
               </label>
               {createNew && (
                 <div className="grid gap-2 pl-6">
                   <Label htmlFor={`${id}-new-name`}>Nome do novo vendedor *</Label>
                   <Input id={`${id}-new-name`} value={newName} onChange={(e) => setNewName(e.target.value)} />
-                  <Label htmlFor={`${id}-new-company`}>Empresa *</Label>
-                  <Select value={newCompany} onValueChange={setNewCompany}>
-                    <SelectTrigger id={`${id}-new-company`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <span className="text-sm font-medium">Empresas em que atende *</span>
+                  <p className="text-sm text-muted-foreground">
+                    Marque todas. É um cadastro só, com acesso a várias empresas.
+                  </p>
+                  {companies.map((c) => (
+                    <label key={c.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={newCompanies.includes(c.id)}
+                        onCheckedChange={() =>
+                          setNewCompanies((prev) =>
+                            prev.includes(c.id) ? prev.filter((x) => x !== c.id) : [...prev, c.id],
+                          )
+                        }
+                      />
+                      {c.name}
+                    </label>
+                  ))}
                   {errors.new_salesperson && <p className="text-sm text-destructive">{errors.new_salesperson}</p>}
                 </div>
               )}
@@ -183,7 +202,7 @@ export function UserForm({ companies, salespersons, linkedIds, onClose, onCreate
                   ainda não tem vendas registradas: o vendedor vai entrar e ver a área vazia.
                 </p>
               )}
-              {errors.salesperson_ids && <p className="text-sm text-destructive">{errors.salesperson_ids}</p>}
+              {errors.salesperson_id && <p className="text-sm text-destructive">{errors.salesperson_id}</p>}
             </fieldset>
           )}
 

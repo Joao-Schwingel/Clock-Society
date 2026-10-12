@@ -20,18 +20,24 @@ export interface UserSummary {
   role: string;
   is_active: boolean;
   must_change_password: boolean;
-  salespersons: { id: string; name: string; company_id: string }[];
+  /** 1:1 (022): a pessoa deste login, com as empresas em que ela atende. */
+  salesperson: { id: string; name: string; company_ids: string[] } | null;
 }
 
 export interface UsersRepo {
   emailExists(email: string): Promise<boolean>;
-  /** Dos ids informados, os que já estão vinculados a algum login. */
-  linkedSalespersonIds(ids: string[]): Promise<string[]>;
-  /** Dos ids informados, os que pertencem ao inquilino. */
-  salespersonIdsInTenant(ids: string[], tenantId: string): Promise<string[]>;
-  companyInTenant(companyId: string, tenantId: string): Promise<boolean>;
-  createSalesperson(input: { name: string; companyId: string; tenantId: string }): Promise<string>;
-  /** Cria o login; o gatilho on_auth_user_created (013) cria o perfil a partir de app_metadata. */
+  /** A pessoa já tem login? (022: o vínculo é 1:1) */
+  salespersonHasLogin(id: string): Promise<boolean>;
+  /** O id é de uma pessoa deste inquilino? */
+  salespersonInTenant(id: string, tenantId: string): Promise<boolean>;
+  /** Dos ids informados, os que são empresas do inquilino. */
+  companiesInTenant(companyIds: string[], tenantId: string): Promise<string[]>;
+  /** Cria a pessoa e os acessos às empresas (022). */
+  createSalesperson(input: { name: string; companyIds: string[]; tenantId: string }): Promise<string>;
+  /**
+   * Cria o login no Auth. **Não** cria o perfil: o `admin.createUser` do GoTrue insere o usuário e
+   * só depois aplica o `app_metadata`, num UPDATE (ver docs/fase-6/vinculo-login-vendedor.md §3).
+   */
   createAuthUser(input: {
     email: string;
     password: string;
@@ -39,9 +45,22 @@ export interface UsersRepo {
     tenantId: string;
     fullName: string;
   }): Promise<string>;
+  /**
+   * Garante o perfil do login recém-criado. O gatilho on_auth_user_created (013 + 021) faz o mesmo,
+   * mas a criação não depende dele: foi essa dependência implícita que impediu qualquer usuário de
+   * ser criado até a 021. Idempotente.
+   */
+  ensureProfile(input: {
+    id: string;
+    tenantId: string;
+    role: AppRole;
+    fullName: string;
+    mustChangePassword: boolean;
+  }): Promise<void>;
   deleteAuthUser(id: string): Promise<void>;
   updateProfile(id: string, patch: Partial<Pick<ProfileRow, "full_name" | "is_active" | "must_change_password">>): Promise<void>;
-  linkSalespersons(profileId: string, salespersonIds: string[]): Promise<void>;
+  /** Liga a pessoa ao login (salespersons.profile_id). */
+  linkSalesperson(profileId: string, salespersonId: string): Promise<void>;
   /** Bloqueia ou libera o login no Auth (ban_duration), decisão 3.7. */
   setLoginBlocked(id: string, blocked: boolean): Promise<void>;
   setPassword(id: string, password: string): Promise<void>;

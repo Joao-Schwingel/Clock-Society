@@ -10,20 +10,32 @@ export const createUserSchema = z
       .string({ required_error: "Informe a senha temporária." })
       .min(8, "A senha temporária precisa ter pelo menos 8 caracteres."),
     role: z.enum(["admin", "vendedor"], { errorMap: () => ({ message: "Papel inválido." }) }),
-    salesperson_ids: z.array(z.string().min(1)).default([]),
+    // 1:1 (022): o login é de UMA pessoa, que por sua vez atende N empresas.
+    salesperson_id: z.string().min(1).optional(),
     new_salesperson: z
       .object({
         name: z.string().trim().min(1, "Informe o nome do vendedor."),
-        company_id: z.string().min(1, "Informe a empresa."),
+        company_ids: z
+          .array(z.string().min(1))
+          .min(1, "Escolha pelo menos uma empresa.")
+          .default([]),
       })
       .optional(),
   })
   .superRefine((v, ctx) => {
-    if (v.role === "vendedor" && v.salesperson_ids.length === 0 && !v.new_salesperson) {
+    if (v.role !== "vendedor") return;
+    if (!v.salesperson_id && !v.new_salesperson) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["salesperson_ids"],
-        message: "Vincule o vendedor a pelo menos um registro.",
+        path: ["salesperson_id"],
+        message: "Escolha um vendedor ou cadastre um novo.",
+      });
+    }
+    if (v.salesperson_id && v.new_salesperson) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["salesperson_id"],
+        message: "Escolha um vendedor existente ou cadastre um novo, não os dois.",
       });
     }
   });

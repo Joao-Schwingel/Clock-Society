@@ -27,7 +27,7 @@
     "id": "u-vendedor-sem-vinculo",
     "email": "vendedor-sem-vinculo@t1.test",
     "password": "senha123",
-    "note": "Fase 2 §4: perfil vendedor de T1 sem nenhuma linha em profile_salespersons — nega por padrão (A-DB-08, A-MW-04); continua valendo depois da Fase 6."
+    "note": "Fase 2 §4: perfil vendedor de T1 que nenhuma pessoa de salespersons aponta (022) — nega por padrão (A-DB-08, A-MW-04); continua valendo depois da Fase 6."
   },
   {
     "id": "u-vend-a",

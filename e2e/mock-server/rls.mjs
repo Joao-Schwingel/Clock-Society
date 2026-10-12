@@ -45,12 +45,17 @@ function saleVisible(tables, ctx, saleId) {
 // my_salesperson_ids() / my_company_ids() da 020.
 export function vendorScope(tables, ctx) {
   const me = tables.profiles.find((p) => p.id === ctx.userId);
+  // 022: o login é uma coluna da pessoa (1:1) e as empresas vêm dos acessos.
   const mine = new Set(
     me?.is_active && me.role === "vendedor"
-      ? tables.profile_salespersons.filter((l) => l.profile_id === ctx.userId).map((l) => l.salesperson_id)
+      ? tables.salespersons.filter((sp) => sp.profile_id === ctx.userId && sp.is_active).map((sp) => sp.id)
       : [],
   );
-  const companies = new Set(tables.salespersons.filter((sp) => mine.has(sp.id)).map((sp) => sp.company_id));
+  const companies = new Set(
+    tables.salesperson_companies
+      .filter((sc) => mine.has(sc.salesperson_id) && sc.is_active !== false)
+      .map((sc) => sc.company_id),
+  );
   const canSeeSale = (saleId) => tables.sale_salespersons.some((ss) => ss.sale_id === saleId && mine.has(ss.salesperson_id));
   return { mine, companies, canSeeSale };
 }
@@ -86,10 +91,11 @@ export function rowAllowed(tables, ctx, table, row) {
   if (ctx.kind !== "user" || !ctx.tenantId) return false;
   // profiles (013): o próprio perfil; o admin lê os do inquilino.
   if (table === "profiles") return row.id === ctx.userId || (ctx.isAdmin && row.tenant_id === ctx.tenantId);
-  // profile_salespersons (014): os próprios vínculos; o admin lê os do inquilino.
-  if (table === "profile_salespersons") {
-    const profile = tables.profiles.find((p) => p.id === row.profile_id);
-    return row.profile_id === ctx.userId || (ctx.isAdmin && profile?.tenant_id === ctx.tenantId);
+  // salesperson_companies (022): herda o inquilino de salespersons; o vendedor lê os próprios.
+  if (table === "salesperson_companies") {
+    const pessoa = tables.salespersons.find((sp) => sp.id === row.salesperson_id);
+    if (ctx.isAdmin) return pessoa?.user_id === ctx.tenantId;
+    return ctx.isVendor && pessoa?.profile_id === ctx.userId;
   }
   if (ctx.isVendor) return vendorRowAllowed(tables, ctx, table, row);
   if (!ctx.isAdmin) return false;

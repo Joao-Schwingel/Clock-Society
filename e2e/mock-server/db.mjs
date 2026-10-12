@@ -21,7 +21,7 @@ const TABLE_FILES = {
   // Fase 6: perfis e vínculos como tabelas — escritas (ex.: limpar must_change_password) aparecem
   // nas claims do próximo token, como no hook real.
   profiles: "profiles.json",
-  profile_salespersons: "profile_salespersons.json",
+  salesperson_companies: "salesperson_companies.json",
 };
 
 function loadJson(filename) {

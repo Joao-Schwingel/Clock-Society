@@ -146,10 +146,25 @@ export function SalesForm({
 
   const loadSalespersons = async () => {
     const supabase = createClient();
+    // 022: quem atende a empresa vem dos acessos (salesperson_companies), não de company_id
+    const { data: acessos, error: acessosError } = await supabase
+      .from("salesperson_companies")
+      .select("salesperson_id")
+      .eq("company_id", companyId)
+      .eq("is_active", true);
+
+    if (acessosError) return;
+
+    const ids = (acessos ?? []).map((a) => a.salesperson_id as string);
+    if (ids.length === 0) {
+      setSalespersons([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("salespersons")
       .select("*")
-      .eq("company_id", companyId)
+      .in("id", ids)
       .eq("is_active", true)
       .order("name");
 
