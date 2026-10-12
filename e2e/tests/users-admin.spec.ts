@@ -84,8 +84,9 @@ test("V-UI-09 — admin cria vendedor com um registro novo; o vendedor entra e �
   await dialog.getByLabel("Senha temporária *").fill("temporaria123");
   await dialog.getByText("Criar um novo registro de vendedor").click();
   await dialog.getByLabel("Nome do novo vendedor *").fill("Fulano E2E");
-  // 022: a pessoa nasce com os acessos marcados — nenhum por padrão
-  await dialog.getByRole("checkbox", { name: "Clock Society" }).click();
+  // 022: a pessoa nasce com os acessos marcados — nenhum por padrão.
+  // exact: o nome "Clock Society" também aparece dentro de "Site (Clock Society, The Secret…)".
+  await dialog.getByRole("checkbox", { name: "Clock Society", exact: true }).click();
   await dialog.getByRole("button", { name: "Criar usuário" }).click();
 
   const row = page.getByRole("row").filter({ hasText: "novo.e2e@t1.test" });
@@ -177,10 +178,22 @@ test("a API recusa desativar um admin, mesmo chamada direto", async ({ page }) =
 });
 
 test("V-UI-09 — vincular um registro sem vendas mostra aviso", async ({ page }) => {
-  await goToUsuarios(page);
+  // Depois da 022 nenhuma pessoa do fixture serve: a única sem login é a "Site", que herdou as
+  // vendas dos cadastros fundidos de B e C. Então o teste percorre o caminho real — cadastrar a
+  // pessoa em Configurações e só depois dar um login a ela.
+  await login(page);
+  await page.getByRole("button", { name: "Configurações" }).click();
+  await page.getByRole("tab", { name: "Adicionar Vendedor" }).click();
+  await page.getByLabel("Nome do Vendedor *").fill("Sem Vendas E2E");
+  await page.getByRole("checkbox", { name: "Clock Society", exact: true }).click();
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: "Sem Vendas E2E" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("tab", { name: "Usuários" }).click();
   await page.getByRole("button", { name: "Novo usuário" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByText(/^Site \(/).click();
+  await dialog.getByText(/^Sem Vendas E2E/).click();
   await expect(dialog.getByRole("status")).toContainText("ainda não tem vendas registradas");
 });
 

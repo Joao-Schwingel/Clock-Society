@@ -153,7 +153,15 @@ async function handleRest(req, res, url, table, method) {
       sendJson(res, 403, permissionDenied(table));
       return;
     }
-    tables[table].push(...rowsToInsert);
+    // upsert do PostgREST: Prefer: resolution=merge-duplicates. Sem isto o mock gravava uma
+    // SEGUNDA linha com o mesmo id, e a tela passava a mostrar o usuário duplicado — foi assim
+    // que o E2E pegou a diferença entre o mock e o PostgREST de verdade.
+    const upsert = (req.headers["prefer"] ?? "").includes("resolution=merge-duplicates");
+    for (const row of rowsToInsert) {
+      const existente = upsert ? tables[table].findIndex((r) => r.id === row.id) : -1;
+      if (existente >= 0) tables[table][existente] = { ...tables[table][existente], ...row };
+      else tables[table].push(row);
+    }
     const body2 = wantsRepresentation(req)
       ? unwrapIfSingle(req, selectColumns(rowsToInsert, url.searchParams))
       : undefined;
