@@ -1,4 +1,8 @@
-# Clone local de produção
+# Clone local de produção — referência dos scripts
+
+> **O passo a passo está em [`docs/ambientes.md`](../../docs/ambientes.md)**: clonar produção,
+> publicar em homologação, apontar o preview da Vercel e a lista de problemas conhecidos.
+> Este arquivo documenta os scripts em si.
 
 > **Rodado à mão, por um humano. Nunca por um agente de IA, nunca em CI** (Fase 1 §1: nenhum
 > teste e nenhum comando de agente conecta em banco real).
