@@ -107,9 +107,15 @@ export async function updateUser(
   if (data.is_active === false && profile.role === "admin") {
     return invalid({ is_active: "Usuários administradores não podem ser desativados." });
   }
+  // Antes de qualquer escrita, como na criação (V-API-04): o e-mail é o login, e dois logins com o
+  // mesmo e-mail é o Auth que recusa — aqui a resposta é em PT-BR e nada chegou a ser alterado.
+  if (data.email !== undefined && (await repo.emailExists(data.email, userId))) {
+    return { status: 409, body: { error: "Já existe um usuário com este e-mail." } };
+  }
 
   try {
     if (data.full_name !== undefined) await repo.updateProfile(userId, { full_name: data.full_name });
+    if (data.email !== undefined) await repo.setEmail(userId, data.email);
     if (data.is_active !== undefined) {
       await repo.updateProfile(userId, { is_active: data.is_active });
       await repo.setLoginBlocked(userId, !data.is_active);

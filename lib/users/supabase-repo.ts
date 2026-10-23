@@ -21,8 +21,10 @@ export function createSupabaseUsersRepo(): UsersRepo {
   };
 
   return {
-    async emailExists(email) {
-      return (await allAuthUsers()).some((u) => u.email?.toLowerCase() === email.toLowerCase());
+    async emailExists(email, exceptUserId) {
+      return (await allAuthUsers()).some(
+        (u) => u.email?.toLowerCase() === email.toLowerCase() && u.id !== exceptUserId,
+      );
     },
     async salespersonHasLogin(id) {
       const { data, error } = await db.from("salespersons").select("profile_id").eq("id", id).maybeSingle();
@@ -119,6 +121,14 @@ export function createSupabaseUsersRepo(): UsersRepo {
     },
     async setPassword(id, password) {
       const { error } = await db.auth.admin.updateUserById(id, { password });
+      fail(error);
+    },
+    async setEmail(id, email) {
+      // `email_confirm` é obrigatório aqui: sem ele o GoTrue guarda o endereço em `email_change` e
+      // espera uma confirmação por e-mail que este produto não envia — o login continuaria o antigo.
+      // A sessão aberta segue com o e-mail velho nas claims até renovar; nada depende disso
+      // (o middleware lê app_role/tenant_id), e no próximo login já é o novo.
+      const { error } = await db.auth.admin.updateUserById(id, { email, email_confirm: true });
       fail(error);
     },
     async getProfile(id) {

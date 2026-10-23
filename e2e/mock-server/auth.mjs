@@ -190,6 +190,18 @@ export function adminUpdateUser(users, id, body) {
   if (!user) return { status: 404, body: { msg: "User not found" } };
   if (typeof body.password === "string") user.password = body.password;
   if (typeof body.ban_duration === "string") user.banned = body.ban_duration !== "none";
+  if (typeof body.email === "string") {
+    const email = body.email.toLowerCase();
+    // O Auth é quem garante a unicidade no fim da linha; o serviço checa antes para responder em
+    // PT-BR, mas o emulador precisa recusar igual, senão o teste passaria com dois logins iguais.
+    if (users.some((u) => u.id !== id && u.email.toLowerCase() === email)) {
+      return {
+        status: 422,
+        body: { code: "email_exists", error_code: "email_exists", msg: "A user with this email address has already been registered" },
+      };
+    }
+    user.email = email;
+  }
   return { status: 200, body: toGoTrueUser(user) };
 }
 

@@ -67,8 +67,10 @@ intencional desde a Fase 5 — o fixture previa `vend-ab@t1` → "Carla (A) + Ca
 2. opcionalmente, **um** registro novo: nome + **uma** empresa;
 3. aviso quando o registro escolhido não tem vendas.
 
-Depois de criado, a edição (`PATCH /api/users/[id]`) só aceita `full_name`, `is_active` e
-`reset_password` (`lib/users/schemas.ts:31`). **Vínculo não entra.**
+Depois de criado, a edição (`PATCH /api/users/[id]`) aceita `full_name`, `email`, `is_active` e
+`reset_password` (`lib/users/schemas.ts`). **Vínculo não entra.** O `email` é o próprio login: a
+troca vai direto ao Auth (`setEmail`, com `email_confirm`) e a unicidade é conferida antes de
+qualquer escrita, ignorando o próprio usuário.
 
 ---
 

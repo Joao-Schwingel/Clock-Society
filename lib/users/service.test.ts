@@ -9,7 +9,11 @@ const TENANT = "t1";
 
 function fakeRepo() {
   const state = {
-    emails: new Set<string>(["ja@existe.com"]),
+    // e-mail → id do dono: a edição precisa saber se o e-mail é de OUTRO login ou do próprio
+    emails: new Map<string, string>([
+      ["ja@existe.com", "p-ja"],
+      ["bruno@loja.com", "p-bruno"],
+    ]),
     // 022: a pessoa é um cadastro só, com acesso a N empresas
     salespersons: [
       { id: "sp-ana", tenantId: TENANT, companyIds: ["comp-a", "comp-b"], profileId: null as string | null },
@@ -30,7 +34,10 @@ function fakeRepo() {
   };
   let seq = 0;
   const repo: UsersRepo = {
-    async emailExists(email) { return state.emails.has(email.toLowerCase()); },
+    async emailExists(email, exceptUserId) {
+      const dono = state.emails.get(email.toLowerCase());
+      return dono !== undefined && dono !== exceptUserId;
+    },
     async salespersonHasLogin(id) { return Boolean(state.salespersons.find((s) => s.id === id)?.profileId); },
     async salespersonInTenant(id, tenantId) { return state.salespersons.some((s) => s.id === id && s.tenantId === tenantId); },
     async companiesInTenant(companyIds, tenantId) { return state.companies.filter((c) => companyIds.includes(c.id) && c.tenantId === tenantId).map((c) => c.id); },
@@ -42,7 +49,7 @@ function fakeRepo() {
     },
     async createAuthUser({ email }) {
       const id = `p-new-${++seq}`;
-      state.emails.add(email.toLowerCase());
+      state.emails.set(email.toLowerCase(), id);
       // Cria SÓ o login, como o GoTrue: o app_metadata é aplicado num UPDATE posterior, então o
       // gatilho on_auth_user_created não tinha criado o perfil aqui. Quem cria é ensureProfile().
       state.calls.push("createAuthUser");
@@ -77,6 +84,11 @@ function fakeRepo() {
     },
     async setLoginBlocked(id, blocked) { if (blocked) state.blocked.add(id); else state.blocked.delete(id); },
     async setPassword(id, password) { state.passwords.set(id, password); },
+    async setEmail(id, email) {
+      // o e-mail antigo fica livre, como no Auth
+      for (const [atual, dono] of state.emails) if (dono === id) state.emails.delete(atual);
+      state.emails.set(email.toLowerCase(), id);
+    },
     async getProfile(id) { return state.profiles.get(id) ?? null; },
     async listUsers() { return []; },
   };
@@ -273,6 +285,40 @@ describe("updateUser", () => {
     expect(f.state.profiles.get("p-bruno")!.must_change_password).toBe(true);
   });
 
+  it("V-API-05 — trocar o e-mail grava o novo no Auth e libera o antigo", async () => {
+    const res = await updateUser(f.repo, TENANT, "admin-id", "p-bruno", { email: "bruno.novo@loja.com" });
+    expect(res.status).toBe(200);
+    expect(f.state.emails.get("bruno.novo@loja.com")).toBe("p-bruno");
+    expect(f.state.emails.has("bruno@loja.com")).toBe(false);
+  });
+
+  it("V-API-05 — e-mail já usado por outro login → 409 e o e-mail atual não muda", async () => {
+    const res = await updateUser(f.repo, TENANT, "admin-id", "p-bruno", { email: "JA@existe.com" });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "Já existe um usuário com este e-mail." });
+    expect(f.state.emails.get("bruno@loja.com")).toBe("p-bruno");
+    expect(f.state.emails.get("ja@existe.com")).toBe("p-ja");
+  });
+
+  it("salvar o próprio e-mail não é conflito, mesmo com espaços e maiúsculas", async () => {
+    const res = await updateUser(f.repo, TENANT, "admin-id", "p-bruno", { email: "  BRUNO@Loja.com " });
+    expect(res.status).toBe(200);
+    expect(f.state.emails.get("bruno@loja.com")).toBe("p-bruno");
+  });
+
+  it("e-mail inválido → 422 com a mensagem em PT-BR, sem tocar no Auth", async () => {
+    const res = await updateUser(f.repo, TENANT, "admin-id", "p-bruno", { email: "nao-e-email" });
+    expect(res.status).toBe(422);
+    expect((res.body as { fields: Record<string, string> }).fields.email).toBe("E-mail inválido.");
+    expect(f.state.emails.get("bruno@loja.com")).toBe("p-bruno");
+  });
+
+  it("trocar o e-mail não mexe na senha nem obriga a trocá-la", async () => {
+    await updateUser(f.repo, TENANT, "admin-id", "p-bruno", { email: "bruno.novo@loja.com" });
+    expect(f.state.passwords.has("p-bruno")).toBe(false);
+    expect(f.state.profiles.get("p-bruno")!.must_change_password).toBe(false);
+  });
+
   it("usuário de outro inquilino → 404", async () => {
     const res = await updateUser(f.repo, TENANT, "admin-id", "p-outro", { is_active: false });
     expect(res.status).toBe(404);
@@ -311,9 +357,11 @@ describe("updateUser", () => {
     expect(f.state.salespersons.find((sp) => sp.id === "sp-ana")?.profileId).toBeNull();
   });
 
-  it("um admin ainda pode ter o nome editado e a senha resetada", async () => {
+  it("um admin ainda pode ter o nome, o e-mail e a senha editados", async () => {
     f.state.profiles.set("admin-2", { id: "admin-2", tenant_id: TENANT, role: "admin", is_active: true, must_change_password: false, full_name: "Admin 2" });
     expect((await updateUser(f.repo, TENANT, "admin-id", "admin-2", { full_name: "Novo nome" })).status).toBe(200);
+    expect((await updateUser(f.repo, TENANT, "admin-id", "admin-2", { email: "admin2@loja.com" })).status).toBe(200);
     expect((await updateUser(f.repo, TENANT, "admin-id", "admin-2", { reset_password: "novaSenha123" })).status).toBe(200);
+    expect(f.state.emails.get("admin2@loja.com")).toBe("admin-2");
   });
 });

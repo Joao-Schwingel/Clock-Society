@@ -43,6 +43,9 @@ export const createUserSchema = z
 export const updateUserSchema = z
   .object({
     full_name: z.string().trim().min(1, "Informe o nome.").optional(),
+    // O e-mail é o login: trocá-lo troca por onde a pessoa entra. Mesma normalização da criação
+    // (trim + minúsculas), senão "Ana@Loja.com " passaria a conviver com "ana@loja.com".
+    email: z.string().trim().toLowerCase().email("E-mail inválido.").optional(),
     is_active: z.boolean().optional(),
     reset_password: z.string().min(8, "A senha temporária precisa ter pelo menos 8 caracteres.").optional(),
   })

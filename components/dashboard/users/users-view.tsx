@@ -28,6 +28,7 @@ export function UsersView({ companies }: { companies: Company[] }) {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<UserSummary | null>(null)
   const [editName, setEditName] = useState("")
+  const [editEmail, setEditEmail] = useState("")
   const [resetting, setResetting] = useState<UserSummary | null>(null)
   const [resetPassword, setResetPassword] = useState("")
   const [dialogError, setDialogError] = useState<string | null>(null)
@@ -93,9 +94,14 @@ export function UsersView({ companies }: { companies: Company[] }) {
     }
   }
 
-  const saveName = async () => {
+  const saveEdit = async () => {
     if (!editing) return
-    const error = await patch(editing.id, { full_name: editName })
+    // O e-mail só vai no corpo se mudou: trocá-lo é uma escrita no Auth, não um salvamento à toa.
+    const emailChanged = editEmail.trim().toLowerCase() !== editing.email.toLowerCase()
+    const error = await patch(editing.id, {
+      full_name: editName,
+      ...(emailChanged ? { email: editEmail } : {}),
+    })
     if (error) return setDialogError(error)
     setEditing(null)
     toast.success("Usuário atualizado", { position: "top-center" })
@@ -170,6 +176,7 @@ export function UsersView({ companies }: { companies: Company[] }) {
                       onClick={() => {
                         setEditing(user)
                         setEditName(user.full_name ?? "")
+                        setEditEmail(user.email)
                         setDialogError(null)
                       }}
                     >
@@ -220,16 +227,30 @@ export function UsersView({ companies }: { companies: Company[] }) {
             <DialogHeader>
               <DialogTitle>Editar usuário</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-2">
-              <Label htmlFor={`${id}-edit-name`}>Nome *</Label>
-              <Input id={`${id}-edit-name`} value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor={`${id}-edit-name`}>Nome *</Label>
+                <Input id={`${id}-edit-name`} value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor={`${id}-edit-email`}>E-mail *</Label>
+                <Input
+                  id={`${id}-edit-email`}
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  É por ele que o usuário entra. A senha não muda.
+                </p>
+              </div>
               {dialogError && <p className="text-sm text-destructive">{dialogError}</p>}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditing(null)}>
                 Cancelar
               </Button>
-              <Button onClick={() => void saveName()}>Salvar</Button>
+              <Button onClick={() => void saveEdit()}>Salvar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -25,7 +25,11 @@ export interface UserSummary {
 }
 
 export interface UsersRepo {
-  emailExists(email: string): Promise<boolean>;
+  /**
+   * Alguém já usa este e-mail? `exceptUserId` é o próprio usuário na edição: salvar o diálogo sem
+   * mexer no e-mail não pode dar conflito consigo mesmo.
+   */
+  emailExists(email: string, exceptUserId?: string): Promise<boolean>;
   /** A pessoa já tem login? (022: o vínculo é 1:1) */
   salespersonHasLogin(id: string): Promise<boolean>;
   /** O id é de uma pessoa deste inquilino? */
@@ -64,6 +68,11 @@ export interface UsersRepo {
   /** Bloqueia ou libera o login no Auth (ban_duration), decisão 3.7. */
   setLoginBlocked(id: string, blocked: boolean): Promise<void>;
   setPassword(id: string, password: string): Promise<void>;
+  /**
+   * Troca o e-mail de login no Auth — o e-mail só existe lá (`profiles` não tem a coluna), então
+   * não há dois lugares para divergir.
+   */
+  setEmail(id: string, email: string): Promise<void>;
   getProfile(id: string): Promise<ProfileRow | null>;
   listUsers(tenantId: string): Promise<UserSummary[]>;
 }

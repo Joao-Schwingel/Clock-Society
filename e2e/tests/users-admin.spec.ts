@@ -158,6 +158,53 @@ test("V-UI-09 — editar o nome, resetar a senha e desativar; o desativado não 
   await expect(row()).toContainText("Ativo");
 });
 
+test("V-UI-09 — editar o e-mail no mesmo diálogo do nome; o login passa a ser pelo novo", async ({
+  page,
+  browser,
+}) => {
+  await goToUsuarios(page);
+  // Mesmo motivo do teste acima: os ids dos fixtures não são UUID, e a Admin API do Auth exige UUID.
+  const created = await page.request.post("/api/users", {
+    data: {
+      full_name: "Troca de E-mail",
+      email: "antigo.e2e@t1.test",
+      password: "senhaInicial1",
+      role: "vendedor",
+      new_salesperson: { name: "E-mail E2E", company_ids: ["comp-a"] },
+    },
+  });
+  expect(created.status()).toBe(201);
+  await page.reload();
+  const antiga = page.getByRole("row").filter({ hasText: "antigo.e2e@t1.test" });
+  await expect(antiga).toBeVisible();
+
+  // e-mail de outro login → erro no diálogo e nada muda
+  await antiga.getByRole("button", { name: "Editar" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("E-mail *")).toHaveValue("antigo.e2e@t1.test");
+  await dialog.getByLabel("E-mail *").fill("vend-a@t1.test");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(dialog.getByText("Já existe um usuário com este e-mail.")).toBeVisible();
+
+  // nome e e-mail saem no mesmo salvamento
+  await dialog.getByLabel("Nome *").fill("Nome e E-mail");
+  await dialog.getByLabel("E-mail *").fill("novo.e2e2@t1.test");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  const nova = page.getByRole("row").filter({ hasText: "novo.e2e2@t1.test" });
+  await expect(nova).toContainText("Nome e E-mail");
+  await expect(page.getByRole("row").filter({ hasText: "antigo.e2e@t1.test" })).toHaveCount(0);
+
+  // o e-mail novo entra com a MESMA senha; o antigo não entra mais
+  const context = await browser.newContext();
+  const vendor = await context.newPage();
+  await signInAs(vendor, "novo.e2e2@t1.test", "senhaInicial1");
+  await expect(vendor).toHaveURL(/\/auth\/trocar-senha$/);
+  const velho = await context.newPage();
+  await signInAs(velho, "antigo.e2e@t1.test", "senhaInicial1");
+  await expect(velho).toHaveURL(/\/auth\/login$/);
+  await context.close();
+});
+
 test("administradores não têm a ação Desativar; vendedores têm", async ({ page }) => {
   await goToUsuarios(page);
   for (const email of ["admin@t1.test", "admin2@t1.test"]) {
