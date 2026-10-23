@@ -7,6 +7,17 @@ import { createClient } from "@supabase/supabase-js";
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY não configurada no servidor.");
+  // Diz QUAL variável faltou: na Vercel, cada ambiente (Production/Preview) tem o seu conjunto, e a
+  // mensagem genérica mandava procurar a chave de serviço quando o que faltava era a URL.
+  const faltando = [
+    !url && "NEXT_PUBLIC_SUPABASE_URL",
+    !serviceKey && "SUPABASE_SERVICE_ROLE_KEY",
+  ].filter(Boolean);
+  if (!url || !serviceKey) {
+    throw new Error(
+      `${faltando.join(" e ")} não configurada(s) no servidor. ` +
+        "Na Vercel, confira o escopo do ambiente (Production/Preview) e refaça o deploy depois de cadastrar.",
+    );
+  }
   return createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 }
