@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import type { Company } from "@/lib/types"
 import { CompanyDashboard } from "./company-dashboard"
 import { ContractsView } from "./contracts-view"
+import { UsersView } from "./users/users-view"
 import { SettingsModal } from "./settings-modal"
 import { useTabWithQuery } from "@/hooks/use-queryTab"
 import { usePermissions } from "@/hooks/use-permissions"
@@ -99,6 +100,10 @@ export function DashboardLayout({ companies }: DashboardLayoutProps) {
 
                 <TabsContent value="contracts">
                   <ContractsView />
+                </TabsContent>
+
+                <TabsContent value="users">
+                  <UsersView companies={companies} />
                 </TabsContent>
               </>
             )}

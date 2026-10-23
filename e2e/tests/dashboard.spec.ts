@@ -77,7 +77,10 @@ test("mês sem vendas mostra os cartões zerados, exceto Custos Gerais", async (
 });
 
 // C-DASH-04: cartões por vendedor
-test("cartões por vendedor: só ativos aparecem, inativa (Elis) fica de fora", async ({ page }) => {
+// MUDANÇA INTENCIONAL (Fase 6, issue #13, Q10 — 08/10/2026): antes a inativa (Elis) ficava de
+// fora; agora o ADMIN vê o cartão dela com a etiqueta INATIVO (o vendedor continua sem ver).
+// Os números de todos os cartões e do total não mudam.
+test("cartões por vendedor: ativos e, para o admin, a inativa (Elis) com a etiqueta INATIVO", async ({ page }) => {
   await login(page);
   await selectOnlyMonth(page, "Setembro");
   const oracle = expected.companies.A.dashboard["2026-09"].porVendedor;
@@ -87,7 +90,9 @@ test("cartões por vendedor: só ativos aparecem, inativa (Elis) fica de fora", 
   await expect(cardTitleLocator(page, "Carla")).toBeVisible();
   await expect(cardTitleLocator(page, "Diego")).toBeVisible();
   await expect(cardTitleLocator(page, "Site")).toBeVisible();
-  await expect(cardTitleLocator(page, "Elis")).toHaveCount(0);
+  await expect(cardTitleLocator(page, "Elis")).toBeVisible();
+  await expect(cardTitleLocator(page, "Elis")).toContainText("INATIVO");
+  await expect(cardTitleLocator(page, "Ana")).not.toContainText("INATIVO");
 
   // Diego (ativo, sem vendas) mostra "Sem comissão no período"
   await expect(cardTitleLocator(page, "Diego")).toContainText("Sem comissão no período");

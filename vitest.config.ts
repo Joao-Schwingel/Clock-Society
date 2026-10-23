@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["**/*.test.ts"],
+    include: ["**/*.test.ts", "**/*.test.mjs"],
     exclude: ["node_modules/**", ".next/**", "e2e/**"],
     setupFiles: ["./vitest.setup.ts"],
     env: {

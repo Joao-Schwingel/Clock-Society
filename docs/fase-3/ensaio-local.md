@@ -5,6 +5,15 @@
 > O backup em `backups/` tem dados reais e hashes de senha: fica só na sua máquina (está no
 > `.gitignore`) e o banco local é apagado no fim (passo 9).
 
+> **Atalho para os passos 1 a 3:** `pnpm db:clone` cuida da CLI, do `supabase start`, do dump de
+> produção (só leitura) e da restauração num comando — serve em máquinas sem `psql`/`pg_dump`
+> instalados, porque usa os binários de dentro do container. Veja
+> [`scripts/local/README.md`](../../scripts/local/README.md).
+>
+> O passo 3 abaixo supõe `backups/schema.sql` e `backups/data.sql`, mas o
+> [`scripts/backup.sh`](../../scripts/backup.sh) gera dumps em **formato custom**, que se restauram
+> com `pg_restore` — é o que o `pnpm db:clone` faz.
+
 Resultado esperado: o checklist [`fase-2-checklist-banco-admin.md`](../manual-checklists/fase-2-checklist-banco-admin.md)
 preenchido e o [runbook](runbook.md) ensaiado de ponta a ponta com os dados reais.
 

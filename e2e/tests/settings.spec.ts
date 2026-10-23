@@ -6,28 +6,44 @@ async function openConfiguracoes(page: import("@playwright/test").Page) {
 }
 
 // C-SET-01
-test("lista os vendedores de todas as empresas do usuário", async ({ page }) => {
+test("lista as pessoas do inquilino, uma linha por pessoa (022)", async ({ page }) => {
   await openConfiguracoes(page);
-  // 6 em Clock Society + 2 em The Secret + 1 em Morfeus = 9 (não inclui o
-  // vendedor "Site" de comp-x, que é de outro usuário/inquilino)
-  await expect(page.locator("tbody tr")).toHaveCount(9);
-  await expect(page.getByRole("row").filter({ hasText: "Carla" })).toHaveCount(2); // A e B
+  // 022: um cadastro por PESSOA, não por (pessoa, empresa). Site, Ana, Bruno, Carla, Diego e
+  // Elis = 6 (não inclui o "Site" de comp-x, que é de outro inquilino).
+  await expect(page.locator("tbody tr")).toHaveCount(6);
+  // a Carla, que antes eram dois cadastros, agora é um só com as duas empresas na mesma linha
+  const carla = page.getByRole("row").filter({ hasText: "Carla" });
+  await expect(carla).toHaveCount(1);
+  await expect(carla).toContainText("Clock Society");
+  await expect(carla).toContainText("The Secret");
 });
 
-test("criar vendedor grava sempre 0% de comissão (achado 10)", async ({ page, request }) => {
+test("criar pessoa com acesso a duas empresas de uma vez (022)", async ({ page, request }) => {
   await openConfiguracoes(page);
   await page.getByRole("tab", { name: "Adicionar Vendedor" }).click();
 
   await page.getByLabel("Nome do Vendedor *").fill("Vendedor Novo");
-  await page.getByLabel("Empresa *").click();
-  await page.getByRole("option", { name: "Clock Society" }).click();
+  // sem nenhuma empresa marcada não dá para salvar: a pessoa ficaria invisível
+  await expect(page.getByRole("button", { name: "Adicionar", exact: true })).toBeDisabled();
+
+  await page.getByRole("checkbox", { name: "Clock Society" }).click();
+  await page.getByRole("checkbox", { name: "The Secret" }).click();
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
 
-  await expect(page.getByRole("row").filter({ hasText: "Vendedor Novo" })).toBeVisible();
+  const linha = page.getByRole("row").filter({ hasText: "Vendedor Novo" });
+  await expect(linha).toBeVisible();
+  await expect(linha).toContainText("Clock Society");
+  await expect(linha).toContainText("The Secret");
 
-  const check = await request.get(`${MOCK_URL}/rest/v1/salespersons?name=eq.Vendedor Novo`);
-  const [sp] = await check.json();
-  expect(sp.commission_percentage).toBe(0);
+  // um cadastro só, com dois acessos
+  const pessoas = await (await request.get(`${MOCK_URL}/rest/v1/salespersons?name=eq.Vendedor Novo`)).json();
+  expect(pessoas).toHaveLength(1);
+  const acessos = await (
+    await request.get(`${MOCK_URL}/rest/v1/salesperson_companies?salesperson_id=eq.${pessoas[0].id}`)
+  ).json();
+  expect(acessos).toHaveLength(2);
+  // o percentual não mora mais no cadastro: ele é digitado na venda
+  expect(pessoas[0].commission_percentage).toBeUndefined();
 });
 
 test("editar vendedor e ativar/inativar", async ({ page, request }) => {

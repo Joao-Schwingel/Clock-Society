@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { test, expect, login, formatBRL, cardByTitle } from "../test-helpers";
 import expected from "../fixtures/expected-numbers.json";
 
@@ -80,4 +82,32 @@ test("excluir item pede confirmação (dialog nativo)", async ({ page }) => {
 
   await expect(page.getByRole("row").filter({ hasText: "Squeeze" })).toHaveCount(0);
   await expect(page.locator("tbody tr")).toHaveCount(1);
+});
+
+// C-INV-06 — exportação do estoque (espelha a de vendas, C-SALES-11)
+test("exportar o estoque baixa um CSV com os itens da tela", async ({ page }) => {
+  await goToEstoque(page);
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Exportar" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/^estoque-\d{4}-\d{2}-\d{2}\.csv$/);
+});
+
+test("exportar o estoque respeita o filtro de busca", async ({ page }) => {
+  await goToEstoque(page);
+  await page.getByPlaceholder("Buscar por produto...").fill("Caneca");
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Exportar" }).click(),
+  ]);
+  const conteudo = readFileSync(await download.path(), "utf8").replace(/^﻿/, "");
+  const linhas = conteudo.split("\n");
+
+  expect(linhas[0]).toContain("Produto,Localização,Quantidade");
+  // só os itens que casam com a busca entram
+  expect(linhas.length).toBeGreaterThan(1);
+  for (const linha of linhas.slice(1)) expect(linha).toContain("Caneca");
 });

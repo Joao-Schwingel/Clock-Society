@@ -1,0 +1,4 @@
+﻿Data,Nº Pedido,Produtos,Cliente,Vendedor,Status,Quantidade,Valor do Produto,Custo Total,Valor Líquido,Valor Líquido após Comissão,Entrada,Faltante,Status Pagamento
+25/09/2026,1011,Camiseta Preta,Fernanda Dias,Bruno,Concluída,1,"220,00","0,00","220,00","202,40","220,00","0,00",Pago
+10/03/2026,1008,Camiseta Preta,Cliente Março,Ana,Concluída,1,"130,00","0,00","130,00","117,00","130,00","0,00",Pago
+30/09/2026,1002,Camiseta Preta,João Pereira,Bruno,Concluída,1,"150,00","20,00","130,00","119,60","150,00","0,00",Pago
