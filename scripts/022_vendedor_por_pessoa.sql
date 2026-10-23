@@ -51,6 +51,14 @@ create table if not exists public.salespersons_merge_map (
   merged_at timestamptz not null default now()
 );
 
+-- Ninguém do app encosta neste mapa: só o rollback, que roda como superusuário. Sem isto ele nasce
+-- com os privilégios padrão do Supabase (`authenticated` com select/insert/update/delete) e sem RLS
+-- — um vendedor leria os nomes e percentuais antigos de TODOS os inquilinos, e poderia apagar o
+-- insumo do rollback. O linter do SQL Editor acusa isto; a correção mora aqui, não num botão do
+-- painel (regra "schema só por migration").
+alter table public.salespersons_merge_map enable row level security;
+revoke all on public.salespersons_merge_map from anon, authenticated;
+
 -- -------------------------------------------------- 2. acessos a partir do que existe hoje
 insert into public.salesperson_companies (salesperson_id, company_id, is_active)
 select sp.id, sp.company_id, sp.is_active
@@ -58,6 +66,9 @@ select sp.id, sp.company_id, sp.is_active
 on conflict (salesperson_id, company_id) do nothing;
 
 -- ------------------------------------------- 3. quem sobrevive: o cadastro mais antigo do nome
+-- O linter do SQL Editor acusa "creates a table without enabling RLS" apontando `_fusao`: é FALSO
+-- POSITIVO. Tabela temporária vive em pg_temp_*, só a própria sessão a enxerga, e o `on commit
+-- drop` a apaga no fim desta transação. Siga com "Run without RLS".
 create temporary table _fusao on commit drop as
 with ordenado as (
   select

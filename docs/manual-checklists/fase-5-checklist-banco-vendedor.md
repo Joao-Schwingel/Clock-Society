@@ -11,13 +11,23 @@
 ## Antes de começar
 
 1. Mesmo ambiente do ensaio da Fase 3 (`docs/fase-3/ensaio-local.md`), com as migrations da Fase 3
-   aplicadas **e** as da Fase 6: `019_fix_missing_rls.sql` (a correção da #9), `020_vendor_policies.sql` e
-   `016_vendor_views.sql`.
+   aplicadas **e** as da Fase 6: `019_fix_missing_rls.sql` (a correção da #9), `020_vendor_policies.sql`,
+   `016_vendor_views.sql`, `021_fix_profile_trigger.sql` e `022_vendedor_por_pessoa.sql`.
 2. Rode o seed (`scripts/manual/fase-2/seed-usuarios.mjs`). Ele cria os logins `vend-*` e lista os
-   vínculos esperados; faça cada vínculo à mão, com o id real do registro de vendedor:
+   vínculos esperados; faça cada vínculo à mão, com o id real do registro de vendedor. Desde a `022`
+   o vínculo é **1:1, numa coluna da pessoa** (`profile_salespersons` não existe mais):
    ```sql
-   insert into public.profile_salespersons (profile_id, salesperson_id)
-   values ('<profile_id do seed>', '<id real em salespersons>');
+   update public.salespersons set profile_id = '<profile_id do seed>'
+    where id = '<id real em salespersons>';
+   ```
+   As empresas que a pessoa atende ficam em `salesperson_companies` — confira que cada vendedor do
+   checklist tem lá as empresas que ele deve ver:
+   ```sql
+   select sp.name, c.name, sc.is_active
+     from public.salesperson_companies sc
+     join public.salespersons sp on sp.id = sc.salesperson_id
+     join public.companies c on c.id = sc.company_id
+    order by 1, 2;
    ```
 3. Escolha uma **venda compartilhada** entre os vendedores ligados a `vend-a` e `vend-b` e anote o id
    (`VENDA_COMP`). Anote também as contagens esperadas para `vend-a`:
@@ -99,7 +109,8 @@ Dentro de `begin … rollback`, como `vend-a`:
 ### V-DB-15 — Vendedor não altera permissões
 
 - [ ] `update profiles set role = 'admin' where id = <próprio>` → negado
-- [ ] `insert`/`delete` em `profile_salespersons` e em `role_permissions` → negados
+- [ ] `update salespersons set profile_id = …` (o próprio vínculo), `insert`/`delete` em
+      `salesperson_companies` e em `role_permissions` → negados
 
 ### V-DB-16 — Vendedor sem vínculo
 

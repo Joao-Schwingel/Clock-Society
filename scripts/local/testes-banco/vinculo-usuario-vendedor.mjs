@@ -310,6 +310,15 @@ checar("M-21", "nova empresa: o 'Site' do inquilino ganha ACESSO, sem cadastro n
            left join public.salesperson_companies sc on sc.salesperson_id = sp.id
           where lower(sp.name) = 'site' group by sp.id, sp.user_id) t;`));
 
+// ====================================== 8b. o mapa de fusão não é do app (achado em 23/10/2026)
+// Tabela nova no `public` nasce com os privilégios padrão do Supabase — `authenticated` com
+// select/insert/update/delete — e sem RLS. Sem o revoke da 022, um vendedor leria nomes e
+// percentuais antigos de TODOS os inquilinos e poderia apagar o insumo do rollback.
+checar("M-27", "salespersons_merge_map: RLS ligado e sem privilégio para anon/authenticated",
+  sql(`select c.relrowsecurity::text from pg_class c where c.relname = 'salespersons_merge_map';`) === "true" &&
+  sql(`select count(*) from information_schema.role_table_grants
+        where table_name = 'salespersons_merge_map' and grantee in ('anon', 'authenticated');`) === "0");
+
 // ============================================================= 9. ensaio do rollback
 console.log("==> Ensaio do rollback da 022");
 const r = run(readFileSync(`${REPO_ROOT}scripts/rollback/022_vendedor_por_pessoa.down.sql`, "utf8"));
@@ -319,6 +328,23 @@ if (r.ok) {
     `select count(*) from public.salespersons where user_id = '${T1}' and lower(name) = 'carla';`) === "2");
   checar("M-24", "e os números voltam a bater com a foto original", foto(EMPRESA_A) === antesA,
     foto(EMPRESA_A) === antesA ? "" : `esperado:\n${antesA}\nobtido:\n${foto(EMPRESA_A)}`);
+
+  // M-25 e M-26 pegam o defeito achado no ensaio com o clone de produção (23/10/2026): o rollback
+  // devolvia o sobrevivente para a empresa de um duplicado, porque escolhia "o acesso mais antigo"
+  // e a 022 cria todos eles com o mesmo created_at. Dava dois cadastros do mesmo nome na mesma
+  // empresa, vendas apontando para vendedor de outra empresa, e a guarda (b) da 022 abortaria numa
+  // segunda aplicação. A foto de uma empresa só (M-24) não acusava.
+  const duplicados = sql(`select count(*) from (
+      select name, company_id from public.salespersons group by 1, 2 having count(*) > 1) d;`);
+  checar("M-25", "o rollback não deixa dois cadastros do mesmo nome na mesma empresa",
+    duplicados.trim() === "0", duplicados.trim() === "0" ? "" : `${duplicados.trim()} par(es) duplicado(s)`);
+
+  const cruzadas = sql(`select count(*) from public.sale_salespersons ss
+      join public.sales s on s.id = ss.sale_id
+      join public.salespersons sp on sp.id = ss.salesperson_id
+     where s.company_id <> sp.company_id;`);
+  checar("M-26", "e nenhuma venda fica com vendedor de outra empresa (guarda (b) da 022)",
+    cruzadas.trim() === "0", cruzadas.trim() === "0" ? "" : `${cruzadas.trim()} venda(s) cruzada(s)`);
 }
 
 // ------------------------------------------------------------------------------- relatório
