@@ -216,20 +216,29 @@ o host do homologação.
 | Criar usuário falha e o login some do Auth | perfil não nasceu; falta a `021` ou o `ensureProfile` | aplique a `021`; detalhes em [`fase-6/vinculo-login-vendedor.md`](fase-6/vinculo-login-vendedor.md) §3 |
 | Criar usuário pelo painel não cria perfil | gatilho `on_auth_user_created` não veio no dump (mora em `auth.users`, fora do `public`) | o `db:enviar-homolog` recria; ou aplique a `021` |
 | `already exists` ao aplicar migration | o banco já está naquele estado | pule a migration; nada ficou pela metade (são transacionais) |
+| "Potential issues detected" no SQL Editor | o linter avisa sobre `delete`/`drop` e tabela sem RLS | `Run without RLS` — o `Run and enable RLS` acrescenta SQL fora da migration ([runbook](fase-6/runbook.md)) |
 | `execvpe(/bin/bash) failed` | o `bash` do PATH no PowerShell é o do WSL | já resolvido: os scripts são Node, não shell |
+| `pg_dump: command not found` ao rodar `scripts/backup.sh` | não há cliente Postgres instalado na máquina | use `pnpm db:backup`, que roda o `pg_dump` de dentro do container |
 | Dump binário corrompido | `>` do PowerShell escreve em modo texto | use os scripts (`db:clone`, `db:enviar-homolog`), que tratam binário |
 | `Unable to acquire lock at .next\dev\lock` | `pnpm dev` e o `next dev` do Playwright disputam o `.next` | pare o `pnpm dev` antes de `pnpm test:e2e` |
 | Porta 3100/3101 ocupada no E2E | mock server órfão de uma execução anterior | mate o processo da porta e rode de novo |
 
 # Antes de aplicar em produção
 
-1. **Resetar a senha do Postgres**, se você não a tiver — sem ela não dá para rodar o
-   `scripts/backup.sh`, e **rollback não substitui backup**. Resetar não afeta o app (que usa
-   anon/service_role), só quem conecta direto no banco.
-2. Backup (`./scripts/backup.sh`) guardado fora do repositório.
+> Passo a passo completo da janela da Fase 6 — o que falta além das migrations, em que ordem, e o
+> retorno: [`fase-6/runbook.md`](fase-6/runbook.md).
+
+1. **Resetar a senha do Postgres**, se você não a tiver — sem ela não há backup, e **rollback não
+   substitui backup**. Resetar não afeta o app (que usa anon/service_role), só quem conecta direto
+   no banco.
+2. Backup guardado fora do repositório: `pnpm db:backup` (usa o `pg_dump` do container, só lê
+   produção). O `scripts/backup.sh` faz o mesmo, mas exige `pg_dump` no PATH — que no Windows não
+   existe.
 3. Retrato dos números antes.
 4. Janela com app e banco virando juntos, quando a migration quebra compatibilidade.
 5. Retorno: *redeploy* do deploy anterior na Vercel **primeiro**, depois o `.down.sql`, em ordem
    inversa. O app antigo precisa do schema antigo.
 
-O runbook detalhado da Fase 3 está em [`fase-3/runbook.md`](fase-3/runbook.md) e serve de modelo.
+E **não é só o banco**: o `main` ainda é anterior à Fase 3, então a janela publica o app das Fases 3,
+5 e 6 de uma vez, e a `022` é incompatível com o app que está no ar. O runbook da Fase 6 trata disso;
+o da Fase 3 ([`fase-3/runbook.md`](fase-3/runbook.md)) é o registro da janela anterior.
