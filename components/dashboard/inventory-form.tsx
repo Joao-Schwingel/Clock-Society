@@ -20,13 +20,12 @@ import type { InventoryItem } from "@/lib/types"
 
 interface InventoryFormProps {
   companyId: string
-  userId: string
   item: InventoryItem | null
   onSuccess: () => void
   onCancel: () => void
 }
 
-export function InventoryForm({ companyId, userId, item, onSuccess, onCancel }: InventoryFormProps) {
+export function InventoryForm({ companyId, item, onSuccess, onCancel }: InventoryFormProps) {
   const [productName, setProductName] = useState(item?.product_name || "")
   const [quantity, setQuantity] = useState(item?.quantity.toString() || "")
   const [unitCost, setUnitCost] = useState(item?.unit_cost.toString() || "")
@@ -54,7 +53,6 @@ export function InventoryForm({ companyId, userId, item, onSuccess, onCancel }: 
       location: location || null,
       last_updated: lastUpdated,
       notes: notes || null,
-      user_id: userId,
     }
 
     try {

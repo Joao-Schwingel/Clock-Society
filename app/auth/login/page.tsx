@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { homeForRole } from "@/lib/auth/route-guard"
+import { claimsFromJwt } from "@/lib/auth/session"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -24,15 +26,20 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       if (error) {
         setIsLoading(false)
+        // Usuário desativado: o login fica bloqueado no Auth (decisão 3.7, V-MW-04).
+        if (error.code === "user_banned") throw new Error("Usuário desativado. Fale com o administrador.")
         throw error
       }
-      router.replace("/dashboard")
+      // Destino por papel, a partir das claims do token (A-MW-05). Token sem papel → /403; o
+      // middleware ainda tenta renovar a sessão uma vez antes de negar (A-MW-06).
+      const { data: claimsData } = await supabase.auth.getClaims(data.session?.access_token)
+      router.replace(homeForRole(claimsFromJwt(claimsData?.claims).appRole))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Ocorreu um erro")
     }

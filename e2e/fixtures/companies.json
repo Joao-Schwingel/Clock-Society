@@ -1,0 +1,6 @@
+[
+  { "id": "comp-a", "name": "Clock Society", "code": "A", "user_id": "u-admin", "created_at": "2026-01-01T10:00:00.000Z" },
+  { "id": "comp-b", "name": "The Secret", "code": "B", "user_id": "u-admin", "created_at": "2026-01-01T10:00:01.000Z" },
+  { "id": "comp-c", "name": "Morfeus", "code": "C", "user_id": "u-admin", "created_at": "2026-01-01T10:00:02.000Z" },
+  { "id": "comp-x", "name": "Empresa X", "code": "X", "user_id": "u-outro", "created_at": "2026-01-01T10:00:03.000Z" }
+]

@@ -1,34 +1,26 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { SessionProvider } from "@/lib/auth/session-provider"
+import { sessionFromJwt } from "@/lib/auth/session"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  if (error || !user) {
+  // Papel e inquilino vêm das claims do token (§3.3) — getUser() não as enxerga (N10).
+  const { data, error } = await supabase.auth.getClaims()
+  if (error || !data?.claims) {
     redirect("/auth/login")
   }
+  const session = sessionFromJwt(data.claims)
 
-  // Fetch user's companies
-  const { data: companies } = await supabase.from("companies").select("*").eq("user_id", user.id).order("code")
+  // Sem filtro pelo id do usuário logado (N3, A-BOOT-02): o RLS devolve as empresas do inquilino.
+  // Sem empresas, o layout mostra o estado vazio — nada é criado (N4, A-BOOT-01).
+  const { data: companies } = await supabase.from("companies").select("*").order("code")
 
-  // If no companies exist, create the default three companies
-  if (!companies || companies.length === 0) {
-    await supabase.from("companies").insert([
-      { name: "Clock Society", code: "A", user_id: user.id },
-      { name: "The Secret", code: "B", user_id: user.id },
-      { name: "Morfeus", code: "C", user_id: user.id },
-    ])
-
-    // Refetch companies
-    const { data: newCompanies } = await supabase.from("companies").select("*").eq("user_id", user.id).order("code")
-
-    return <DashboardLayout companies={newCompanies!} user={user} />
-  }
-
-  return <DashboardLayout companies={companies} user={user} />
+  return (
+    <SessionProvider session={session}>
+      <DashboardLayout companies={companies ?? []} />
+    </SessionProvider>
+  )
 }

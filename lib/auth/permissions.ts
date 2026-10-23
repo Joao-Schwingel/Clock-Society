@@ -1,0 +1,44 @@
+// Catálogo de permissões — espelha public.role_permissions (seed na migration 013).
+// A-PERM-01 compara este arquivo com o SQL; alterar um sem o outro quebra o teste.
+// Spec: specs/release-2/fase-2-casos-de-teste-admin.md §3.1.
+
+export const PERMISSIONS = [
+  "dashboard.overview",
+  "commissions.view",
+  "sales.view",
+  "sales.view_costs",
+  "sales.write",
+  "sales.export",
+  "inventory.view",
+  "inventory.write",
+  "fixed_costs.manage",
+  "contracts.manage",
+  "salespersons.manage",
+  // Fase 6 (6.7): gestão de usuários — só admin (seed na migration 020)
+  "users.manage",
+] as const
+
+export type Permission = (typeof PERMISSIONS)[number]
+
+export const APP_ROLES = ["admin", "vendedor"] as const
+export type AppRole = (typeof APP_ROLES)[number]
+
+// Vendedor (Fase 6, migration 020): Vendas, Comissões e Estoque, só leitura. Sem sales.export
+// enquanto a Q4 (#13) não for respondida — padrão do planejamento.
+export const ROLE_PERMISSIONS: Record<AppRole, readonly Permission[]> = {
+  admin: PERMISSIONS,
+  vendedor: ["sales.view", "commissions.view", "inventory.view"],
+}
+
+function isAppRole(role: string): role is AppRole {
+  return (APP_ROLES as readonly string[]).includes(role)
+}
+
+export function permissionsForRole(role: string | null | undefined): Permission[] {
+  if (!role || !isAppRole(role)) return []
+  return [...ROLE_PERMISSIONS[role]]
+}
+
+export function hasPermission(permissions: readonly Permission[], permission: Permission): boolean {
+  return permissions.includes(permission)
+}

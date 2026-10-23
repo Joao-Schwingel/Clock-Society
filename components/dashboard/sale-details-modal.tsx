@@ -39,6 +39,11 @@ interface SaleDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onChanged: () => void;
+  /**
+   * Vendedor (Fase 6, fatia 6.8; #13, 3.9): só leitura — sem adicionar/excluir custo. Os custos vêm
+   * de sale_costs (o vendedor lê os das vendas em que consta), não de sales_with_details (só admin).
+   */
+  readOnly?: boolean;
 }
 
 export function SaleDetailsModal({
@@ -46,6 +51,7 @@ export function SaleDetailsModal({
   isOpen,
   onClose,
   onChanged,
+  readOnly = false,
 }: SaleDetailsModalProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [saleData, setSaleData] = useState<SaleWithDetails>(sale);
@@ -61,6 +67,29 @@ export function SaleDetailsModal({
     void loadSaleItems(sale.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sale.id]);
+
+  // Vendedor: a linha da vendor_sales não traz custos; busca em sale_costs (RLS: só das próprias vendas).
+  useEffect(() => {
+    if (!readOnly) return;
+    let cancelled = false;
+    createClient()
+      .from("sale_costs")
+      .select("id, sale_id, cost_type, description, amount, created_at")
+      .eq("sale_id", sale.id)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const loaded = data as SaleCost[];
+        setSaleData((prev) => ({
+          ...prev,
+          costs: loaded,
+          total_costs: loaded.reduce((sum, c) => sum + Number(c.amount), 0),
+        }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [readOnly, sale.id]);
 
   const loadSaleItems = async (saleId: string) => {
     const supabase = createClient();
@@ -312,10 +341,12 @@ export function SaleDetailsModal({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Custos</CardTitle>
-                <Button size="sm" onClick={() => setIsFormOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Custo
-                </Button>
+                {!readOnly && (
+                  <Button size="sm" onClick={() => setIsFormOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Custo
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="overflow-x-auto w-full">
@@ -334,7 +365,7 @@ export function SaleDetailsModal({
                       <TableHead className="w-[10%]">Tipo</TableHead>
                       <TableHead className="w-[60%]">Descrição</TableHead>
                       <TableHead className="w-[15%]">Valor</TableHead>
-                      <TableHead className="w-[15%]">Ações</TableHead>
+                      {!readOnly && <TableHead className="w-[15%]">Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -345,16 +376,18 @@ export function SaleDetailsModal({
                         </TableCell>
                         <TableCell className="truncate" title={cost.description ?? "Sem Descrição"}>{cost.description || "-"}</TableCell>
                         <TableCell>R$ {money(Number(cost.amount))}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteCost(cost.id)}
-                            aria-label="Excluir custo"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
+                        {!readOnly && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteCost(cost.id)}
+                              aria-label="Excluir custo"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

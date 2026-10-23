@@ -1,0 +1,5 @@
+[
+  { "id": "inv-a-1", "company_id": "comp-a", "product_name": "Caneca Azul", "quantity": 50, "unit_cost": 20, "total_value": 1000, "location": "Depósito A", "last_updated": "2026-09-01", "notes": null, "user_id": "u-admin", "created_at": "2026-01-01T10:00:00.000Z" },
+  { "id": "inv-a-2", "company_id": "comp-a", "product_name": "Squeeze", "quantity": 30, "unit_cost": 15, "total_value": 450, "location": null, "last_updated": "2026-09-01", "notes": "Sem localização definida", "user_id": "u-admin", "created_at": "2026-01-01T10:00:01.000Z" },
+  { "id": "inv-b-1", "company_id": "comp-b", "product_name": "Vela Aromática", "quantity": 20, "unit_cost": 25, "total_value": 500, "location": "Prateleira 1", "last_updated": "2026-09-01", "notes": null, "user_id": "u-admin", "created_at": "2026-01-01T10:00:02.000Z" }
+]

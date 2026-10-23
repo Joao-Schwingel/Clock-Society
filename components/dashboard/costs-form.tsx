@@ -21,7 +21,6 @@ import type { Cost } from "@/lib/types"
 
 interface CostsFormProps {
   companyId: string
-  userId: string
   cost: Cost | null
   onSuccess: () => void
   onCancel: () => void
@@ -53,7 +52,7 @@ const PAYMENT_METHODS = [
   "Cheque",
 ]
 
-export function CostsForm({ companyId, userId, cost, onSuccess, onCancel }: CostsFormProps) {
+export function CostsForm({ companyId, cost, onSuccess, onCancel }: CostsFormProps) {
   const [category, setCategory] = useState(cost?.category || "")
   const [description, setDescription] = useState(cost?.description || "")
   const [amount, setAmount] = useState(cost?.amount.toString() || "")
@@ -78,7 +77,6 @@ export function CostsForm({ companyId, userId, cost, onSuccess, onCancel }: Cost
       cost_date: costDate,
       payment_method: paymentMethod || null,
       notes: notes || null,
-      user_id: userId,
     }
 
     try {

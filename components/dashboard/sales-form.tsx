@@ -25,10 +25,10 @@ import { createClient } from "@/lib/supabase/client";
 import type { Salesperson, SaleWithDetails } from "@/lib/types";
 import { DatePickerBR } from "./date-picker-br";
 import { toast } from "sonner";
+import { computeAutoPaymentStatus, computeSalePayment } from "@/lib/calc/sale-payment";
 
 interface SalesFormProps {
   companyId: string;
-  userId: string;
   sale: SaleWithDetails | null;
   onSuccess: () => void;
   onCancel: () => void;
@@ -77,7 +77,6 @@ type SaleItemRow = {
 
 export function SalesForm({
   companyId,
-  userId,
   sale,
   onSuccess,
   onCancel,
@@ -112,7 +111,7 @@ export function SalesForm({
   const [sellers, setSellers] = useState<SellerInput[]>(
     sale?.salespersons?.map((sp) => ({
       salespersonId: sp.id,
-      commission: sp.commission_percent,
+      commission: sp.commission_percent ?? 0, // nunca nulo para o admin (sales_with_details)
     })) ?? [
       {
         salespersonId: "",
@@ -138,7 +137,7 @@ export function SalesForm({
   useEffect(() => {
     void loadSalespersons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, userId]);
+  }, [companyId]);
 
   useEffect(() => {
     void loadSaleItems();
@@ -147,11 +146,25 @@ export function SalesForm({
 
   const loadSalespersons = async () => {
     const supabase = createClient();
+    // 022: quem atende a empresa vem dos acessos (salesperson_companies), não de company_id
+    const { data: acessos, error: acessosError } = await supabase
+      .from("salesperson_companies")
+      .select("salesperson_id")
+      .eq("company_id", companyId)
+      .eq("is_active", true);
+
+    if (acessosError) return;
+
+    const ids = (acessos ?? []).map((a) => a.salesperson_id as string);
+    if (ids.length === 0) {
+      setSalespersons([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("salespersons")
       .select("*")
-      .eq("company_id", companyId)
-      .eq("user_id", userId)
+      .in("id", ids)
       .eq("is_active", true)
       .order("name");
 
@@ -206,35 +219,14 @@ export function SalesForm({
 
   // const totalPrice = useMemo(() => itemsTotal.toFixed(2), [itemsTotal]);
 
-  const parsedEntryValue = useMemo(() => {
-    const v = entryValue.trim();
-    if (v === "" || v === "0") return 0;
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  }, [entryValue]);
-
-  const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(() => {
-    const parsedTotal = totalPrice || 0;
-
-    const cash = parsedEntryValue === 0;
-    const effectiveEntry = cash ? parsedTotal : parsedEntryValue;
-
-    return {
-      isCashPayment: cash,
-      effectiveEntryValue: effectiveEntry,
-      remainingValue: Math.max(
-        0,
-        Number(parsedTotal) - Number(effectiveEntry),
-      ).toFixed(2),
-    };
-  }, [parsedEntryValue, totalPrice]);
+  const { isCashPayment, effectiveEntryValue, remainingValue } = useMemo(
+    () => computeSalePayment(totalPrice, entryValue),
+    [entryValue, totalPrice],
+  );
 
   useEffect(() => {
-    if (isCashPayment) {
-      if (paymentStatus !== "pago") setPaymentStatus("pago");
-    } else {
-      if (!sale && paymentStatus !== "pendente") setPaymentStatus("pendente");
-    }
+    const next = computeAutoPaymentStatus(isCashPayment, !!sale, paymentStatus);
+    if (next !== paymentStatus) setPaymentStatus(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCashPayment]);
 
@@ -309,7 +301,6 @@ export function SalesForm({
 
       const saleHeader = {
         company_id: companyId,
-        user_id: userId,
         order_number: normalizeOrderNumber(orderNumber),
 
         product_name: first?.product_name ?? "",

@@ -1,3 +1,9 @@
+-- ⚠️ NÃO REAPLICAR. Este script NÃO reflete produção (baseline de 28/09/2026, backups/schema.sql):
+-- a tabela sale_items existe, mas o gatilho recalc_sale_total e as triggers sale_items_recalc_total_*
+-- NÃO existem em produção — o total_price digitado no formulário é o que fica salvo (N1 / C-DB-06).
+-- Para montar um banco igual ao de produção, use scripts/011_reconcile_schema.sql, que cria
+-- sale_items sem o gatilho. Mantido só como histórico.
+
 create table if not exists public.sale_items (
   id uuid primary key default gen_random_uuid(),
   sale_id uuid not null references public.sales(id) on delete cascade,

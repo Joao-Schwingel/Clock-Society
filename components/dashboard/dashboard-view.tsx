@@ -20,44 +20,25 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@radix-ui/themes";
 import { DashboardFilters } from "./dashboards-filters";
+import { sumFixedCostsForPeriod } from "@/lib/calc/dashboard";
+import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
+import { totalCommission } from "@/lib/calc/commissions";
+import { useCommissionSummary } from "@/hooks/use-commission-summary";
+import { CommissionsBySalesperson } from "./commissions-by-salesperson";
 
 interface DashboardViewProps {
   companyId: string;
-  userId: string;
 }
 
-type SalespersonEntry = {
-  id: string;
-  name: string;
-  commission_percent: number;
-};
-
-// Linha de `sales_with_details`: uma por venda, com o custo já somado no banco.
-type SaleRow = {
-  id: string;
-  total_price: number;
-  total_costs: number;
-  salespersons: SalespersonEntry[];
-};
-
+// Linha de `sales_with_details`: uma por venda, com o custo já somado no banco. Os vendedores não
+// entram: desde a fatia 6.4 a comissão vem de commission_summary(), não do navegador.
 type SaleRawRow = {
   id: string;
   total_price: number | string | null;
   total_costs: number | string | null;
-  salespersons: SalespersonEntry[] | null;
 };
 
-type CommissionSummary = {
-  id: string;
-  name: string;
-  salesCount: number;
-  totalSales: number;
-  totalCosts: number;
-  netProfit: number;
-  totalCommission: number;
-};
-
-export function DashboardView({ companyId, userId }: DashboardViewProps) {
+export function DashboardView({ companyId }: DashboardViewProps) {
   const [months, setMonths] = useState<number[]>([]);
   const [year, setYear] = useState("2026");
   const [isLoading, setIsLoading] = useState(true);
@@ -66,15 +47,12 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
   const [totalSaleCosts, setTotalSaleCosts] = useState(0);
   const [netRevenue, setNetRevenue] = useState(0);
   const [totalFixedCosts, setTotalFixedCosts] = useState(0);
-  const [totalCommissions, setTotalCommissions] = useState(0);
-  const [netProfit, setNetProfit] = useState(0);
 
-  const [commissionSummaries, setCommissionSummaries] = useState<
-    CommissionSummary[]
-  >([]);
-  const [salePeople, setSalePeople] = useState<
-    { id: string; name: string }[]
-  >([]);
+  // Comissões por vendedor vêm de commission_summary() (Fase 6, fatia 6.4); o total soma todas as
+  // linhas, inclusive a do inativo (N12).
+  const { rows: commissionRows, isLoading: isLoadingCommissions } = useCommissionSummary(companyId, months, year);
+  const totalCommissions = totalCommission(commissionRows);
+  const netProfit = netRevenue - totalFixedCosts - totalCommissions;
 
   // Cada clique de mês dispara um loadData novo; só a resposta da requisição mais
   // recente pode atualizar a tela, senão uma resposta antiga sobrescreve a nova.
@@ -83,35 +61,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
   useEffect(() => {
     void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, userId, months, year]);
-
-  // Soma o valor de cada custo fixo nos meses selecionados do ano selecionado.
-  // Quando months=[] (sem filtro), considera todos os 12 meses do ano selecionado.
-  function sumFixedCostsForPeriod(
-    fixedCosts: { monthly_value: number; start_date: string; qtdmonths: number }[],
-  ): number {
-    const activeMonths =
-      months.length > 0 ? months : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-
-    let total = 0;
-    for (const cost of fixedCosts) {
-      // start_date vem como "YYYY-MM-DD" — parse sem conversão de timezone
-      const [sy, sm] = cost.start_date.split("-").map(Number);
-      const startYearMonth = sy * 12 + (sm - 1); // sm é 1-based
-      const endYearMonth = startYearMonth + cost.qtdmonths - 1;
-
-      for (const month of activeMonths) {
-        const filterYearMonth = Number(year) * 12 + month; // month é 0-based
-        if (
-          filterYearMonth >= startYearMonth &&
-          filterYearMonth <= endYearMonth
-        ) {
-          total += Number(cost.monthly_value);
-        }
-      }
-    }
-    return total;
-  }
+  }, [companyId, months, year]);
 
   const loadData = async () => {
     const currentRequest = ++requestId.current;
@@ -122,36 +72,18 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
 
     try {
       // ── Monta filtro de data ──────────────────────────────────
-      let dateOr: string | null = null;
-      if (months.length > 0) {
-        const ranges = months.map((m) => {
-          const start = new Date(Number(year), m, 1);
-          const end = new Date(Number(year), m + 1, 1);
-          return `and(sale_date.gte.${start.toISOString()},sale_date.lt.${end.toISOString()})`;
-        });
-        dateOr = ranges.join(",");
-      }
+      const dateOr = buildSaleDateRangeFilter(months, year);
 
       // ── Queries paralelas ─────────────────────────────────────
-      // Mesma view da aba Vendas (`sales_with_details`): o custo de cada venda já
-      // vem somado pelo banco em `total_costs`, então o Dashboard e a aba Vendas
-      // não têm como divergir. Antes o custo vinha de uma 2ª consulta em
-      // `sale_costs` (1 linha por custo), que o Supabase truncava em 1000 linhas.
-      const [
-        { data: salespersonsData, error: salespersonsError },
-        salesRaw,
-        { data: fixedCostsData, error: fixedCostsError },
-      ] = await Promise.all([
-        supabase
-          .from("salespersons")
-          .select("id, name")
-          .eq("company_id", companyId)
-          .eq("is_active", true)
-          .order("name"),
+      // Mesma view da aba Vendas (`sales_with_details`): o custo de cada venda já vem somado pelo
+      // banco em `total_costs`, então o Dashboard e a aba Vendas não têm como divergir. A paginação
+      // é necessária porque o PostgREST corta a resposta em 1000 linhas sem erro nem aviso.
+      // A lista de vendedores não é mais buscada aqui: as comissões vêm de commission_summary().
+      const [salesRaw, { data: fixedCostsData, error: fixedCostsError }] = await Promise.all([
         fetchAllRows<SaleRawRow>((from, to) => {
           let salesQ = supabase
             .from("sales_with_details")
-            .select("id, total_price, total_costs, salespersons")
+            .select("id, total_price, total_costs")
             .eq("company_id", companyId)
             .eq("status", "concluída");
 
@@ -162,23 +94,17 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
         supabase
           .from("fixed_costs")
           .select("monthly_value, start_date, qtdmonths")
-          .eq("company_id", companyId)
-          .eq("user_id", userId),
+          .eq("company_id", companyId),
       ]);
 
-      if (salespersonsError) throw salespersonsError;
       if (fixedCostsError) throw fixedCostsError;
 
       // Uma seleção de meses mais nova já disparou outro loadData: descarta este.
       if (isStale()) return;
 
-      setSalePeople(salespersonsData ?? []);
-
-      const sales: SaleRow[] = salesRaw.map((s) => ({
-        id: String(s.id),
+      const sales = salesRaw.map((s) => ({
         total_price: Number(s.total_price ?? 0),
         total_costs: Number(s.total_costs ?? 0),
-        salespersons: Array.isArray(s.salespersons) ? s.salespersons : [],
       }));
 
       // ── Totais ────────────────────────────────────────────────
@@ -186,45 +112,14 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
       const saleCostsTotal = sales.reduce((sum, s) => sum + s.total_costs, 0);
       const fixedCostsTotal = sumFixedCostsForPeriod(
         (fixedCostsData ?? []) as { monthly_value: number; start_date: string; qtdmonths: number }[],
+        months,
+        year,
       );
-
-      // ── Comissões por vendedor ────────────────────────────────
-      const commMap: Record<string, CommissionSummary> = {};
-
-      for (const sale of sales) {
-        const saleCost = sale.total_costs;
-        const saleNet = sale.total_price - saleCost;
-
-        for (const sp of sale.salespersons) {
-          if (!commMap[sp.id]) {
-            commMap[sp.id] = {
-              id: sp.id,
-              name: sp.name,
-              salesCount: 0,
-              totalSales: 0,
-              totalCosts: 0,
-              netProfit: 0,
-              totalCommission: 0,
-            };
-          }
-          commMap[sp.id].salesCount += 1;
-          commMap[sp.id].totalSales += sale.total_price;
-          commMap[sp.id].totalCosts += saleCost;
-          commMap[sp.id].netProfit += saleNet;
-          commMap[sp.id].totalCommission += (saleNet * Number(sp.commission_percent)) / 100;
-        }
-      }
-
-      const summaries = Object.values(commMap);
-      const totalComm = summaries.reduce((sum, s) => sum + s.totalCommission, 0);
 
       setTotalRevenue(revenue);
       setTotalSaleCosts(saleCostsTotal);
       setNetRevenue(revenue - saleCostsTotal);
       setTotalFixedCosts(fixedCostsTotal);
-      setTotalCommissions(totalComm);
-      setNetProfit(revenue - saleCostsTotal - fixedCostsTotal - totalComm);
-      setCommissionSummaries(summaries);
     } catch (err) {
       console.error("Erro ao carregar dashboard:", err);
       // Sem isso a tela continuaria mostrando os números do filtro anterior como se fossem atuais.
@@ -287,7 +182,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
           </Card>
         </Skeleton>
 
-        <Skeleton loading={isLoading}>
+        <Skeleton loading={isLoading || isLoadingCommissions}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Comissões</CardTitle>
@@ -342,7 +237,7 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
           </Card>
         </Skeleton>
 
-        <Skeleton loading={isLoading}>
+        <Skeleton loading={isLoading || isLoadingCommissions}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Lucro</CardTitle>
@@ -364,72 +259,8 @@ export function DashboardView({ companyId, userId }: DashboardViewProps) {
         </Skeleton>
       </div>
 
-      {/* ── Comissões por vendedor ────────────────────────────── */}
-      <div>
-        <h4 className="text-lg font-semibold mb-3">Comissões por Vendedor</h4>
-        <div className="grid gap-4 md:grid-cols-2">
-          {salePeople.length === 0 && !isLoading && (
-            <p className="text-muted-foreground col-span-2">
-              Nenhum vendedor ativo cadastrado.
-            </p>
-          )}
-          {salePeople.map((person) => {
-            const s = commissionSummaries.find((c) => c.id === person.id);
-            const totalSales = s?.totalSales ?? 0;
-            const totalCosts = s?.totalCosts ?? 0;
-            const personNet = s?.netProfit ?? 0;
-            const totalCommission = s?.totalCommission ?? 0;
-            const salesCount = s?.salesCount ?? 0;
-
-            return (
-              <Skeleton key={person.id} loading={isLoading}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{person.name}</CardTitle>
-                    <CardDescription>
-                      {salesCount} venda{salesCount !== 1 ? "s" : ""}{" "}
-                      concluída{salesCount !== 1 ? "s" : ""}
-                      {salesCount === 0 && " • Sem comissão no período"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Total de Vendas:
-                      </span>
-                      <span className="font-medium">R$ {fmt(totalSales)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Custos das Vendas:
-                      </span>
-                      <span className="font-medium text-orange-600">
-                        − R$ {fmt(totalCosts)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Lucro Líquido:
-                      </span>
-                      <span className="font-medium text-primary">
-                        R$ {fmt(personNet)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm border-t pt-2">
-                      <span className="text-muted-foreground">
-                        Comissão Total:
-                      </span>
-                      <span className="font-medium text-green-600">
-                        R$ {fmt(totalCommission)}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Skeleton>
-            );
-          })}
-        </div>
-      </div>
+      {/* ── Comissões por vendedor (componente compartilhado com a área do vendedor) ── */}
+      <CommissionsBySalesperson rows={commissionRows} isLoading={isLoading || isLoadingCommissions} />
     </div>
   );
 }

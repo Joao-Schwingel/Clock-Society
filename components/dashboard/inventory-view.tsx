@@ -17,11 +17,12 @@ import { InventoryTable } from "./inventory-table";
 import { Spinner } from "@radix-ui/themes";
 
 interface InventoryViewProps {
+  /** Vendedor (Fase 6, 4.6): só leitura — sem "Novo Item", sem ações e sem formulário. */
+  readOnly?: boolean;
   companyId: string;
-  userId: string;
 }
 
-export function InventoryView({ companyId, userId }: InventoryViewProps) {
+export function InventoryView({ companyId, readOnly = false }: InventoryViewProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -135,13 +136,15 @@ export function InventoryView({ companyId, userId }: InventoryViewProps) {
             <div>
               <CardTitle>Estoque</CardTitle>
               <CardDescription>
-                Gerencie o estoque desta empresa
+                {readOnly ? "Estoque desta empresa" : "Gerencie o estoque desta empresa"}
               </CardDescription>
             </div>
-            <Button onClick={handleAdd}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Item
-            </Button>
+            {!readOnly && (
+              <Button onClick={handleAdd}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Item
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -150,15 +153,15 @@ export function InventoryView({ companyId, userId }: InventoryViewProps) {
             onEdit={handleEdit}
             onDelete={handleDelete}
             isLoading={isLoading}
+            readOnly={readOnly}
           />
         </CardContent>
       </Card>
 
       {/* Inventory Form Modal */}
-      {isFormOpen && (
+      {!readOnly && isFormOpen && (
         <InventoryForm
           companyId={companyId}
-          userId={userId}
           item={editingItem}
           onSuccess={handleFormSuccess}
           onCancel={() => setIsFormOpen(false)}

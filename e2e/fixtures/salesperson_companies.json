@@ -1,0 +1,62 @@
+[
+  {
+    "salesperson_id": "sp-site-a",
+    "company_id": "comp-a",
+    "is_active": true,
+    "created_at": "2026-01-01T10:00:00.000Z"
+  },
+  {
+    "salesperson_id": "sp-ana-a",
+    "company_id": "comp-a",
+    "is_active": true,
+    "created_at": "2026-01-02T10:00:00.000Z"
+  },
+  {
+    "salesperson_id": "sp-bruno-a",
+    "company_id": "comp-a",
+    "is_active": true,
+    "created_at": "2026-01-03T10:00:00.000Z"
+  },
+  {
+    "salesperson_id": "sp-carla-a",
+    "company_id": "comp-a",
+    "is_active": true,
+    "created_at": "2026-01-04T10:00:00.000Z"
+  },
+  {
+    "salesperson_id": "sp-diego-a",
+    "company_id": "comp-a",
+    "is_active": true,
+    "created_at": "2026-01-05T10:00:00.000Z"
+  },
+  {
+    "salesperson_id": "sp-elis-a",
+    "company_id": "comp-a",
+    "is_active": false,
+    "created_at": "2026-01-06T10:00:00.000Z"
+  },
+  {
+    "salesperson_id": "sp-site-a",
+    "company_id": "comp-b",
+    "is_active": true,
+    "created_at": "2026-01-01T10:00:01.000Z"
+  },
+  {
+    "salesperson_id": "sp-carla-a",
+    "company_id": "comp-b",
+    "is_active": true,
+    "created_at": "2026-01-07T10:00:00.000Z"
+  },
+  {
+    "salesperson_id": "sp-site-a",
+    "company_id": "comp-c",
+    "is_active": true,
+    "created_at": "2026-01-01T10:00:02.000Z"
+  },
+  {
+    "salesperson_id": "sp-site-x",
+    "company_id": "comp-x",
+    "is_active": true,
+    "created_at": "2026-01-01T10:00:03.000Z"
+  }
+]

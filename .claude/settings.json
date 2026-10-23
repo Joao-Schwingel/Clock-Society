@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(*DROP TABLE*)",
+      "Bash(*drop table*)",
+      "Bash(*DROP DATABASE*)",
+      "Bash(*drop database*)",
+      "Bash(*DROP SCHEMA*)",
+      "Bash(*drop schema*)",
+      "Bash(*DROP VIEW*)",
+      "Bash(*drop view*)",
+      "Bash(*TRUNCATE TABLE*)",
+      "Bash(*truncate table*)",
+      "Bash(*TRUNCATE*)",
+      "Bash(*truncate*)",
+      "Bash(*DELETE FROM*)",
+      "Bash(*delete from*)",
+      "Bash(supabase db reset*)",
+      "Bash(supabase db push --force-reset*)",
+      "Bash(supabase projects delete*)",
+      "Bash(supabase migration repair*)",
+      "Bash(prisma migrate reset*)",
+      "Bash(prisma db push --force-reset*)",
+      "Bash(npx prisma migrate reset*)",
+      "Bash(npx prisma db push --force-reset*)",
+      "Bash(pnpm prisma migrate reset*)",
+      "Bash(pnpm exec prisma migrate reset*)",
+      "Bash(drizzle-kit drop*)",
+      "Bash(npx drizzle-kit drop*)",
+      "Bash(docker volume rm*)",
+      "Bash(docker volume prune*)",
+      "Bash(docker compose down -v*)",
+      "Bash(docker compose down --volumes*)",
+      "Bash(docker-compose down -v*)",
+      "Bash(docker-compose down --volumes*)"
+    ]
+  }
+}

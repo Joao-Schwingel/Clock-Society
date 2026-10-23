@@ -7,12 +7,12 @@ import type { Contract } from "@/lib/types"
 import { ContractsForm } from "./contracts-form"
 import { ContractsTable } from "./contracts-table"
 import { FileText, DollarSign, CalendarOff } from "lucide-react"
+import { summarizeContracts } from "@/lib/calc/contracts"
 
 interface ContractsViewProps {
-  userId: string
 }
 
-export function ContractsView({ userId }: ContractsViewProps) {
+export function ContractsView() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -21,7 +21,6 @@ export function ContractsView({ userId }: ContractsViewProps) {
     const { data, error } = await supabase
       .from("contracts")
       .select("*")
-      .eq("user_id", userId)
       .order("start_date", { ascending: false })
 
     if (!error && data) {
@@ -32,43 +31,15 @@ export function ContractsView({ userId }: ContractsViewProps) {
 
   useEffect(() => {
     fetchContracts()
-  }, [userId])
+  }, [])
 
   const today = new Date().toISOString().split("T")[0]
   const currentYear = new Date().getFullYear()
 
-  const activeContracts = contracts.filter(
-    (c) => !c.end_date || c.end_date >= today,
-  )
-
-  const totalMonthly = activeContracts.reduce(
-    (sum, c) => sum + Number(c.monthly_value),
-    0,
-  )
-
-  const activeCount = activeContracts.length
-
-  // Conta quantos meses do ano atual cada contrato está ativo usando índice ano*12+mês
-  function getActiveMonthsInYear(contract: Contract, year: number): number {
-    const [sy, sm] = contract.start_date.split("-").map(Number)
-    const startYM = sy * 12 + (sm - 1)
-
-    const endYM = contract.end_date
-      ? (() => { const [ey, em] = contract.end_date!.split("-").map(Number); return ey * 12 + (em - 1) })()
-      : Infinity
-
-    const yearStartYM = year * 12
-    const yearEndYM = year * 12 + 11
-
-    const effStart = Math.max(startYM, yearStartYM)
-    const effEnd = Math.min(endYM, yearEndYM)
-
-    return effStart > effEnd ? 0 : effEnd - effStart + 1
-  }
-
-  const totalAnnual = contracts.reduce(
-    (sum, c) => sum + Number(c.monthly_value) * getActiveMonthsInYear(c, currentYear),
-    0,
+  const { activeCount, totalMonthly, totalAnnual } = summarizeContracts(
+    contracts,
+    today,
+    currentYear,
   )
 
   const fmt = (v: number) =>
@@ -131,7 +102,7 @@ export function ContractsView({ userId }: ContractsViewProps) {
           <CardDescription>Cadastre um novo custo fixo mensal</CardDescription>
         </CardHeader>
         <CardContent>
-          <ContractsForm userId={userId} onSuccess={fetchContracts} />
+          <ContractsForm onSuccess={fetchContracts} />
         </CardContent>
       </Card>
 

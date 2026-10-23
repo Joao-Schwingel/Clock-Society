@@ -1,0 +1,7 @@
+[
+  { "id": "fc-1", "company_id": "comp-a", "user_id": "u-admin", "name": "Aluguel", "category": "Fixo", "monthly_value": 1000, "qtdmonths": 12, "start_date": "2026-01-01", "description": "Aluguel do galpão", "created_at": "2026-01-01T10:00:00.000Z", "updated_at": "2026-01-01T10:00:00.000Z" },
+  { "id": "fc-2", "company_id": "comp-a", "user_id": "u-admin", "name": "Internet", "category": "Fixo", "monthly_value": 150, "qtdmonths": 16, "start_date": "2025-10-01", "description": "Atravessa a virada do ano (out/2025 a jan/2027)", "created_at": "2025-10-01T10:00:00.000Z", "updated_at": "2025-10-01T10:00:00.000Z" },
+  { "id": "fc-3", "company_id": "comp-a", "user_id": "u-admin", "name": "Desconto Fornecedor", "category": "Variável", "monthly_value": -50, "qtdmonths": 12, "start_date": "2026-01-01", "description": "Valor negativo", "created_at": "2026-01-01T10:00:01.000Z", "updated_at": "2026-01-01T10:00:01.000Z" },
+  { "id": "fc-4", "company_id": "comp-a", "user_id": "u-admin", "name": "Contrato Antigo", "category": "Fixo", "monthly_value": 300, "qtdmonths": 6, "start_date": "2025-01-01", "description": "Encerrado antes do mês corrente (jan-jun/2025)", "created_at": "2025-01-01T10:00:00.000Z", "updated_at": "2025-01-01T10:00:00.000Z" },
+  { "id": "fc-5", "company_id": "comp-b", "user_id": "u-admin", "name": "Tráfego Pago", "category": "Variável", "monthly_value": 400, "qtdmonths": 12, "start_date": "2026-01-01", "description": null, "created_at": "2026-01-01T10:00:01.000Z", "updated_at": "2026-01-01T10:00:01.000Z" }
+]
