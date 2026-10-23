@@ -16,6 +16,7 @@
     "db:local:status": "supabase status",
     "db:local:parar": "supabase stop",
     "db:local:apagar": "supabase stop --no-backup",
+    "db:backup": "node scripts/local/backup-producao.mjs",
     "db:clone": "node scripts/local/clonar-producao.mjs",
     "db:sql": "node scripts/local/psql.mjs",
     "db:sql:homolog": "node scripts/local/psql-homolog.mjs",

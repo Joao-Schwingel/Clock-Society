@@ -94,16 +94,28 @@ for (const u of withoutProfile) {
   }
 }
 
-// Vínculos login ↔ vendedor (Fase 5 §4). Os ids de salespersons do fixture não existem num banco
+// Vínculos login ↔ vendedor (Fase 5 §4). Desde a migration 022 o vínculo é 1:1, numa coluna da
+// pessoa (`salespersons.profile_id`), e as empresas que ela atende ficam em `salesperson_companies`
+// — `profile_salespersons` não existe mais. Os ids de salespersons do fixture não existem num banco
 // real; quem executa o checklist liga cada login ao registro equivalente, à mão, pelo SQL Editor.
-const links = readFixture("profile_salespersons.json");
-const spNames = Object.fromEntries(readFixture("salespersons.json").map((sp) => [sp.id, `${sp.name} (${sp.company_id})`]));
-if (links.length > 0) {
+const salespersons = readFixture("salespersons.json");
+const acessos = readFixture("salesperson_companies.json");
+const empresasDe = (spId) =>
+  acessos
+    .filter((a) => a.salesperson_id === spId)
+    .map((a) => a.company_id)
+    .join(", ") || "nenhuma";
+
+const vinculados = salespersons.filter((sp) => sp.profile_id);
+if (vinculados.length > 0) {
   console.log("\nVínculos esperados (fazer à mão, com os ids reais de salespersons):");
-  for (const l of links) {
-    const email = users.find((u) => u.id === l.profile_id)?.email;
-    console.log(`  ${email} → ${spNames[l.salesperson_id] ?? l.salesperson_id}   (profile_id = ${realIds.get(l.profile_id)})`);
+  for (const sp of vinculados) {
+    const email = users.find((u) => u.id === sp.profile_id)?.email;
+    const profileId = realIds.get(sp.profile_id) ?? sp.profile_id;
+    console.log(`  ${email} → ${sp.name} [empresas: ${empresasDe(sp.id)}]   (profile_id = ${profileId})`);
+    console.log(`      update public.salespersons set profile_id = '${profileId}' where id = '<id real de ${sp.name}>';`);
   }
+  console.log("\n  Confira também os acessos da pessoa em public.salesperson_companies.");
 }
 
 console.log("\nPronto. Confira as claims com scripts/manual/fase-2/login-as.mjs <email>.");

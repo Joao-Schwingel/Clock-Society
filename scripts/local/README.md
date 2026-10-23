@@ -97,7 +97,9 @@ relatório de divergência, acerte a migration e recomece com `pnpm db:local:apa
 | `pnpm db:local:parar` | `supabase stop` — derruba os containers e **preserva** o banco |
 | `pnpm db:local:apagar` | `supabase stop --no-backup` — derruba e **apaga** o banco local |
 | `pnpm db:sql <arquivo\|-c SQL>` | Roda SQL no clone local |
-
+| `pnpm db:sql:homolog <arquivo\|-c SQL>` | Roda SQL no projeto de **homologação** (trava anti-produção) |
+| `pnpm db:enviar-homolog` | Envia o clone local para o projeto de homologação |
+| `pnpm db:backup` | **Backup de produção** (`pg_dump` do container, só leitura) + retrato, em `backups/` |
 | `pnpm db:test:vinculo` | Testes de banco do vínculo login ↔ vendedor (banco próprio, descartável) |
 
 Tudo em Node, nada em shell: no PowerShell o `bash` do PATH é o do WSL

@@ -326,14 +326,23 @@ SUPABASE_SERVICE_ROLE_KEY=${statusValue("SERVICE_ROLE_KEY")}
    Para voltar a produção, apague o .env.local. (Os testes E2E não são afetados: o
    playwright.config.ts define as três variáveis do mock server por conta própria.)
 
-2) Migrations da Fase 3/6 por cima do clone, na ordem. O clone nasce com o schema de produção
-   (001–011); estas são as que produção ainda não tem:
+2) O clone nasce com o schema das migrations 001–011. Produção está na FASE 3, então para o clone
+   ficar igual a ela, aplique estas cinco (o 018 recria o perfil do admin — profiles e
+   role_permissions não vêm nos dados, porque as tabelas ainda não existiam na carga):
   pnpm db:sql scripts/013_create_profiles.sql
   pnpm db:sql scripts/014_auth_helpers.sql
   pnpm db:sql scripts/015_rewrite_policies.sql
   pnpm db:sql scripts/017_indexes.sql
   pnpm db:sql scripts/018_backfill_admin.sql
+
+   A partir daqui o clone espelha produção. Para ENSAIAR a janela da Fase 6 (que produção ainda
+   não tem), aplique por cima, nesta ordem — não é a numérica:
+  pnpm db:sql scripts/019_fix_missing_rls.sql
   pnpm db:sql scripts/020_vendor_policies.sql
+  pnpm db:sql scripts/016_vendor_views.sql
+  pnpm db:sql scripts/021_fix_profile_trigger.sql
+  pnpm db:sql scripts/022_vendedor_por_pessoa.sql
+   Passo a passo com as conferências de cada uma: docs/fase-6/runbook.md
 
 3) Ao terminar, apague o clone — ele tem dados reais:
   pnpm db:local:apagar
