@@ -15,13 +15,25 @@ begin;
 alter table public.salespersons add column if not exists company_id uuid references public.companies(id) on delete cascade;
 alter table public.salespersons add column if not exists commission_percentage numeric(5,2) not null default 0;
 
--- O cadastro que sobreviveu fica com um dos seus acessos (o mais antigo).
+-- O cadastro que sobreviveu volta para a SUA empresa: entre os acessos dele, o único que NÃO está
+-- no mapa de fusão — o mapa guarda a empresa de cada cadastro que foi apagado, então o que sobra é
+-- o dele.
+--
+-- Não serve pegar "o acesso mais antigo": a 022 insere todos os acessos no mesmo comando, com o
+-- mesmo `created_at`, e o desempate por `company_id` (uuid) é arbitrário. Nos dados de produção isso
+-- devolvia 5 dos 7 sobreviventes para a empresa de um duplicado, criando dois cadastros do mesmo
+-- nome na mesma empresa e 397 vendas com vendedor de outra empresa (o que ainda faria a guarda (b)
+-- da 022 abortar numa segunda aplicação). Medido no ensaio com o clone de produção, 23/10/2026.
 update public.salespersons sp
    set company_id = v.company_id
   from (
-    select distinct on (salesperson_id) salesperson_id, company_id
-      from public.salesperson_companies
-     order by salesperson_id, created_at, company_id
+    select distinct on (sc.salesperson_id) sc.salesperson_id, sc.company_id
+      from public.salesperson_companies sc
+     order by sc.salesperson_id,
+              -- false (não está no mapa) vem primeiro
+              exists (select 1 from public.salespersons_merge_map m
+                       where m.kept_id = sc.salesperson_id and m.legacy_company_id = sc.company_id),
+              sc.created_at, sc.company_id
   ) v
  where sp.id = v.salesperson_id and sp.company_id is null;
 
