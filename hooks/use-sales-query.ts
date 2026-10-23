@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { SaleWithDetails } from "@/lib/types";
 import { buildSaleDateRangeFilter } from "@/lib/calc/date-filters";
 import { buildSalesCsvContent } from "@/lib/calc/sales-csv";
@@ -68,18 +70,44 @@ export function useSalesQuery({
   // ── Estado de exportação ─────────────────────────────────────
   const [isExporting, setIsExporting] = useState(false);
 
-  // ── Query de estatísticas (sem paginação) ──────────────────────
+  // Cada clique de mês (ou de página) dispara uma busca nova; só a resposta da requisição mais
+  // recente pode atualizar a tela, senão uma resposta antiga sobrescreve a nova.
+  const statsRequestId = useRef(0);
+  const tableRequestId = useRef(0);
+
+  // ── Query de estatísticas (todas as linhas, paginadas) ─────────
+  // Paginada porque o PostgREST corta qualquer resposta em 1000 linhas, sem erro nem aviso: sem
+  // isso os cards passam a mentir quando a empresa cruza esse volume (PR #15).
   const fetchSales = async () => {
+    const currentRequest = ++statsRequestId.current;
+    const isStale = () => currentRequest !== statsRequestId.current;
+
     setIsLoading(true);
     const supabase = createClient();
-    let query = supabase.from(source).select(statsSelect).eq("company_id", companyId);
-
     const dateOr = buildSaleDateRangeFilter(months, year);
-    if (dateOr) query = query.or(dateOr);
 
-    const { data, error } = await query;
-    if (!error && data) setSales(data as unknown as SaleWithDetails[]);
-    setIsLoading(false);
+    try {
+      const data = await fetchAllRows<SaleWithDetails>((from, to) => {
+        let query = supabase.from(source).select(statsSelect).eq("company_id", companyId);
+        if (dateOr) query = query.or(dateOr);
+        // `select()` com string montada em runtime faz o TS inferir GenericStringError[]; o shape
+        // real é o da view. Mesmo motivo do cast que já existe em setTableSales.
+        return query.order("id").range(from, to) as unknown as Promise<{
+          data: SaleWithDetails[] | null;
+          error: PostgrestError | null;
+        }>;
+      });
+
+      // Uma seleção de meses mais nova já disparou outro fetchSales: descarta este.
+      if (isStale()) return;
+      setSales(data);
+    } catch (err) {
+      console.error("Erro ao carregar as estatísticas de vendas:", err);
+      // Sem isso a tela continuaria mostrando os números do filtro anterior como se fossem atuais.
+      if (!isStale()) toast.error("Erro ao carregar as vendas. Tente novamente.", { position: "top-center" });
+    } finally {
+      if (!isStale()) setIsLoading(false);
+    }
   };
 
   // ── Carregar vendedores para o filtro ──────────────────────────
@@ -139,9 +167,18 @@ export function useSalesQuery({
     const from = tablePage * TABLE_PAGE_SIZE;
     const to = from + TABLE_PAGE_SIZE - 1;
 
+    const currentRequest = ++tableRequestId.current;
+    const isStale = () => currentRequest !== tableRequestId.current;
+
     const { data, count, error } = await query.order("order_number", { ascending: false }).range(from, to);
 
-    if (!error && data) {
+    // Uma página ou filtro mais novo já disparou outra busca: descarta esta resposta.
+    if (isStale()) return;
+
+    if (error) {
+      console.error("Erro ao carregar a tabela de vendas:", error);
+      toast.error("Erro ao carregar a tabela de vendas. Tente novamente.", { position: "top-center" });
+    } else if (data) {
       setTableSales(data as unknown as SaleWithDetails[]);
       setTableTotal(count ?? 0);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { toast } from "sonner";
 import {
   DollarSign,
   TrendingUp,
@@ -28,6 +30,14 @@ interface DashboardViewProps {
   companyId: string;
 }
 
+// Linha de `sales_with_details`: uma por venda, com o custo já somado no banco. Os vendedores não
+// entram: desde a fatia 6.4 a comissão vem de commission_summary(), não do navegador.
+type SaleRawRow = {
+  id: string;
+  total_price: number | string | null;
+  total_costs: number | string | null;
+};
+
 export function DashboardView({ companyId }: DashboardViewProps) {
   const [months, setMonths] = useState<number[]>([]);
   const [year, setYear] = useState("2026");
@@ -44,12 +54,19 @@ export function DashboardView({ companyId }: DashboardViewProps) {
   const totalCommissions = totalCommission(commissionRows);
   const netProfit = netRevenue - totalFixedCosts - totalCommissions;
 
+  // Cada clique de mês dispara um loadData novo; só a resposta da requisição mais
+  // recente pode atualizar a tela, senão uma resposta antiga sobrescreve a nova.
+  const requestId = useRef(0);
+
   useEffect(() => {
     void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, months, year]);
 
   const loadData = async () => {
+    const currentRequest = ++requestId.current;
+    const isStale = () => currentRequest !== requestId.current;
+
     setIsLoading(true);
     const supabase = createClient();
 
@@ -58,31 +75,41 @@ export function DashboardView({ companyId }: DashboardViewProps) {
       const dateOr = buildSaleDateRangeFilter(months, year);
 
       // ── Queries paralelas ─────────────────────────────────────
-      // Receita e custos das vendas vêm de sales_with_details (total_costs já agregado); o cálculo
-      // de comissões saiu do navegador para a RPC.
-      let salesQ = supabase
-        .from("sales_with_details")
-        .select("id, total_price, total_costs")
-        .eq("company_id", companyId)
-        .eq("status", "concluída");
+      // Mesma view da aba Vendas (`sales_with_details`): o custo de cada venda já vem somado pelo
+      // banco em `total_costs`, então o Dashboard e a aba Vendas não têm como divergir. A paginação
+      // é necessária porque o PostgREST corta a resposta em 1000 linhas sem erro nem aviso.
+      // A lista de vendedores não é mais buscada aqui: as comissões vêm de commission_summary().
+      const [salesRaw, { data: fixedCostsData, error: fixedCostsError }] = await Promise.all([
+        fetchAllRows<SaleRawRow>((from, to) => {
+          let salesQ = supabase
+            .from("sales_with_details")
+            .select("id, total_price, total_costs")
+            .eq("company_id", companyId)
+            .eq("status", "concluída");
 
-      if (dateOr) salesQ = salesQ.or(dateOr);
+          if (dateOr) salesQ = salesQ.or(dateOr);
 
-      const [{ data: salesRaw, error: salesError }, { data: fixedCostsData }] = await Promise.all([
-        salesQ,
+          return salesQ.order("id").range(from, to);
+        }),
         supabase
           .from("fixed_costs")
           .select("monthly_value, start_date, qtdmonths")
           .eq("company_id", companyId),
       ]);
 
-      if (salesError) throw salesError;
+      if (fixedCostsError) throw fixedCostsError;
 
-      const sales = (salesRaw ?? []) as { total_price: number; total_costs: number }[];
+      // Uma seleção de meses mais nova já disparou outro loadData: descarta este.
+      if (isStale()) return;
+
+      const sales = salesRaw.map((s) => ({
+        total_price: Number(s.total_price ?? 0),
+        total_costs: Number(s.total_costs ?? 0),
+      }));
 
       // ── Totais ────────────────────────────────────────────────
-      const revenue = sales.reduce((sum, s) => sum + Number(s.total_price ?? 0), 0);
-      const saleCostsTotal = sales.reduce((sum, s) => sum + Number(s.total_costs ?? 0), 0);
+      const revenue = sales.reduce((sum, s) => sum + s.total_price, 0);
+      const saleCostsTotal = sales.reduce((sum, s) => sum + s.total_costs, 0);
       const fixedCostsTotal = sumFixedCostsForPeriod(
         (fixedCostsData ?? []) as { monthly_value: number; start_date: string; qtdmonths: number }[],
         months,
@@ -95,8 +122,14 @@ export function DashboardView({ companyId }: DashboardViewProps) {
       setTotalFixedCosts(fixedCostsTotal);
     } catch (err) {
       console.error("Erro ao carregar dashboard:", err);
+      // Sem isso a tela continuaria mostrando os números do filtro anterior como se fossem atuais.
+      if (!isStale()) {
+        toast.error("Erro ao carregar o dashboard. Tente novamente.", {
+          position: "top-center",
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (!isStale()) setIsLoading(false);
     }
   };
 
